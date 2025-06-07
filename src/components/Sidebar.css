@@ -1,0 +1,3 @@
+.accordion-button::after {
+  display: none !important; /* 隐藏默认箭头 */
+}
