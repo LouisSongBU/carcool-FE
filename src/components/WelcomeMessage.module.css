@@ -1,7 +1,13 @@
-.welcome-message {
-    background-color: #2980b9;
-    color: white;
-    padding: 10px;
-    text-align: center;
-    font-size: 18px;
-  }
+.welcomeMessage {
+  background: linear-gradient(90deg, #78c1f3, #b9f8d3);
+  color: #144265;
+  font-size: 18px;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 8px 16px;
+  box-shadow: 0 2px 8px rgba(39,71,109,0.08);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

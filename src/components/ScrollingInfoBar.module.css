@@ -1,0 +1,38 @@
+.scrollingBarOuter {
+  width: 100%;
+  min-width: 0;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;   /* 横向滚动 */
+  overflow-y: hidden;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f8fafc 80%, #e0f7fa 100%);
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 1px 4px rgba(30,72,100,0.08);
+  padding: 0 14px;
+  /* 可以加 scrollbar 样式 */
+}
+
+.scrollingBarInner {
+  white-space: nowrap;     /* 横向内容不换行 */
+  font-size: 17px;
+  font-weight: 500;
+  color: #e76f51;
+  flex: 1 1 auto;
+  user-select: none;
+}
+
+.scrollingBarOuter::-webkit-scrollbar {
+  height: 6px;
+}
+.scrollingBarOuter::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg,#8ec5fc 20%,#e0c3fc 100%);
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(51,100,255,0.15);
+}
+.scrollingBarOuter::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 8px;
+}
+

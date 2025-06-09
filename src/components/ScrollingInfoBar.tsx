@@ -1,40 +1,44 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import styles from "./ScrollingInfoBar.module.css";
+
+const announcements = [
+  "公告1：欢迎使用车险代理查询系统。告1：欢迎使用车险代理查询系统。告1：欢迎使用车险代理查询系统。告1：欢迎使用车险代理查询系统。告1：欢迎使用车险代理查询系统。",
+  "公告2：系统今晚10点维护，请提前保存数据。",
+  "公告3：请及时补全客户信息以免理赔受阻，谢谢合作。",
+  "这是超长内容测试，这是超长内容测试，这是超长内容测试，这是超长内容测试，这是超长内容测试。"
+];
+
+const DURATION = 10000; // 每条显示10秒
 
 const ScrollingInfoBar: React.FC = () => {
-  // 公告内容数组
-  const announcements = [
-    "公告1: 欢迎使用车险代理查询系统。",
-    "公告2: 今日系统将进行例行维护。",
-    "公告3: 请注意保单的截止时间。",
-  ];
-
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const timerRef = useRef<number | null>(null);
 
+  // 切换内容
   useEffect(() => {
-    // 每3秒切换一次公告
-    const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % announcements.length);
-    }, 3000);
+    if (paused) return; // 暂停时不切换
+    timerRef.current = window.setTimeout(() => {
+      setCurrentIndex((prev) => (prev + 1) % announcements.length);
+    }, DURATION);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [currentIndex, paused]);
 
-    return () => clearInterval(interval);
-  }, [announcements.length]);
+  // 鼠标移入/移出
+  const handleMouseEnter = () => setPaused(true);
+  const handleMouseLeave = () => setPaused(false);
 
   return (
     <div
-      className="alert alert-primary d-flex align-items-center justify-content-center"
-      style={{
-        height: "50px",
-        marginBottom: "10px",
-        fontSize: "16px",
-        fontWeight: "bold",
-        transition: "opacity 0.5s ease-in-out",
-        textAlign: "center",
-        color: "red", // 设置字体颜色为红色
-        border: "1px solid #dee2e6", // 可选：增加边框
-        borderRadius: "5px", // 圆角效果
-      }}
+      className={styles.scrollingBarOuter}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      {announcements[currentIndex]}
+      <div className={styles.scrollingBarInner}>
+        <span>{announcements[currentIndex]}</span>
+      </div>
     </div>
   );
 };

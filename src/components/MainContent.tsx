@@ -1,6 +1,6 @@
 import React from 'react';
 import styles from './MainContent.module.css';
-import InsuranceCustomers from '../pages/InsuranceCustomers';
+import InsuranceCustomers from '../pages/InsuranceDetails';
 
 type MainContentProps = {
   currentPage: string;
@@ -20,7 +20,7 @@ const MainContent: React.FC<MainContentProps> = ({ currentPage }) => {
     }
   };
 
-  return <div className={styles['main-content']}>{renderPage()}</div>;
+  return <div className={styles.mainContent}>{renderPage()}</div>;
 };
 
 export default MainContent;

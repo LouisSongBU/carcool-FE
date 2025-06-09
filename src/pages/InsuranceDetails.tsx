@@ -410,8 +410,6 @@ const InsuranceCustomers: React.FC = () => {
 
   return (
     <div className="container mt-0" style={{ width: "100%", minWidth: "1200px" }}>
-      <h5 className="mt-0">车险客户</h5>
-
       <div className="row">
         <div className="col-md-4">
           <div className="card">

@@ -1,8 +1,5 @@
-.main-content {
-    display: flex;
-    width: 100%; /* 默认宽度为父容器的宽度 */
-    max-width: 1200px; /* 最大宽度 */
-    min-width: 800px; /* 最小宽度 */
-    margin: 0 auto; /* 居中 */
-    height: 100%;
-  }
+.mainContent {
+  margin-top: 5px;
+  width: 1200px;
+  flex: 1;
+}
