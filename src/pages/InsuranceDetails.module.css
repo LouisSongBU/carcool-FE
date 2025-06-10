@@ -1,0 +1,410 @@
+.queryFormCard {
+  background: #f8f9fb;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(50, 90, 200, 0.08);
+  border: 1px solid #e4ecfa;
+  padding: 14px 20px 10px 20px;
+  margin-bottom: 0px;
+  border: 1.5px solid #d1e4fc;
+}
+
+.queryForm {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.queryRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.queryLabel {
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 0;
+  min-width: 60px;
+  white-space: nowrap;
+}
+
+.queryInput {
+  width: 300px;
+  min-width: 20px;
+  font-size: 12px;
+  padding: 1px 2px;
+  border-radius: 6px;
+  border: 1px solid #d0dff5;
+  background: #fff;
+}
+
+.queryBtn {
+  margin-left: 16px;
+  min-width: 60px;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.filterBox {
+  background: #f7faff;
+  border-radius: 10px;
+  box-shadow: 0 2px 14px rgba(90, 140, 210, 0.10);
+  padding: 12px 16px;
+  margin-top: 10px;
+  border: 1.5px solid #d1e2f2;
+
+}
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+
+.filterSelect {
+  width: 150px;
+}
+
+.filterOperator {
+  width: 80px;
+}
+
+.filterInput {
+  width: 180px;
+}
+
+.filterBtn {
+  min-width: 52px;
+  padding: 4px 10px;
+}
+
+.queryResultTable {
+  width: 100%;
+  border-radius: 8px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  /* 小字体 */
+  background: #fafdff;
+  margin-top: 10px;
+}
+
+.queryResultTable th,
+.queryResultTable td {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  padding: 5px 7px;
+  font-size: 12px;
+  text-align: center;
+  border-bottom: 1px solid #eef3fc;
+  vertical-align: middle;
+}
+
+.queryResultTable th {
+  background: linear-gradient(90deg, #eaf1fd 0%, #f3f7fa 100%);
+  color: #2457a7;
+  font-weight: bold;
+  border-bottom: 2px solid #c7e2fa;
+}
+
+.queryResultTable td {
+  background: none;
+  color: #2a3344;
+  border-bottom: 1px solid #eef3fc;
+}
+
+.queryResultTable th.idCardCol,
+.queryResultTable td.idCardCol {
+  max-width: 200px;
+  min-width: 140px;
+  width: 32%;
+  text-align: left;
+}
+
+.queryResultTable th.idxCol,
+.queryResultTable td.idxCol {
+  width: 6%;
+}
+
+.queryResultTable th.nameCol,
+.queryResultTable td.nameCol {
+  width: 20%;
+}
+
+.queryResultTable th.plateCol,
+.queryResultTable td.plateCol {
+  width: 16%;
+}
+
+.queryResultTable tbody tr:hover {
+  background: #e5f1ff;
+  transition: background 0.18s;
+}
+
+.selectedRow {
+  background: linear-gradient(90deg, #d8eaff 0%, #f3f8fd 100%) !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.filterStatusGroup {
+  display: flex;
+  flex-direction: row;
+  gap: 18px;
+  margin-bottom: 0px;
+  margin-top: 2px;
+  align-items: center;
+}
+
+.statusItem {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 2px 6px;
+  background: #fcfcfc;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.form-check-input {
+  width: 16px;
+  height: 16px;
+  margin: 0 5px 0 0;
+  cursor: pointer;
+}
+
+.highlightYellow {
+  background-color: transparent !important;
+  border-color: #ffc107 !important;
+  box-shadow: 0 0 4px #ffc107 !important;
+}
+
+.highlightYellow:checked {
+  background-color: #ffc107 !important;
+  border-color: #ffc107 !important;
+  box-shadow: 0 0 4px #ffc107 !important;
+  position: relative;
+}
+
+.highlightGreen {
+  background-color: transparent !important;
+  border-color: #24bc46 !important;
+  box-shadow: 0 0 4px #24bc46 !important;
+}
+
+.highlightGreen:checked {
+  background-color: #24bc46 !important;
+  border-color: #24bc46 !important;
+  box-shadow: 0 0 4px #24bc46 !important;
+  position: relative;
+}
+
+.labelGreen {
+  color: #24bc46 !important;
+  font-weight: bold;
+}
+
+.labelYellow {
+  color: #ffc107 !important;
+  font-weight: bold;
+}
+
+.btnGroup {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  margin-top: 8px;
+}
+
+.btn {
+  border-radius: 8px;
+  transition: box-shadow 0.2s, background 0.2s;
+  font-size: 13px;
+  padding: 4px 14px;
+  height: 32px;
+  line-height: 1;
+  border: 1px solid #007bff;
+  background: #fff;
+  color: #007bff;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  color: #bdbdbd;
+  border-color: #e0e0e0;
+  background: #fafafa;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  background: #007bff;
+  color: #fff;
+}
+
+.btn:hover:not(:disabled) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+  background: #f2f6ff;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: #0056b3;
+  color: #fff;
+}
+
+/* 自定义表格样式 */
+.customTable {
+  background-color: #f9f9f9;
+  border-collapse: separate;
+  table-layout: fixed;
+  border-spacing: 0;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 单元格样式 */
+.customTable th,
+.customTable td {
+  vertical-align: middle;
+  text-align: left;
+  padding: 1px 2px;
+  border: 1px solid #ddd;
+  font-size: 0.9rem;
+  font-family: "Roboto", sans-serif;
+}
+
+.labelGreen {
+  color: green;
+  font-weight: bold;
+}
+
+
+.labelYellow {
+  color: #ffc107;
+  font-weight: bold;
+}
+
+.customTable th {
+  width: 13%;
+  /* 固定字段名宽度为表格的 20% */
+  white-space: nowrap;
+  /* 防止字段名自动换行 */
+}
+
+.customTable td {
+  width: 37%;
+  /* 字段值占用表格的剩余空间 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 超长内容显示省略号 */
+}
+
+/* 字段名颜色 */
+.customTable th.text-primary {
+  color: #007bff;
+  font-weight: bold;
+}
+
+/* 悬浮高亮 */
+.customTable tr:hover {
+  background-color: rgba(100, 149, 237, 0.1);
+  transition: all 0.2s ease-in-out;
+}
+
+/* 表格边框发光效果 */
+.customTable {
+  border: 1px solid rgba(0, 123, 255, 0.5);
+  border-radius: 10px;
+}
+
+/* 表格加载淡入效果 */
+.customTable {
+  animation: fadeIn 0.6s ease-in-out;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.searchBox.card-body {
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+}
+
+.customModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  z-index: 9999;
+  padding-top: 60px;
+}
+
+.customModal {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  width: 80%;
+  height: 720px;
+  overflow-y: auto;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  animation: fadeInModal 0.3s ease-in-out;
+}
+
+@keyframes fadeInModal {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.editTable td,
+.editTable th,
+.editTable tr {
+  line-height: 1.2 !important;
+  font-size: 15px !important;
+  padding: 3px 6px !important;
+  vertical-align: middle !important;
+}
+
+.editInput {
+  height: 12px !important;
+  padding: 9px 5px !important;
+  font-size: 15px !important;
+  line-height: 1.2 !important;
+}
