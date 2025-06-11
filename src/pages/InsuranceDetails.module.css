@@ -408,3 +408,116 @@
   font-size: 15px !important;
   line-height: 1.2 !important;
 }
+
+.printOverlay {
+  position: fixed;
+  z-index: 12001;
+  left: 0; top: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.printPanel {
+  width: 1080px;
+  min-height: 744px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 24px rgba(0,0,0,0.18);
+  padding: 40px 40px 24px 40px;
+  position: relative;
+}
+
+.printTitle {
+  font-size: 32px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 22px;
+  letter-spacing: 10px;
+}
+
+.printForm {
+  border: 2.2px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 18px;
+  background: #fff;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.printRow {
+  display: flex;
+  width: 100%;
+  border-bottom: 1px solid #eee;
+  min-height: 32px;
+  align-items: center;
+}
+.printRow:last-child {
+  border-bottom: none;
+}
+
+.printRow > div {
+  box-sizing: border-box;
+  padding: 6px 12px 2px 8px;
+  font-size: 17px;
+  line-height: 1.1;
+  vertical-align: middle;
+  background: #fff;
+  /* 可选：border-right: 1px solid #f1f1f1; */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.printLine {
+  flex: 1 1 0;
+  display: inline-block;
+  width: 50%;
+  min-width: 120px;
+  max-width: 80%;
+  margin-left: 6px;
+  border-bottom: 1.5px solid #666;
+  font-weight: 600;
+  padding: 0 2px;
+  color: #222;
+  height: 22px;
+  line-height: 22px;
+  vertical-align: middle;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.radioGroup {
+  margin-left: 10px;
+  display: inline-flex;
+  gap: 16px;
+}
+.printInput {
+  margin-left: 8px;
+  border: none;
+  border-bottom: 1.5px solid #666;
+  font-size: 16px;
+  width: 50%;
+  background: transparent;
+  outline: none;
+  color: #222;
+  text-align: center;
+}
+.printRemarkBlock{
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+.printBtnRow{
+  text-align:right
+}
+@media print {
+  .printBtnRow {
+    display: none !important;
+  }
+}

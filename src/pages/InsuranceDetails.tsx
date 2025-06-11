@@ -152,8 +152,8 @@ const InsuranceCustomers: React.FC = () => {
     received: false,
   });
 
-   // 详细信息数据相关
-   const [originalList, setOriginalList] = useState<InsuranceDetail[]>([
+  // 详细信息数据相关
+  const [originalList, setOriginalList] = useState<InsuranceDetail[]>([
     {
       id: "00001",
       applicantName: "张三",
@@ -264,11 +264,12 @@ const InsuranceCustomers: React.FC = () => {
   const [showList, setShowList] = useState(false);
   const [loading, setLoading] = useState(false);
 
-   // 权限、编辑、新增相关
-   const [isAdmin, setIsAdmin] = useState(true); // 假设从后端取，默认false
-   const [isEditing, setIsEditing] = useState(false);
-   const [editData, setEditData] = useState<InsuranceDetail | null>(null);
-   const [editType, setEditType] = useState<"add" | "edit">("edit");
+  // 权限、编辑、新增相关
+  const [isAdmin, setIsAdmin] = useState(true); // 假设从后端取，默认false
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<InsuranceDetail | null>(null);
+  const [editType, setEditType] = useState<"add" | "edit">("edit");
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   // 其它
   const fieldOptions = Object.entries(fieldNameMap).map(([key, label]) => ({
@@ -459,10 +460,6 @@ const InsuranceCustomers: React.FC = () => {
     // TODO: 续保查询功能
   };
 
-  const handlePrint = () => {
-    // TODO: 打印功能
-  };
-
   const handleImage = () => {
     // TODO: 图片功能
   };
@@ -501,7 +498,13 @@ const InsuranceCustomers: React.FC = () => {
       {/* 续保查询 */}
       <button className={styles.btn} type="button" onClick={handleRenewQuery}>续保查询</button>
       {/* 打印 */}
-      <button className={styles.btn} type="button" onClick={handlePrint}>打印</button>
+      <button
+        className={styles.btn}
+        type="button"
+        onClick={() => setShowPrintModal(true)}
+      >
+        打印
+      </button>
       {/* 图片 */}
       <button className={styles.btn} type="button" onClick={handleImage}>图片</button>
     </div>
@@ -899,6 +902,206 @@ const InsuranceCustomers: React.FC = () => {
                     <div className="d-flex justify-content-end mt-2">
                       <button className={styles.btn} onClick={() => setIsEditing(false)}>取消</button>
                       <button className={`${styles.btn} ${styles.btnPrimary} ms-2`} onClick={editType === "add" ? handleCreateSave : handleEditSave}>保存</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/*打印弹窗 */}
+
+
+              {showPrintModal && selectedDetail && (
+                <div className={styles.printOverlay}>
+                  <div className={`${styles.printPanel} print-panel-global`}>
+                    <div className={styles.printTitle}>续保流程单</div>
+                    <div className={styles.printForm}>
+                      {/* 第一行 */}
+                      <div className={styles.printRow}>
+                        <div style={{ width: '25%', display: 'flex', alignItems: 'center' }}>
+                          被保险人
+                          <span className={styles.printLine}>
+                            {selectedDetail.insuredName}
+                          </span>
+                        </div>
+                        <div style={{ width: '25%', display: 'flex', alignItems: 'center' }}>
+                          车主
+                          <span className={styles.printLine}>
+                            {selectedDetail.applicantName}
+                          </span>
+                        </div>
+                        <div style={{ width: '50%', display: 'flex', alignItems: 'center' }}>
+                          被保险人证件号码
+                          <span className={styles.printLine}>
+                            {selectedDetail.insuredIdNumber}
+                          </span>
+                        </div>
+
+
+                      </div>
+                      {/* 第二行 */}
+                      <div className={styles.printRow}>
+                        <div style={{ width: '35%', display: 'flex', alignItems: 'center' }}>
+                          保险单号
+                          <span className={styles.printLine}>
+                            {selectedDetail.commercialPolicyNumber}
+                          </span>
+                        </div>
+                        <div style={{ width: '23%', display: 'flex', alignItems: 'center' }}>
+                          车型
+                          <span className={styles.printLine}>
+                            {selectedDetail.vehicleModel}
+                          </span>
+                        </div>
+                        <div style={{ width: '21%', display: 'flex', alignItems: 'center' }}>
+                          车牌号码
+                          <span className={styles.printLine}>
+                            {selectedDetail.licensePlate}
+                          </span>
+                        </div>
+                        <div style={{ width: '21%', display: 'flex', alignItems: 'center' }}>
+                          起保日期
+                          <span className={styles.printLine}>
+                            {selectedDetail.policyStartDate instanceof Date
+                              ? selectedDetail.policyStartDate.toLocaleDateString()
+                              : selectedDetail.policyStartDate}
+                          </span>
+                        </div>
+                      </div>
+                      {/* 第三行 */}
+                      <div className={styles.printRow}>
+                        <div style={{ width: '100%', display: 'flex', alignItems: 'center' }}>投保险别</div>
+
+                      </div>
+                      {/* 第四行 */}
+                      <div className={styles.printRow}>
+                        <div style={{ width: '25%', display: 'flex', alignItems: 'center' }}>
+                          商业发票
+                          <span className={styles.printLine}>
+                            ￥{selectedDetail.commercialPremium || '--'}
+                          </span>
+                        </div>
+                        <div style={{ width: '25%', display: 'flex', alignItems: 'center' }}>
+                          交强发票
+                          <span className={styles.printLine}>
+                            ￥{selectedDetail.compulsoryPremium || '--'}
+                          </span>
+                        </div>
+                        <div style={{ width: '25%', display: 'flex', alignItems: 'center' }}>
+                          车船税
+                          <span className={styles.printLine}>
+                            ￥{selectedDetail.vehicleTax || '--'}
+                          </span>
+                        </div>
+                        <div style={{ width: '25%', display: 'flex', alignItems: 'center' }}>
+                          驾意险
+                          <span className={styles.printLine}>
+                            ￥{selectedDetail.vehicleTax || '--'}
+                          </span>
+                        </div>
+                      </div>
+                      {/* 第五行 */}
+                      <div className={styles.printRow}>
+                        <div style={{ width: '33.33%', display: 'flex', alignItems: 'center' }}>
+                          总计金额
+                          <span className={styles.printLine}>
+                            ￥{selectedDetail.commercialPremium + selectedDetail.compulsoryPremium + selectedDetail.vehicleTax + selectedDetail.vehicleTax ? selectedDetail.commercialPremium + selectedDetail.compulsoryPremium + selectedDetail.vehicleTax + selectedDetail.vehicleTax : '--'}
+                          </span>
+                        </div>
+                        <div style={{ width: '60%', display: 'flex', alignItems: 'center' }}>
+                          交款方式
+                          <span className={styles.radioGroup}>
+                            <label>
+                              <input
+                                type="radio"
+                                name="paymentType"
+                              />
+                              现金
+                            </label>
+                            <label>
+                              <input
+                                type="radio"
+                                name="paymentType"
+                              />
+                              刷卡
+                            </label>
+                          </span>
+                        </div>
+                      </div>
+                      {/* 第六行 */}
+                      <div className={styles.printRow}>
+                        <div style={{ width: '33.33%', display: 'flex', alignItems: 'center' }}>
+                          财务签字
+                          <span className={styles.printLine}></span>
+                        </div>
+                        <div style={{ width: '33.33%', display: 'flex', alignItems: 'center' }}>
+                          复核人
+                          <span className={styles.printLine}></span>
+                        </div>
+                        <div style={{ width: '33.33%', display: 'flex', alignItems: 'center' }}>
+                          客户签字
+                          <span className={styles.printLine}></span>
+                        </div>
+                      </div>
+                      {/* 第七行 */}
+                      <div className={styles.printRow}>
+                        <div style={{ width: '70%', display: 'flex', alignItems: 'center' }}>
+                          送单地址
+                          <span className={styles.printLine}>
+                            {selectedDetail.deliveryAddress}
+                          </span>
+                        </div>
+                        <div style={{ width: '30%', display: 'flex', alignItems: 'center' }}>
+                          业务员
+                          <span className={styles.printLine}>
+                            {selectedDetail.salesAgent}
+                          </span>
+                        </div>
+                      </div>
+                      {/* 第八行 */}
+                      <div className={styles.printRow}>
+                        <div style={{ width: '50%', display: 'flex', alignItems: 'center' }}>
+                          客户电话
+                          <span className={styles.printLine}>
+                            {selectedDetail.mobile || selectedDetail.phone}
+                          </span>
+                        </div>
+                        <div style={{ width: '50%', display: 'flex', alignItems: 'center' }}>
+                          送单员
+                          <input
+                            className={styles.printInput}
+                            readOnly={false}
+                            onChange={e => {
+                              /* 控制补充信息的state */
+                            }}
+                            placeholder="请填写送单员"
+                          />
+                        </div>
+                      </div>
+                      {/* 第九行 */}
+                      <div className={styles.printRow}>
+                        <div style={{ width: '100%' }}>
+                          补充信息
+                          <input
+                            className={styles.printInput}
+                            readOnly={false}
+                            onChange={e => {
+                              /* 控制补充信息的state */
+                            }}
+                            placeholder="请填写补充信息"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {/* 备注区 */}
+                    <div className={styles.printRemarkBlock}>
+                      <div>备注：</div>
+                      <div>1、本流程单用于保险业务办理，所有信息请认真核对无误后签字。</div>
+                      <div>2、如需变更，请及时联系保险专员。</div>
+                      {/* 你可以加更多自定义备注 */}
+                    </div>
+                    <div className={styles.printBtnRow}>
+                      <button className="btn btn-primary" onClick={() => window.print()}>打印</button>
+                      <button className="btn btn-secondary ms-2" onClick={() => setShowPrintModal(false)}>关闭</button>
                     </div>
                   </div>
                 </div>
