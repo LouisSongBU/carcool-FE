@@ -969,8 +969,19 @@ const InsuranceCustomers: React.FC = () => {
                       </div>
                       {/* 第三行 */}
                       <div className={styles.printRow}>
-                        <div style={{ width: '100%', display: 'flex', alignItems: 'center' }}>投保险别</div>
-
+                        <div style={{ width: '100%', display: 'flex', alignItems: 'center' }}>投保险别
+                          <span className={styles.printCoverage}>
+                            {[
+                              Number(selectedDetail.vehicleDamageCoverage) > 0 && '车损险',
+                              Number(selectedDetail.thirdPartyCoverage) > 0 && '三者险',
+                              Number(selectedDetail.outMedCoverage) > 0 && '医保外',
+                              Number(selectedDetail.driverCoverage) > 0 && '司机险',
+                              Number(selectedDetail.passengerCoverage) > 0 && '乘客险'
+                            ]
+                              .filter(Boolean)
+                              .map((name, idx) => <span key={idx}>{name}</span>)}
+                          </span>
+                        </div>
                       </div>
                       {/* 第四行 */}
                       <div className={styles.printRow}>

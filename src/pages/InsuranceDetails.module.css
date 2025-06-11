@@ -458,22 +458,6 @@
   min-height: 32px;
   align-items: center;
 }
-.printRow:last-child {
-  border-bottom: none;
-}
-
-.printRow > div {
-  box-sizing: border-box;
-  padding: 6px 12px 2px 8px;
-  font-size: 17px;
-  line-height: 1.1;
-  vertical-align: middle;
-  background: #fff;
-  /* 可选：border-right: 1px solid #f1f1f1; */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 .printLine {
   flex: 1 1 0;
@@ -491,6 +475,16 @@
   vertical-align: middle;
   white-space: nowrap;
   text-align: center;
+}
+
+.printCoverage {
+  margin-left: 50px;
+  display: flex;
+  gap: 50px;
+  align-items: center;
+  letter-spacing: 1px;
+  font-family: "楷体", "楷体_GB2312", "KaiTi", "FangSong", "STKaiti", "STFangsong", "仿宋", "隶书", serif;
+  font-style: italic;
 }
 
 .radioGroup {
