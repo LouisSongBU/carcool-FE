@@ -305,6 +305,9 @@
   /* 固定字段名宽度为表格的 20% */
   white-space: nowrap;
   /* 防止字段名自动换行 */
+  color: #377ad6;
+  font-weight: bold;
+  background: #f5faff;
 }
 
 .customTable td {
@@ -313,12 +316,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   /* 超长内容显示省略号 */
-}
-
-/* 字段名颜色 */
-.customTable th.text-primary {
-  color: #007bff;
-  font-weight: bold;
 }
 
 /* 悬浮高亮 */
@@ -398,13 +395,15 @@
 .editTable tr {
   line-height: 1.2 !important;
   font-size: 15px !important;
-  padding: 3px 6px !important;
+  padding: 3px 6px;
   vertical-align: middle !important;
+  background: #f5faff;
+  color: #377ad6; 
 }
 
 .editInput {
   height: 12px !important;
-  padding: 9px 5px !important;
+  padding: 9px 5px;
   font-size: 15px !important;
   line-height: 1.2 !important;
 }

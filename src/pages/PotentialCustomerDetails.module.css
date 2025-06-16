@@ -1,0 +1,321 @@
+.queryFormCard {
+    background: #f5fbf7;
+    border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(50, 200, 90, 0.08);
+    border: 1.5px solid #d1f7d8;
+    padding: 14px 20px 10px 20px;
+    margin-bottom: 0px;
+  }
+  
+  .queryForm {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .queryRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0;
+  }
+  
+  .queryLabel {
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 60px;
+    white-space: nowrap;
+  }
+  
+  .queryInput {
+    width: 150px;
+    min-width: 20px;
+    font-size: 12px;
+    padding: 1px 2px;
+    border-radius: 6px;
+    border: 1px solid #ccead4;
+    background: #fff;
+  }
+  
+  .queryBtn {
+    margin-left: 16px;
+    min-width: 60px;
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  
+  .filterBox {
+    background: #eafaf0;
+    border-radius: 10px;
+    box-shadow: 0 2px 14px rgba(50, 180, 90, 0.08);
+    padding: 12px 16px;
+    margin-top: 10px;
+    border: 1.5px solid #ccead4;
+  }
+  
+  .filterRow {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 1px;
+  }
+  
+  .filterInput {
+    width: 120px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid #ccead4;
+    background: #fff;
+    padding: 1px 2px;
+  }
+
+  .filterSelect {
+    border: 1px solid #ccead4;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 12px;
+    color: #229e5f;
+    background: #fff;
+    outline: none;
+  }
+  
+  .filterBtn {
+    min-width: 52px;
+    margin-top: 2px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    border: 1.2px solid #43c776;
+    color: #24bc46;
+    background: #f8fff9;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  
+  .filterBtn:active,
+  .filterBtn:focus,
+  .filterBtn:hover {
+    background: #d3f8e2;
+    color: #148d2e;
+    border-color: #24bc46;
+  }
+  
+  .queryResultTable {
+    width: 100%;
+    border-radius: 8px;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px;
+    background: #f7fff9;
+    margin-top: 10px;
+  }
+  
+  .queryResultTable th,
+  .queryResultTable td {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    padding: 5px 7px;
+    font-size: 12px;
+    text-align: center;
+    border-bottom: 1px solid #dbf3e2;
+    vertical-align: middle;
+  }
+  
+  .queryResultTable th {
+    background: linear-gradient(90deg, #eafaf0 0%, #f7fff9 100%);
+    color: #19924c;
+    font-weight: bold;
+    border-bottom: 2px solid #cdecd9;
+  }
+  
+  .queryResultTable td {
+    background: none;
+    color: #305f3c;
+  }
+  
+  .queryResultTable tbody tr:hover {
+    background: #e3faee;
+    transition: background 0.18s;
+  }
+  
+  .selectedRow {
+    background: linear-gradient(90deg, #ccf5d7 0%, #eafaf0 100%) !important;
+  }
+
+  .filterCheckboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 550;
+    color: #24bc46;
+    margin-right: 18px;
+    user-select: none;
+    cursor: pointer;
+  }
+  
+  .filterCheckbox {
+    accent-color: #24bc46;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    vertical-align: middle;
+  }
+  
+  .customTable {
+    background-color: #f9fefa;
+    border-collapse: separate;
+    table-layout: fixed;
+    border-spacing: 0;
+    border: 1px solid #ccead4;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(50, 180, 90, 0.06);
+    animation: fadeIn 0.6s ease-in;
+  }
+  
+  .customTable th,
+  .customTable td {
+    vertical-align: middle;
+    text-align: left;
+    padding: 1px 2px;
+    border: 1px solid #ddd;
+    font-size: 0.9rem;
+    font-family: "Roboto", sans-serif;
+  }
+  
+  .customTable th {
+    width: 14%;
+    white-space: nowrap;
+    color: #20a758;
+    font-weight: bold;
+    background: #f3fbf6;
+  }
+  
+  .customTable td {
+    width: 36%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: #fff;
+  }
+  
+  .customTable tr:hover {
+    background-color: #e8f8ec;
+    transition: all 0.2s ease-in-out;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .buttonGroupBox {
+    margin-top: 24px;
+    display: flex;
+    gap: 18px;
+    align-items: center;
+  }
+  .dateInput, .input {
+    border: 1px solid #ccead4;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 14px;
+    margin-right: 8px;
+    background: #fff;
+  }
+  .historyTable {
+    width: 100%;
+    border: 1.5px solid #d1e4fc;
+    background: #f5faff;
+    border-radius: 8px;
+    margin-top: 10px;
+  }
+  .historyTable th {
+    background: linear-gradient(90deg, #eaf1fd 0%, #f5faff 100%);
+    color: #377ad6;
+    font-weight: bold;
+  }
+  .historyTable td {
+    background: none;
+    color: #295080;
+  }
+
+  .customModalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    z-index: 9999;
+    padding-top: 60px;
+  }
+  
+  .customModal {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    width: 80%;
+    height: 720px;
+    overflow-y: auto;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    animation: fadeInModal 0.3s ease-in-out;
+  }
+  
+  .historyTable {
+    width: 100%;
+    border: 1.5px solid #d1e4fc;
+    background: #f5faff;
+    border-radius: 8px;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  .historyTable th {
+    background: linear-gradient(90deg, #eaf1fd 0%, #f5faff 100%);
+    color: #337acc;
+    font-weight: bold;
+    padding: 8px 6px;
+  }
+  .historyTable td {
+    background: none;
+    color: #295080;
+    padding: 7px 6px;
+  }
+  
+  @keyframes fadeInModal {
+    from { opacity: 0; transform: scale(0.96);}
+    to { opacity: 1; transform: scale(1);}
+  }
+  @keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+.editTable td,
+.editTable th,
+.editTable tr {
+  line-height: 1.2 !important;
+  font-size: 15px !important;
+  padding: 3px 6px !important;
+  vertical-align: middle !important;
+  background: #f3fcf7;
+  color: #259b60;
+}
+
+.editInput {
+  height: 12px !important;
+  padding: 9px 5px !important;
+  font-size: 15px !important;
+  line-height: 1.2 !important;
+}
+  
+  

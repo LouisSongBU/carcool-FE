@@ -1,55 +1,56 @@
 import React, { useState } from "react";
 import styles from "./InsuranceDetails.module.css";
+import { isAdminUser, getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
 
-interface InsuranceDetail {
+export interface InsuranceDetail {
   id: string;
-  applicantName: string;
+  applicantName: string | null;
   commercialPolicyNumber: string;
-  applicantIdNumber: string;
-  compulsoryPolicyNumber: string;
+  applicantIdNumber: string | null;
+  compulsoryPolicyNumber: string | null;
   insuredName: string;
-  signingDate: Date;
+  signingDate: Date | null;
   insuredIdNumber: string;
-  vehicleDamageCoverage: number;
-  registrationOwner: string;
-  vehicleDamagePremium: number;
-  registrationOwnerId: string;
-  thirdPartyCoverage: number;
+  vehicleDamageCoverage: number | null;
+  registrationOwner: string | null;
+  vehicleDamagePremium: number | null;
+  registrationOwnerId: string | null;
+  thirdPartyCoverage: number | null;
   licensePlate: string;
-  thirdPartyPremium: number;
-  vehicleModel: string;
-  outMedCoverage: number;
-  firstRegistrationDate: Date;
-  outMedPremium: number;
-  engineNumber: string;
-  driverCoverage: number;
-  vinNumber: string;
-  driverPremium: number;
-  approvedSeats: String;
-  passengerCoverage: number;
-  approvedLoad: String;
-  passengerPremium: number;
-  deliveryAddress: string;
+  thirdPartyPremium: number | null;
+  vehicleModel: string | null;
+  outMedCoverage: number | null;
+  firstRegistrationDate: Date | null;
+  outMedPremium: number | null;
+  engineNumber: string | null;
+  driverCoverage: number | null;
+  vinNumber: string | null;
+  driverPremium: number | null;
+  approvedSeats: string | null;
+  passengerCoverage: number | null;
+  approvedLoad: string | null;
+  passengerPremium: number | null;
+  deliveryAddress: string | null;
   commercialPremium: number;
-  phone: string;
+  phone: string | null;
   compulsoryPremium: number;
-  mobile: string;
+  mobile: string | null;
   driverAccidentPremium: number;
-  salesAgent: string;
+  salesAgent: string | null;
   vehicleTax: number;
-  salesManager: string;
+  salesManager: string | null;
   receivablePremium: number;
-  inputDate: Date;
+  inputDate: Date | null;
   receivedPremium: number;
-  intermediaryInvoiceNo: string;
-  policyStartDate: Date;
-  hierarchyCode: string;
-  insuranceCompany: string;
-  issuingOffice: string;
-  isSettlement: string;
-  financeVerification: string;
-  commercialAdjustment: number;
-  compulsoryAdjustment: number;
+  intermediaryInvoiceNo: string | null;
+  policyStartDate: Date | null;
+  hierarchyCode: string | null;
+  insuranceCompany: string | null;
+  issuingOffice: string | null;
+  isSettlement: string | null;
+  financeVerification: string | null;
+  commercialAdjustment: number | null;
+  compulsoryAdjustment: number | null;
 }
 
 
@@ -68,57 +69,6 @@ const hiddenFieldsForUser = [
   "commercialAdjustment",
   "compulsoryAdjustment",
 ];
-
-
-const fieldNameMap: Record<string, string> = {
-  applicantName: "投保人",
-  commercialPolicyNumber: "商业保单号",
-  applicantIdNumber: "投保人证件号",
-  compulsoryPolicyNumber: "交强保单号",
-  insuredName: "被保险人",
-  signingDate: "签单日期",
-  insuredIdNumber: "被保险人证件",
-  vehicleDamageCoverage: "车损保额",
-  registrationOwner: "行驶证车主",
-  vehicleDamagePremium: "车损保费",
-  registrationOwnerId: "车主证件号",
-  thirdPartyCoverage: "三者保额",
-  licensePlate: "车牌号",
-  thirdPartyPremium: "三者保费",
-  vehicleModel: "厂牌型号",
-  outMedCoverage: "医保外保额",
-  firstRegistrationDate: "初登日期",
-  outMedPremium: "医保外保费",
-  engineNumber: "发动机号",
-  driverCoverage: "司机保额",
-  vinNumber: "车架号",
-  driverPremium: "司机保费",
-  approvedSeats: "核定座位",
-  passengerCoverage: "乘客保额",
-  approvedLoad: "核定吨位",
-  passengerPremium: "乘客保费",
-  deliveryAddress: "送单地址",
-  commercialPremium: "商业保费",
-  phone: "电话",
-  compulsoryPremium: "交强保费",
-  mobile: "手机",
-  driverAccidentPremium: "驾意险保费",
-  salesAgent: "业务员",
-  vehicleTax: "车船税",
-  salesManager: "业务主管",
-  receivablePremium: "应收保费",
-  inputDate: "录入日期",
-  receivedPremium: "已收保费",
-  intermediaryInvoiceNo: "中介票号",
-  policyStartDate: "起保日期",
-  hierarchyCode: "层级码",
-  insuranceCompany: "保险公司",
-  issuingOffice: "出单处",
-  isSettlement: "是否对账",
-  financeVerification: "财务验证",
-  commercialAdjustment: "商业加减点",
-  compulsoryAdjustment: "交强加减点"
-};
 
 // === 2. 组件主体 ===
 const InsuranceCustomers: React.FC = () => {
@@ -265,14 +215,14 @@ const InsuranceCustomers: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   // 权限、编辑、新增相关
-  const [isAdmin, setIsAdmin] = useState(true); // 假设从后端取，默认false
+  const isAdmin = isAdminUser();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<InsuranceDetail | null>(null);
   const [editType, setEditType] = useState<"add" | "edit">("edit");
   const [showPrintModal, setShowPrintModal] = useState(false);
 
   // 其它
-  const fieldOptions = Object.entries(fieldNameMap).map(([key, label]) => ({
+  const fieldOptions = Object.entries(insuranceDetailsNameMap).map(([key, label]) => ({
     value: key,
     label
   }));
@@ -773,38 +723,26 @@ const InsuranceCustomers: React.FC = () => {
                 <div>
                   {/** 1. 在这里先过滤字段： */}
                   {(() => {
-                    // 过滤后的键值对
-                    const visibleEntries = Object.entries(selectedDetail).filter(
-                      ([key]) => isAdmin || !hiddenFieldsForUser.includes(key)
-                    );
+                    const visibleEntries = getVisibleFields(selectedDetail, isAdmin, hiddenFieldsForUser);
 
                     return (
                       <table className={`table table-bordered table-hover ${styles.customTable}`}>
                         <tbody>
-                          {Array.from({ length: Math.ceil(visibleEntries.length / 2) }).map((_, rowIdx) => {
-                            const idx = rowIdx * 2;
-                            const [key1, value1] = visibleEntries[idx];
-                            const [key2, value2] = visibleEntries[idx + 1] || [];
+                          {groupEntriesInPairs(visibleEntries).map((pair, rowIdx) => {
+                            const [[key1, value1], [key2, value2] = []] = pair;
                             return (
                               <tr key={key1}>
-                                <th className="text-primary">{fieldNameMap[key1] || key1}</th>
-                                <td>
-                                  {value1 instanceof Date
-                                    ? value1.toLocaleDateString()
-                                    : String(value1)}
-                                </td>
+                                <th>{insuranceDetailsNameMap[key1] || key1}</th>
+                                <td>{value1 instanceof Date ? value1.toLocaleDateString() : String(value1 ?? "")}</td>
                                 {key2 ? (
                                   <>
-                                    <th className="text-primary">{fieldNameMap[key2] || key2}</th>
-                                    <td>
-                                      {value2 instanceof Date
-                                        ? value2.toLocaleDateString()
-                                        : String(value2)}
-                                    </td>
+                                    <th>{insuranceDetailsNameMap[key2] || key2}</th>
+                                    <td>{value2 instanceof Date ? value2.toLocaleDateString() : String(value2 ?? "")}</td>
                                   </>
                                 ) : (
                                   <>
-                                    <th></th><td></td>
+                                    <th></th>
+                                    <td></td>
                                   </>
                                 )}
                               </tr>
@@ -828,17 +766,13 @@ const InsuranceCustomers: React.FC = () => {
                     </h4>
                     {(() => {
                       // 过滤不显示的字段
-                      const visibleEditFields = Object.entries(editData).filter(
-                        ([key]) => isAdmin || !hiddenFieldsForUser.includes(key)
-                      );
+                      const visibleEditFields = getVisibleFields(editData, isAdmin, hiddenFieldsForUser);
                       // 两两分组渲染
                       return (
                         <table className={`table table-sm ${styles.editTable}`}>
                           <tbody>
-                            {Array.from({ length: Math.ceil(visibleEditFields.length / 2) }).map((_, rowIdx) => {
-                              const idx = rowIdx * 2;
-                              const [key1, value1] = visibleEditFields[idx];
-                              const [key2, value2] = visibleEditFields[idx + 1] || [];
+                          {groupEntriesInPairs(visibleEditFields).map((pair, rowIdx) => {
+                            const [[key1, value1], [key2, value2] = []] = pair;
                               const renderInput = (key: string, value: any) => {
                                 if (key === "id")
                                   return (
@@ -879,11 +813,11 @@ const InsuranceCustomers: React.FC = () => {
                               };
                               return (
                                 <tr key={key1}>
-                                  <th style={{ whiteSpace: "nowrap", width: "15%" }}>{fieldNameMap[key1] || key1}</th>
+                                  <th style={{ whiteSpace: "nowrap", width: "15%" }}>{insuranceDetailsNameMap[key1] || key1}</th>
                                   <td>{renderInput(key1, value1)}</td>
                                   {key2 ? (
                                     <>
-                                      <th style={{ whiteSpace: "nowrap", width: "15%" }}>{fieldNameMap[key2] || key2}</th>
+                                      <th style={{ whiteSpace: "nowrap", width: "15%" }}>{insuranceDetailsNameMap[key2] || key2}</th>
                                       <td>{renderInput(key2, value2)}</td>
                                     </>
                                   ) : (
@@ -1006,7 +940,7 @@ const InsuranceCustomers: React.FC = () => {
                         <div style={{ width: '25%', display: 'flex', alignItems: 'center' }}>
                           驾意险
                           <span className={styles.printLine}>
-                            ￥{selectedDetail.vehicleTax || '--'}
+                            ￥{selectedDetail.driverAccidentPremium || '--'}
                           </span>
                         </div>
                       </div>
@@ -1015,7 +949,7 @@ const InsuranceCustomers: React.FC = () => {
                         <div style={{ width: '33.33%', display: 'flex', alignItems: 'center' }}>
                           总计金额
                           <span className={styles.printLine}>
-                            ￥{selectedDetail.commercialPremium + selectedDetail.compulsoryPremium + selectedDetail.vehicleTax + selectedDetail.vehicleTax ? selectedDetail.commercialPremium + selectedDetail.compulsoryPremium + selectedDetail.vehicleTax + selectedDetail.vehicleTax : '--'}
+                            ￥{selectedDetail.commercialPremium + selectedDetail.compulsoryPremium + selectedDetail.vehicleTax + selectedDetail.driverAccidentPremium ? selectedDetail.commercialPremium + selectedDetail.compulsoryPremium + selectedDetail.vehicleTax + selectedDetail.driverAccidentPremium : '--'}
                           </span>
                         </div>
                         <div style={{ width: '60%', display: 'flex', alignItems: 'center' }}>

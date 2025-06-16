@@ -9,7 +9,7 @@ import "bootstrap/dist/js/bootstrap.bundle.min.js";
 
 const pageTitles: Record<string, string> = {
   '车险客户': '车险客户信息',
-  '客户统计': '客户统计',
+  '希望客户': '希望客户信息',
   '业务管理': '业务管理',
 };
 
