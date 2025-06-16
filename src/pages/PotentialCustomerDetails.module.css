@@ -38,10 +38,10 @@
   }
   
   .queryBtn {
-    margin-left: 16px;
+    margin-left: 5px;
     min-width: 60px;
-    padding: 4px 10px;
-    border-radius: 6px;
+    padding: 4px 5px;
+    border-radius: 5px;
   }
   
   .filterBox {
@@ -161,6 +161,15 @@
     height: 16px;
     margin: 0;
     vertical-align: middle;
+  }
+
+  .filterSelect {
+    width: 90px;
+  }
+  
+  .filterOperator {
+    margin-left: 0px;
+    width: 70px;
   }
   
   .customTable {

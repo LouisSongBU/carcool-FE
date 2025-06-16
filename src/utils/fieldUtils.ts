@@ -2,7 +2,7 @@
 export function isAdminUser(): boolean {
     // 真实项目可以用用户权限判断
     //return sessionStorage.getItem("role") === "admin";
-    return true;
+    return false;
 }
 
 /**
@@ -74,4 +74,10 @@ export const insuranceDetailsNameMap: Record<string, string> = {
     financeVerification: "财务验证",
     commercialAdjustment: "商业加减点",
     compulsoryAdjustment: "交强加减点"
-  };
+};
+
+export function getLocalDateFromInput(inputStr: string): Date | null {
+    if (!inputStr) return null;
+    const [y, m, d] = inputStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styles from "./PotentialCustomerDetails.module.css";
 import type { InsuranceDetail } from './InsuranceDetails.tsx';
-import { isAdminUser, getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
+import { isAdminUser, getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap, getLocalDateFromInput } from "../utils/fieldUtils";
 
 interface PotentialCustomer {
     insuredCount: number | null;
@@ -126,7 +126,8 @@ const dateFields = new Set([
     "twelveFollowUpDate",
     "thirteenFollowUpDate",
     "fourteenFollowUpDate",
-    "fifteenFollowUpDate"
+    "fifteenFollowUpDate",
+    "scheduleFollowUpDate"
 ]);
 
 const hiddenFieldsForAll = [
@@ -141,6 +142,43 @@ const hiddenCreateFieldsForUser = [
     "commercialAdjustment",
     "compulsoryAdjustment",
 ];
+
+const followUpDateFields = [
+    "firstFollowUpDate",
+    "secondFollowUpDate",
+    "thirdFollowUpDate",
+    "fourFollowUpDate",
+    "fiveFollowUpDate",
+    "sixFollowUpDate",
+    "sevenFollowUpDate",
+    "eightFollowUpDate",
+    "nineFollowUpDate",
+    "tenFollowUpDate",
+    "elevenFollowUpDate",
+    "twelveFollowUpDate",
+    "thirteenFollowUpDate",
+    "fourteenFollowUpDate",
+    "fifteenFollowUpDate"
+];
+
+const followUpNoteFields = [
+    "firstFollowUpNote",
+    "secondFollowUpNote",
+    "thirdFollowUpNote",
+    "fourFollowUpNote",
+    "fiveFollowUpNote",
+    "sixFollowUpNote",
+    "sevenFollowUpNote",
+    "eightFollowUpNote",
+    "nineFollowUpNote",
+    "tenFollowUpNote",
+    "elevenFollowUpNote",
+    "twelveFollowUpNote",
+    "thirteenFollowUpNote",
+    "fourteenFollowUpNote",
+    "fifteenFollowUpNote"
+];
+
 
 // === 2. 组件主体 ===
 // ...模拟数据和 interface 省略...
@@ -179,6 +217,9 @@ const PotentialCustomer: React.FC = () => {
     const [createForm, setCreateForm] = useState<InsuranceDetail | null>(null);
 
     const [nextFollowUpDate, setNextFollowUpDate] = useState<string>('');
+
+    // 新增一个 state
+    const [initialFirstEmptyDateIdx, setInitialFirstEmptyDateIdx] = useState<number>(0);
 
     // 2. 详细信息数据相关
     // 详细信息数据相关
@@ -314,6 +355,52 @@ const PotentialCustomer: React.FC = () => {
         setFilters(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
+    const [filterField, setFilterField] = useState("");
+    const [filterOperator, setFilterOperator] = useState("=");
+    const [filterValue, setFilterValue] = useState("");
+
+    const excludedFilterFields = [
+        "firstFollowUpDate",
+        "secondFollowUpDate",
+        "thirdFollowUpDate",
+        "fourFollowUpDate",
+        "fiveFollowUpDate",
+        "sixFollowUpDate",
+        "sevenFollowUpDate",
+        "eightFollowUpDate",
+        "nineFollowUpDate",
+        "tenFollowUpDate",
+        "elevenFollowUpDate",
+        "twelveFollowUpDate",
+        "thirteenFollowUpDate",
+        "fourteenFollowUpDate",
+        "fifteenFollowUpDate",
+        "firstFollowUpNote",
+        "secondFollowUpNote",
+        "thirdFollowUpNote",
+        "fourFollowUpNote",
+        "fiveFollowUpNote",
+        "sixFollowUpNote",
+        "sevenFollowUpNote",
+        "eightFollowUpNote",
+        "nineFollowUpNote",
+        "tenFollowUpNote",
+        "elevenFollowUpNote",
+        "twelveFollowUpNote",
+        "thirteenFollowUpNote",
+        "fourteenFollowUpNote",
+        "fifteenFollowUpNote"
+    ];
+
+    const isDateField = dateFields.has(filterField);
+
+    const fieldOptions = Object.entries(fieldNameMap)
+        .filter(([key]) => !excludedFilterFields.includes(key))
+        .map(([key, label]) => ({
+            value: key,
+            label
+        }));
+
     // 5. 下次回访日期查询
     const handleFollowUpDateQuery = () => {
         if (!followUpDateQuery) return;
@@ -321,7 +408,7 @@ const PotentialCustomer: React.FC = () => {
             originalList.filter(
                 item =>
                     item.scheduleFollowUpDate &&
-                    new Date(item.scheduleFollowUpDate).toISOString().split("T")[0] === followUpDateQuery
+                    item.scheduleFollowUpDate.toISOString().split("T")[0] === followUpDateQuery
             )
         );
         setShowList(true);
@@ -354,6 +441,43 @@ const PotentialCustomer: React.FC = () => {
         setShowList(true);
     };
 
+    const handleCustomFilter = () => {
+        if (!filterField || !filterValue) {
+          setMyList(originalList);
+          return;
+        }
+      
+        setMyList(
+          originalList.filter(item => {
+            const v = (item as any)[filterField];
+      
+            // 日期字段
+            if (dateFields.has(filterField)) {
+              if (!(v instanceof Date)) return false;
+              // 只支持等于比较
+              return v.toISOString().split("T")[0] === filterValue;
+            }
+      
+            // 非日期字段
+            if (filterOperator === "=") {
+              return String(v ?? "") === filterValue;
+            } else if (filterOperator === ">") {
+              return v > filterValue;
+            } else if (filterOperator === "<") {
+              return v < filterValue;
+            } else if (filterOperator === "like") {
+              return String(v ?? "").includes(filterValue);
+            } else if (filterOperator === "not like") {
+              return !String(v ?? "").includes(filterValue);
+            }
+      
+            // 默认不筛选
+            return true;
+          })
+        );
+      };
+    
+
     // 3. 重置按钮，三个相关 state 也要重置
     const handleResetFilters = () => {
         setFilters({
@@ -369,6 +493,62 @@ const PotentialCustomer: React.FC = () => {
         setSelectedFollowUpCount('');
         setNeverFollowUp(false);
     };
+
+    function getEmptyPotentialCustomer(): PotentialCustomer {
+        return {
+            insuredCount: null,
+            fourFollowUpNote: null,
+            licensePlate: "",
+            fourFollowUpDate: null,
+            vehicleModel: "",
+            fiveFollowUpNote: null,
+            policyStartDate: new Date(),
+            fiveFollowUpDate: null,
+            registrationOwner: "",
+            sixFollowUpNote: null,
+            phone: "",
+            sixFollowUpDate: null,
+            firstRegistrationDate: null,
+            sevenFollowUpNote: null,
+            deliveryAddress: "",
+            sevenFollowUpDate: null,
+            registrationOwnerId: "",
+            eightFollowUpNote: null,
+            vinNumber: "",
+            eightFollowUpDate: null,
+            engineNumber: "",
+            nineFollowUpNote: null,
+            recordTime: new Date(),
+            nineFollowUpDate: null,
+            insuranceCompany: "",
+            tenFollowUpNote: null,
+            Note1: "",
+            tenFollowUpDate: null,
+            Node2: "",
+            elevenFollowUpNote: null,
+            salesAgent: "",
+            elevenFollowUpDate: null,
+            hierarchyCode: "",
+            twelveFollowUpNote: null,
+            scheduleFollowUpDate: null,
+            twelveFollowUpDate: null,
+            firstFollowUpNote: "",
+            thirteenFollowUpNote: null,
+            firstFollowUpDate: null,
+            thirteenFollowUpDate: null,
+            secondFollowUpNote: "",
+            fourteenFollowUpNote: null,
+            secondFollowUpDate: null,
+            fourteenFollowUpDate: null,
+            thirdFollowUpNote: "",
+            fifteenFollowUpNote: null,
+            thirdFollowUpDate: null,
+            fifteenFollowUpDate: null,
+            id: null,
+            followUpCount: null,
+            previousSignDate: null,
+        }
+    }
 
     // === 6. 渲染相关函数 ===
     // === 新增/编辑按钮组 ===
@@ -388,15 +568,22 @@ const PotentialCustomer: React.FC = () => {
                 onClick={() => {
                     if (!nextFollowUpDate || !selectedDetail) return;
                     // 更新当前记录 scheduleFollowUpDate
-                    const updated = { ...selectedDetail, scheduleFollowUpDate: new Date(nextFollowUpDate) };
+                    const updated = { ...selectedDetail, scheduleFollowUpDate: getLocalDateFromInput(nextFollowUpDate) };
                     setSelectedDetail(updated);
                     setMyList(list =>
                         list.map(item =>
                             item.id === updated.id ? updated : item
                         )
                     );
+                    // 关键：同步更新 originalList！
+                    setOriginalList(list =>
+                        list.map(item =>
+                            item.id === updated.id ? updated : item
+                        )
+                    );
                     alert("下次回访日期已保存！");
                 }}
+                
             >
                 保存下次回访
             </button>
@@ -407,6 +594,9 @@ const PotentialCustomer: React.FC = () => {
                 style={{ marginRight: 16, minWidth: 70 }}
                 onClick={() => {
                     setEditForm(selectedDetail);
+                    // 关键：计算初始空date下标，只看编辑前的数据
+                    const idx = followUpDateFields.findIndex(f => !(selectedDetail as any)[f]);
+                    setInitialFirstEmptyDateIdx(idx === -1 ? followUpDateFields.length : idx); // 没有空就等于length
                     setEditModalVisible(true);
                 }}
             >
@@ -415,7 +605,7 @@ const PotentialCustomer: React.FC = () => {
 
             {/* 投保历史 */}
             <button
-                className={`btn btn-outline-info btn-sm`}
+                className={`btn btn-outline-primary btn-sm`}
                 style={{ marginRight: 16, minWidth: 85 }}
                 onClick={() => {
                     // 模拟后端请求
@@ -440,7 +630,7 @@ const PotentialCustomer: React.FC = () => {
 
             {/* 提交出单 */}
             <button
-                className={`btn btn-outline-primary btn-sm`}
+                className={`btn btn btn-primary btn-sm`}
                 style={{ minWidth: 85 }}
                 onClick={() => {
                     // 自动提取字段填入新增浮窗
@@ -550,6 +740,16 @@ const PotentialCustomer: React.FC = () => {
                             <div className={styles.queryRow}>
                                 <button
                                     className={`btn btn-success btn-sm ${styles.queryBtn}`}
+                                    onClick={() => {
+                                        // 构造空白客户对象
+                                        setEditForm(getEmptyPotentialCustomer());
+                                        setEditModalVisible(true);
+                                    }}
+                                >
+                                    新增希望客户
+                                </button>
+                                <button
+                                    className={`btn btn-success btn-sm ${styles.queryBtn}`}
                                     onClick={handleRecordDateSearch}
                                 >
                                     按记录日期查询
@@ -642,6 +842,56 @@ const PotentialCustomer: React.FC = () => {
                                 onClick={handleFollowUpDateQuery}
                             >预约查询</button>
                         </div>
+                        <div className={styles.filterRow} style={{ gap: 5 }}>
+                            <select
+                                className={`form-select form-select-sm ${styles.filterSelect}`}
+                                value={filterField}
+                                onChange={e => setFilterField(e.target.value)}
+                            >
+                                <option value="">选择字段</option>
+                                {fieldOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                            <select
+                                className={`form-select form-select-sm ${styles.filterOperator}`}
+                                value={isDateField ? "=" : filterOperator}
+                                onChange={e => setFilterOperator(e.target.value)}
+                                disabled={isDateField}
+                            >
+                                <option value="=">=</option>
+                                {!isDateField && (
+                                    <>
+                                        <option value=">">&gt;</option>
+                                        <option value="<">&lt;</option>
+                                        <option value="like">like</option>
+                                        <option value="not like">not like</option>
+                                    </>
+                                )}
+                            </select>
+                            {isDateField ? (
+                                <input
+                                    type="date"
+                                    className={`form-control form-control-sm ${styles.filterInput}`}
+                                    value={filterValue}
+                                    onChange={e => setFilterValue(e.target.value)}
+                                />
+                            ) : (
+                                <input
+                                    type="text"
+                                    className={`form-control form-control-sm ${styles.filterInput}`}
+                                    value={filterValue}
+                                    onChange={e => setFilterValue(e.target.value)}
+                                    placeholder="请输入条件"
+                                />
+                            )}
+                            <button
+                                className={`btn btn-outline-success btn-sm ${styles.filterBtn}`}
+                                onClick={handleCustomFilter}
+                            >筛选</button>
+                        </div>
+
+
                         <div className={styles.filterRow}>
                             {/* 下拉选框 */}
                             <select
@@ -675,6 +925,7 @@ const PotentialCustomer: React.FC = () => {
                                 重置筛选
                             </button>
                         </div>
+
                     </div>
 
 
@@ -774,22 +1025,42 @@ const PotentialCustomer: React.FC = () => {
                                     </table>
                                 );
                             })()}
+                            {/* 按钮组 */}
+                            {renderButtonGroup()}
                         </div>
                     )}
-                    {/* 按钮组 */}
-                    {renderButtonGroup()}
+
                 </div>
 
 
                 {editModalVisible && editForm && (
                     <div className={styles.customModalOverlay}>
                         <div className={styles.customModal}>
-                            <h4 style={{ marginBottom: 0 }}>编辑希望客户</h4>
+                            <h4 style={{ marginBottom: 0 }}>
+                                {editForm.id != null ? "编辑希望客户" : "新增希望客户"}
+                            </h4>
                             <form
                                 onSubmit={e => {
                                     e.preventDefault();
-                                    // 保存逻辑
-                                    setEditModalVisible(false);
+                                    setTimeout(() => {
+                                        if (!editForm) return;
+                                        if (editForm.id != null) {
+                                            // ---- 编辑 ----
+                                            setMyList(list =>
+                                                list.map(item =>
+                                                    item.id === editForm.id ? { ...editForm } : item
+                                                )
+                                            );
+                                            setSelectedDetail({ ...editForm });
+                                        } else {
+                                            // ---- 新增 ----
+                                            const newId = Math.max(0, ...myList.map(x => x.id || 0)) + 1;
+                                            const newCustomer = { ...editForm, id: newId, recordTime: new Date() };
+                                            setMyList(list => [newCustomer, ...list]);
+                                            setSelectedDetail(newCustomer);
+                                        }
+                                        setEditModalVisible(false);
+                                    }, 100); // 400毫秒模拟后端延迟
                                 }}
                             >
                                 <table className={`table table-sm ${styles.editTable}`}>
@@ -808,21 +1079,120 @@ const PotentialCustomer: React.FC = () => {
                                                 // 渲染输入控件
                                                 const renderInput = (key: string, value: any) => {
                                                     // id 不可编辑
-                                                    if (key === "id") return <input type="text" value={value} disabled className={styles.editInput} />;
-                                                    // 日期类型
-                                                    if (value instanceof Date)
+                                                    if (key === "id") {
+                                                        return (
+                                                            <input
+                                                                type="text"
+                                                                value={value}
+                                                                disabled
+                                                                className={styles.editInput}
+                                                            />
+                                                        );
+                                                    }
+
+                                                    // === 只读所有回访时间 ===
+                                                    if (followUpDateFields.includes(key)) {
+                                                        return (
+                                                            <input
+                                                                type="date"
+                                                                className={`${styles.editInput} form-control`}
+                                                                value={value ? value.toISOString().split("T")[0] : ""}
+                                                                disabled
+                                                                readOnly
+                                                            />
+                                                        );
+                                                    }
+
+                                                    // === 可编辑所有回访内容，同时自动生成下一个回访时间 ===
+                                                    if (followUpNoteFields.includes(key)) {
+                                                        const idx = followUpNoteFields.indexOf(key);
+                                                        const dateField = followUpDateFields[idx];
+
+                                                        // 新增模式，只允许编辑第一次回访内容
+                                                        if (!editForm?.id) {
+                                                            // 只允许 idx == 0
+                                                            const canEdit = idx === 0;
+                                                            return (
+                                                                <input
+                                                                    type="text"
+                                                                    className={`${styles.editInput} form-control`}
+                                                                    value={value ?? ""}
+                                                                    disabled={!canEdit}
+                                                                    onChange={e => {
+                                                                        const inputVal = e.target.value;
+                                                                        setEditForm(prev => {
+                                                                            if (!prev) return prev;
+                                                                            const updated = { ...prev, [key]: inputVal };
+                                                                            // 自动填第一次回访时间
+                                                                            if (canEdit && inputVal && !(prev as any)[dateField]) {
+                                                                                (updated as any)[dateField] = new Date();
+                                                                            }
+                                                                            return updated;
+                                                                        });
+                                                                    }}
+                                                                />
+                                                            );
+                                                        }
+
+                                                        // 用编辑开始时的 initialFirstEmptyDateIdx
+                                                        const canEdit =
+                                                            idx < initialFirstEmptyDateIdx ||
+                                                            idx === initialFirstEmptyDateIdx;
+
+
+                                                        // 限制：如果idx > firstEmptyDateIdx，绝对不能编辑
+                                                        // 只要还没保存，不能自动放开后面input
+                                                        return (
+                                                            <input
+                                                                type="text"
+                                                                className={`${styles.editInput} form-control`}
+                                                                value={value ?? ""}
+                                                                disabled={!canEdit}
+                                                                onChange={e => {
+                                                                    const inputVal = e.target.value;
+                                                                    setEditForm(prev => {
+                                                                        if (!prev) return prev;
+                                                                        const updated = { ...prev, [key]: inputVal };
+                                                                        // 只允许本条生成时间
+                                                                        if (canEdit && idx === initialFirstEmptyDateIdx && inputVal && !(prev as any)[dateField]) {
+                                                                            (updated as any)[dateField] = new Date();
+                                                                        }
+                                                                        return updated;
+                                                                    });
+                                                                }}
+                                                            />
+                                                        );
+                                                    }
+
+                                                    // --- 回访时间输入（全部禁用）---
+                                                    if (followUpDateFields.includes(key)) {
+                                                        return (
+                                                            <input
+                                                                type="date"
+                                                                className={`${styles.editInput} form-control`}
+                                                                value={value ? value.toISOString().split("T")[0] : ""}
+                                                                disabled
+                                                                readOnly
+                                                            />
+                                                        );
+                                                    }
+
+                                                    // === 日期类型 ===
+                                                    if (value instanceof Date) {
                                                         return (
                                                             <input
                                                                 type="date"
                                                                 className={`${styles.editInput} form-control`}
                                                                 value={value ? value.toISOString().split("T")[0] : ""}
                                                                 onChange={e =>
-                                                                    setEditForm(prev => prev ? { ...prev, [key]: e.target.value ? new Date(e.target.value) : null } : prev)
+                                                                    setEditForm(prev => prev ? { ...prev, [key]: e.target.value ? getLocalDateFromInput(e.target.value) : null } : prev)
                                                                 }
                                                             />
                                                         );
-                                                    // 数字类型
-                                                    if (typeof value === "number")
+                                                    }
+
+                                                    // === 数字类型 ===
+                                                    if (typeof value === "number") {
                                                         return (
                                                             <input
                                                                 type="number"
@@ -833,7 +1203,9 @@ const PotentialCustomer: React.FC = () => {
                                                                 }
                                                             />
                                                         );
-                                                    // 其它用文本框
+                                                    }
+
+                                                    // === 其它文本 ===
                                                     return (
                                                         <input
                                                             type="text"
@@ -845,6 +1217,7 @@ const PotentialCustomer: React.FC = () => {
                                                         />
                                                     );
                                                 };
+
 
                                                 return (
                                                     <tr key={key1}>
@@ -935,7 +1308,7 @@ const PotentialCustomer: React.FC = () => {
                                         {(() => {
                                             // 2. 计算当前新增时的隐藏字段
                                             const visibleCreateFields = getVisibleFields(createForm, isAdmin, hiddenCreateFieldsForUser);
-                                            
+
                                             // 4. 两两分组渲染
                                             return groupEntriesInPairs(visibleCreateFields).map((pair, rowIdx) => {
                                                 const [[key1, value1], [key2, value2] = []] = pair;
@@ -952,7 +1325,7 @@ const PotentialCustomer: React.FC = () => {
                                                                 className={`${styles.editInput} form-control`}
                                                                 value={value ? value.toISOString().split("T")[0] : ""}
                                                                 onChange={e =>
-                                                                    setCreateForm(prev => prev ? { ...prev, [key]: e.target.value ? new Date(e.target.value) : null } : prev)
+                                                                    setCreateForm(prev => prev ? { ...prev, [key]: e.target.value ? getLocalDateFromInput(e.target.value) : null } : prev)
                                                                 }
                                                             />
                                                         );
@@ -983,21 +1356,21 @@ const PotentialCustomer: React.FC = () => {
 
                                                 return (
                                                     <tr key={key1}>
-                                                      <th style={{ whiteSpace: "nowrap", width: "15%" }}>{insuranceDetailsNameMap[key1] || key1}</th>
-                                                      <td>{renderInput(key1, value1)}</td>
-                                                      {key2 ? (
-                                                        <>
-                                                          <th style={{ whiteSpace: "nowrap", width: "15%" }}>{insuranceDetailsNameMap[key2] || key2}</th>
-                                                          <td>{renderInput(key2, value2)}</td>
-                                                        </>
-                                                      ) : (
-                                                        <>
-                                                          <th></th>
-                                                          <td></td>
-                                                        </>
-                                                      )}
+                                                        <th style={{ whiteSpace: "nowrap", width: "15%" }}>{insuranceDetailsNameMap[key1] || key1}</th>
+                                                        <td>{renderInput(key1, value1)}</td>
+                                                        {key2 ? (
+                                                            <>
+                                                                <th style={{ whiteSpace: "nowrap", width: "15%" }}>{insuranceDetailsNameMap[key2] || key2}</th>
+                                                                <td>{renderInput(key2, value2)}</td>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <th></th>
+                                                                <td></td>
+                                                            </>
+                                                        )}
                                                     </tr>
-                                                  );
+                                                );
                                             });
                                         })()}
                                     </tbody>
