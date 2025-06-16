@@ -784,7 +784,7 @@ const PotentialCustomer: React.FC = () => {
                 {editModalVisible && editForm && (
                     <div className={styles.customModalOverlay}>
                         <div className={styles.customModal}>
-                            <h4 style={{ marginBottom: 0 }}>编辑潜在客户</h4>
+                            <h4 style={{ marginBottom: 0 }}>编辑希望客户</h4>
                             <form
                                 onSubmit={e => {
                                     e.preventDefault();
@@ -800,7 +800,7 @@ const PotentialCustomer: React.FC = () => {
                                                 ? hiddenFieldsForAll
                                                 : [...hiddenFieldsForAll, ...hiddenCreateFieldsForUser];
                                             // 3. 过滤可见字段
-                                            const visibleEditFields = getVisibleFields(editForm, isAdmin, editHiddenFields);
+                                            const visibleEditFields = getVisibleFields(editForm, false, editHiddenFields);
                                             // 4. 两两分组
                                             return groupEntriesInPairs(visibleEditFields).map((pair, rowIdx) => {
                                                 const [[key1, value1], [key2, value2] = []] = pair;
