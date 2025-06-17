@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import styles from "./PotentialCustomerDetails.module.css";
 import type { InsuranceDetail } from './InsuranceDetails.tsx';
 import { isAdminUser, getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap, getLocalDateFromInput } from "../utils/fieldUtils";
+import { fetchByRecordDate, fetchComprehensive } from '../api/potentialCustomer';
+import { convertDatesInObject } from '../utils/dateUtils'; // 路径自己定
 
 interface PotentialCustomer {
     insuredCount: number | null;
@@ -30,9 +32,9 @@ interface PotentialCustomer {
     nineFollowUpDate: Date | null;
     insuranceCompany: string | null;
     tenFollowUpNote: string | null;
-    Note1: string | null;
+    note1: string | null;
     tenFollowUpDate: Date | null;
-    Node2: string | null;
+    note2: string | null;
     elevenFollowUpNote: string | null;
     salesAgent: string | null;
     elevenFollowUpDate: Date | null;
@@ -84,9 +86,9 @@ const fieldNameMap: Record<string, string> = {
     nineFollowUpDate: "九次时间",
     insuranceCompany: "保险公司",
     tenFollowUpNote: "十次回访",
-    Note1: "备注1",
+    note1: "备注1",
     tenFollowUpDate: "十次时间",
-    Node2: "备注2",
+    note2: "备注2",
     elevenFollowUpNote: "十一次回访",
     salesAgent: "业务员",
     elevenFollowUpDate: "十一次时间",
@@ -107,6 +109,33 @@ const fieldNameMap: Record<string, string> = {
     thirdFollowUpDate: "三次时间",
     fifteenFollowUpDate: "十五次时间"
 }
+
+const detailFieldOrder = [
+    "insuredCount", "fourFollowUpNote",
+    "licensePlate", "fourFollowUpDate",
+    "vehicleModel", "fiveFollowUpNote",
+    "policyStartDate", "fiveFollowUpDate",
+    "registrationOwner", "sixFollowUpNote",
+    "phone", "sixFollowUpDate",
+    "firstRegistrationDate", "sevenFollowUpNote",
+    "deliveryAddress", "sevenFollowUpDate",
+    "registrationOwnerId", "eightFollowUpNote",
+    "vinNumber", "eightFollowUpDate",
+    "engineNumber", "nineFollowUpNote",
+    "recordTime", "nineFollowUpDate",
+    "insuranceCompany", "tenFollowUpNote",
+    "note1", "tenFollowUpDate",
+    "note2", "elevenFollowUpNote",
+    "salesAgent", "elevenFollowUpDate",
+    "hierarchyCode", "twelveFollowUpNote",
+    "scheduleFollowUpDate", "twelveFollowUpDate",
+    "firstFollowUpNote", "thirteenFollowUpNote",
+    "firstFollowUpDate", "thirteenFollowUpDate",
+    "secondFollowUpNote", "fourteenFollowUpNote",
+    "secondFollowUpDate", "fourteenFollowUpDate",
+    "thirdFollowUpNote", "fifteenFollowUpNote",
+    "thirdFollowUpDate", "fifteenFollowUpDate"
+];
 
 const dateFields = new Set([
     "policyStartDate",
@@ -223,132 +252,57 @@ const PotentialCustomer: React.FC = () => {
 
     // 2. 详细信息数据相关
     // 详细信息数据相关
-    const [originalList, setOriginalList] = useState<PotentialCustomer[]>([
-        {
-            insuredCount: -1,
-            fourFollowUpNote: null,
-            licensePlate: "京A88888",
-            fourFollowUpDate: null,
-            vehicleModel: "福特探险者",
-            fiveFollowUpNote: null,
-            policyStartDate: new Date(2025, 8, 8),
-            fiveFollowUpDate: null,
-            registrationOwner: "王五",
-            sixFollowUpNote: null,
-            phone: "408-111-9999",
-            sixFollowUpDate: null,
-            firstRegistrationDate: new Date(2021, 8, 8),
-            sevenFollowUpNote: null,
-            deliveryAddress: "北京市海淀区111",
-            sevenFollowUpDate: null,
-            registrationOwnerId: "1113X",
-            eightFollowUpNote: null,
-            vinNumber: "VN12345",
-            eightFollowUpDate: null,
-            engineNumber: "GF11111",
-            nineFollowUpNote: null,
-            recordTime: new Date(2025, 8, 8, 14, 30, 45),
-            nineFollowUpDate: null,
-            insuranceCompany: "人保",
-            tenFollowUpNote: null,
-            Note1: "备注1",
-            tenFollowUpDate: null,
-            Node2: "备注2",
-            elevenFollowUpNote: null,
-            salesAgent: "业务员A",
-            elevenFollowUpDate: null,
-            hierarchyCode: "层级码1",
-            twelveFollowUpNote: null,
-            scheduleFollowUpDate: new Date(2025, 7, 8),
-            twelveFollowUpDate: null,
-            firstFollowUpNote: "一次回访",
-            thirteenFollowUpNote: null,
-            firstFollowUpDate: new Date(2025, 6, 8),
-            thirteenFollowUpDate: null,
-            secondFollowUpNote: "二次回访",
-            fourteenFollowUpNote: null,
-            secondFollowUpDate: new Date(2025, 6, 9),
-            fourteenFollowUpDate: null,
-            thirdFollowUpNote: "三次回访",
-            fifteenFollowUpNote: null,
-            thirdFollowUpDate: new Date(2025, 6, 10),
-            fifteenFollowUpDate: null,
-            id: 1,
-            followUpCount: 1,
-            previousSignDate: new Date(2024, 8, 8)
-        },
-        {
-            insuredCount: 9,
-            fourFollowUpNote: null,
-            licensePlate: "京B99999",
-            fourFollowUpDate: null,
-            vehicleModel: "特斯拉",
-            fiveFollowUpNote: null,
-            policyStartDate: new Date(2025, 6, 6),
-            fiveFollowUpDate: null,
-            registrationOwner: "赵六",
-            sixFollowUpNote: null,
-            phone: "13808886666",
-            sixFollowUpDate: null,
-            firstRegistrationDate: new Date(2015, 6, 6),
-            sevenFollowUpNote: null,
-            deliveryAddress: "北京市东城区222",
-            sevenFollowUpDate: null,
-            registrationOwnerId: "110333",
-            eightFollowUpNote: null,
-            vinNumber: "VN54321",
-            eightFollowUpDate: null,
-            engineNumber: "ER9999",
-            nineFollowUpNote: null,
-            recordTime: new Date(2015, 5, 5, 14, 30, 45),
-            nineFollowUpDate: null,
-            insuranceCompany: "太平",
-            tenFollowUpNote: null,
-            Note1: "备注1",
-            tenFollowUpDate: null,
-            Node2: "备注2",
-            elevenFollowUpNote: null,
-            salesAgent: "业务员B",
-            elevenFollowUpDate: null,
-            hierarchyCode: "层级码2",
-            twelveFollowUpNote: null,
-            scheduleFollowUpDate: new Date(2025, 6, 4),
-            twelveFollowUpDate: null,
-            firstFollowUpNote: "一次回访",
-            thirteenFollowUpNote: null,
-            firstFollowUpDate: new Date(2025, 4, 6),
-            thirteenFollowUpDate: null,
-            secondFollowUpNote: "二次回访",
-            fourteenFollowUpNote: null,
-            secondFollowUpDate: new Date(2025, 4, 8),
-            fourteenFollowUpDate: null,
-            thirdFollowUpNote: "三次回访",
-            fifteenFollowUpNote: null,
-            thirdFollowUpDate: new Date(2025, 4, 10),
-            fifteenFollowUpDate: null,
-            id: 2,
-            followUpCount: 9,
-            previousSignDate: new Date(2024, 6, 6)
-        },
-    ]);
-
-
-    const [myList, setMyList] = useState<PotentialCustomer[]>(originalList);
+    const [allList, setAllList] = useState<PotentialCustomer[]>([]);
+    const [myList, setMyList] = useState<PotentialCustomer[]>([]);
     const [selectedDetail, setSelectedDetail] = useState<PotentialCustomer | null>(null);
     const [showList, setShowList] = useState(false);
 
     // 3. 查询逻辑
     const handleRecordDateSearch = () => {
-        setShowList(true);
-        // 只返回第一条
-        setMyList([originalList[0]]);
+        if (!query.recordTimeStart || !query.recordTimeEnd) {
+            alert("请选择完整记录日期");
+            return;
+        }
+        fetchByRecordDate(query.recordTimeStart, query.recordTimeEnd)
+            .then(res => {
+                const data = convertDatesInObject(res.data);
+                setAllList(data);
+                setMyList(data);
+                setShowList(true);
+            })
+            .catch(err => {
+                alert("查询失败: " + err.message);
+            });
     };
 
     const handleComprehensiveSearch = () => {
-        setShowList(true);
-        // 返回所有数据
-        setMyList([...originalList]);
+        if (
+            !query.recordTimeStart ||
+            !query.recordTimeEnd ||
+            !query.policyStartDateStart ||
+            !query.policyStartDateEnd
+        ) {
+            alert("请输入完整记录日期和起保日期");
+            return;
+        }
+        fetchComprehensive({
+            recordTimeStart: query.recordTimeStart,
+            recordTimeEnd: query.recordTimeEnd,
+            policyStartDateStart: query.policyStartDateStart,
+            policyStartDateEnd: query.policyStartDateEnd
+        })
+            .then(res => {
+                const data = convertDatesInObject(res.data);
+                setAllList(data);
+                setMyList(data);
+                setShowList(true);
+            })
+            .catch(err => {
+                alert("查询失败: " + err.message);
+            });
     };
+
+
 
     // 4. 筛选按钮
     const handleFilterBtn = (key: keyof typeof filters) => {
@@ -405,14 +359,17 @@ const PotentialCustomer: React.FC = () => {
     const handleFollowUpDateQuery = () => {
         if (!followUpDateQuery) return;
         setMyList(
-            originalList.filter(
+            allList.filter(
                 item =>
                     item.scheduleFollowUpDate &&
-                    item.scheduleFollowUpDate.toISOString().split("T")[0] === followUpDateQuery
+                    (item.scheduleFollowUpDate instanceof Date
+                        ? item.scheduleFollowUpDate.toISOString().split("T")[0] === followUpDateQuery
+                        : String(item.scheduleFollowUpDate).substring(0, 10) === followUpDateQuery)
             )
         );
         setShowList(true);
     };
+
 
     // 1. 回访次数选择变化时触发筛选
     const handleFollowUpCountChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -420,63 +377,65 @@ const PotentialCustomer: React.FC = () => {
         setSelectedFollowUpCount(val);
 
         if (!val) {
-            setMyList([...originalList]);
+            setMyList([...allList]);
             return;
         }
-        setMyList(originalList.filter(item => String(item.followUpCount ?? "") === val));
+        setMyList(allList.filter(item => String(item.followUpCount ?? "") === val));
         setShowList(true);
     };
+
 
     // 2. 未回访多选框变化时触发筛选
     const handleNeverFollowUpChange = () => {
         const newVal = !neverFollowUp;
         setNeverFollowUp(newVal);
         if (!newVal) {
-            setMyList([...originalList]);
+            setMyList([...allList]);
             return;
         }
-        setMyList(originalList.filter(item =>
+        setMyList(allList.filter(item =>
             !item.firstFollowUpNote || item.firstFollowUpNote.trim() === ""
         ));
         setShowList(true);
     };
 
+
     const handleCustomFilter = () => {
         if (!filterField || !filterValue) {
-          setMyList(originalList);
-          return;
+            setMyList(allList);
+            return;
         }
-      
+
         setMyList(
-          originalList.filter(item => {
-            const v = (item as any)[filterField];
-      
-            // 日期字段
-            if (dateFields.has(filterField)) {
-              if (!(v instanceof Date)) return false;
-              // 只支持等于比较
-              return v.toISOString().split("T")[0] === filterValue;
-            }
-      
-            // 非日期字段
-            if (filterOperator === "=") {
-              return String(v ?? "") === filterValue;
-            } else if (filterOperator === ">") {
-              return v > filterValue;
-            } else if (filterOperator === "<") {
-              return v < filterValue;
-            } else if (filterOperator === "like") {
-              return String(v ?? "").includes(filterValue);
-            } else if (filterOperator === "not like") {
-              return !String(v ?? "").includes(filterValue);
-            }
-      
-            // 默认不筛选
-            return true;
-          })
+            allList.filter(item => {
+                const v = (item as any)[filterField];
+
+                // 日期字段
+                if (dateFields.has(filterField)) {
+                    if (!(v instanceof Date)) return false;
+                    // 只支持等于比较
+                    return v.toISOString().split("T")[0] === filterValue;
+                }
+
+                // 非日期字段
+                if (filterOperator === "=") {
+                    return String(v ?? "") === filterValue;
+                } else if (filterOperator === ">") {
+                    return v > filterValue;
+                } else if (filterOperator === "<") {
+                    return v < filterValue;
+                } else if (filterOperator === "like") {
+                    return String(v ?? "").includes(filterValue);
+                } else if (filterOperator === "not like") {
+                    return !String(v ?? "").includes(filterValue);
+                }
+
+                // 默认不筛选
+                return true;
+            })
         );
-      };
-    
+    };
+
 
     // 3. 重置按钮，三个相关 state 也要重置
     const handleResetFilters = () => {
@@ -489,10 +448,11 @@ const PotentialCustomer: React.FC = () => {
             notScheduledOrExpired: false,
         });
         setFollowUpDateQuery("");
-        setMyList([...originalList]);
+        setMyList([...allList]);
         setSelectedFollowUpCount('');
         setNeverFollowUp(false);
     };
+
 
     function getEmptyPotentialCustomer(): PotentialCustomer {
         return {
@@ -522,9 +482,9 @@ const PotentialCustomer: React.FC = () => {
             nineFollowUpDate: null,
             insuranceCompany: "",
             tenFollowUpNote: null,
-            Note1: "",
+            note1: "",
             tenFollowUpDate: null,
-            Node2: "",
+            note2: "",
             elevenFollowUpNote: null,
             salesAgent: "",
             elevenFollowUpDate: null,
@@ -575,15 +535,15 @@ const PotentialCustomer: React.FC = () => {
                             item.id === updated.id ? updated : item
                         )
                     );
-                    // 关键：同步更新 originalList！
-                    setOriginalList(list =>
+                    // 关键：同步更新 AllList
+                    setAllList(list =>
                         list.map(item =>
                             item.id === updated.id ? updated : item
                         )
                     );
                     alert("下次回访日期已保存！");
                 }}
-                
+
             >
                 保存下次回访
             </button>
@@ -984,13 +944,15 @@ const PotentialCustomer: React.FC = () => {
                     {selectedDetail && (
                         <div>
                             {(() => {
-                                // 过滤掉不显示的字段
-                                const visibleEntries = getVisibleFields(selectedDetail, false, hiddenFieldsForAll);
+                                const visibleEntries: [string, any][] = detailFieldOrder
+                                    .filter(key => !hiddenFieldsForAll.includes(key))
+                                    .map(key => [key, selectedDetail[key as keyof PotentialCustomer]]);
+                                const grouped = groupEntriesInPairs(visibleEntries);
 
                                 return (
                                     <table className={`table table-bordered table-hover ${styles.customTable}`}>
                                         <tbody>
-                                            {groupEntriesInPairs(visibleEntries).map((pair, rowIdx) => {
+                                            {grouped.map((pair, rowIdx) => {
                                                 const [[key1, value1], [key2, value2] = []] = pair;
                                                 return (
                                                     <tr key={key1}>
@@ -999,8 +961,7 @@ const PotentialCustomer: React.FC = () => {
                                                             {value1 instanceof Date
                                                                 ? (key1 === "recordTime"
                                                                     ? value1.toLocaleString()
-                                                                    : value1.toLocaleDateString()
-                                                                )
+                                                                    : value1.toLocaleDateString())
                                                                 : String(value1 ?? "")}
                                                         </td>
                                                         {key2 ? (
@@ -1029,9 +990,7 @@ const PotentialCustomer: React.FC = () => {
                             {renderButtonGroup()}
                         </div>
                     )}
-
                 </div>
-
 
                 {editModalVisible && editForm && (
                     <div className={styles.customModalOverlay}>
@@ -1071,7 +1030,9 @@ const PotentialCustomer: React.FC = () => {
                                                 ? hiddenFieldsForAll
                                                 : [...hiddenFieldsForAll, ...hiddenCreateFieldsForUser];
                                             // 3. 过滤可见字段
-                                            const visibleEditFields = getVisibleFields(editForm, false, editHiddenFields);
+                                            const visibleEditFields: [string, any][] = detailFieldOrder
+                                                .filter(key => !editHiddenFields.includes(key) && editForm.hasOwnProperty(key))
+                                                .map(key => [key, editForm[key as keyof PotentialCustomer]]);
                                             // 4. 两两分组
                                             return groupEntriesInPairs(visibleEditFields).map((pair, rowIdx) => {
                                                 const [[key1, value1], [key2, value2] = []] = pair;
