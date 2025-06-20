@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { PotentialCustomer } from '../pages/PotentialCustomerDetails.tsx';
 
 // 工具函数，保证输入格式为 "YYYY-MM-DD"，拼接时间段
 function toDateTimeRange(date: string, type: 'start' | 'end') {
@@ -37,3 +38,10 @@ export function fetchComprehensive(query: {
   });
 }
 
+export function updatePotentialCustomer(customer: PotentialCustomer) {
+  return axios.post("http://localhost:8080/api/potential-customers/update", customer);
+}
+
+export function addPotentialCustomer(customer: PotentialCustomer) {
+  return axios.post("http://localhost:8080/api/potential-customers/add", customer);
+}

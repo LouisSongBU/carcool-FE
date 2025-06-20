@@ -1,6 +1,13 @@
 import React, { useState } from "react";
 import styles from "./InsuranceDetails.module.css";
-import { isAdminUser, getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
+import { insuranceDetailsNameMap } from "../utils/fieldUtils";
+import { useEffect } from "react";
+import { addInsuranceDetail, fetchInsuranceDetails, updateInsuranceDetail } from "../api/insuranceDetails.ts"; // 你API的路径
+
+type InsuranceDetailsProps = {
+  insuranceCompanies: any[];
+  userList: any[];
+};
 
 export interface InsuranceDetail {
   id: string;
@@ -9,7 +16,7 @@ export interface InsuranceDetail {
   applicantIdNumber: string | null;
   compulsoryPolicyNumber: string | null;
   insuredName: string;
-  signingDate: Date | null;
+  signingDate: string | null;
   insuredIdNumber: string;
   vehicleDamageCoverage: number | null;
   registrationOwner: string | null;
@@ -20,7 +27,7 @@ export interface InsuranceDetail {
   thirdPartyPremium: number | null;
   vehicleModel: string | null;
   outMedCoverage: number | null;
-  firstRegistrationDate: Date | null;
+  firstRegistrationDate: string | null;
   outMedPremium: number | null;
   engineNumber: string | null;
   driverCoverage: number | null;
@@ -40,10 +47,10 @@ export interface InsuranceDetail {
   vehicleTax: number;
   salesManager: string | null;
   receivablePremium: number;
-  inputDate: Date | null;
+  inputDate: string | null;
   receivedPremium: number;
   intermediaryInvoiceNo: string | null;
-  policyStartDate: Date | null;
+  policyStartDate: string | null;
   hierarchyCode: string | null;
   insuranceCompany: string | null;
   issuingOffice: string | null;
@@ -53,6 +60,41 @@ export interface InsuranceDetail {
   compulsoryAdjustment: number | null;
 }
 
+const detailFieldOrder: string[][] = [
+  ["id", "applicantName"],
+  ["commercialPolicyNumber", "applicantIdNumber"],
+  ["compulsoryPolicyNumber", "insuredName"],
+  ["signingDate", "insuredIdNumber"],
+  ["vehicleDamageCoverage", "registrationOwner"],
+  ["vehicleDamagePremium", "registrationOwnerId"],
+  ["thirdPartyCoverage", "licensePlate"],
+  ["thirdPartyPremium", "vehicleModel"],
+  ["outMedCoverage", "firstRegistrationDate"],
+  ["outMedPremium", "engineNumber"],
+  ["driverCoverage", "vinNumber"],
+  ["driverPremium", "approvedSeats"],
+  ["passengerCoverage", "approvedLoad"],
+  ["passengerPremium", "deliveryAddress"],
+  ["commercialPremium", "phone"],
+  ["compulsoryPremium", "mobile"],
+  ["driverAccidentPremium", "salesAgent"],
+  ["vehicleTax", "salesManager"],
+  ["receivablePremium", "inputDate"],
+  ["receivedPremium", "intermediaryInvoiceNo"],
+  ["policyStartDate", "hierarchyCode"],
+  ["insuranceCompany", "issuingOffice"],
+  ["isSettlement", "financeVerification"],
+  ["commercialAdjustment", "compulsoryAdjustment"]
+];
+
+
+
+const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || '{}');
+const hierarchyCode = Number(userInfo.hierarchyCode);
+const isSuperAdmin = hierarchyCode === 0;
+const isAdmin = hierarchyCode === 1;
+const isNormalUser = !isSuperAdmin && !isAdmin;
+const currentUserName = userInfo.displayName || "";
 
 // === 1. 常量配置区 ===
 const dateFields = new Set([
@@ -71,19 +113,19 @@ const hiddenFieldsForUser = [
 ];
 
 // === 2. 组件主体 ===
-const InsuranceCustomers: React.FC = () => {
+const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies, userList }) => {
 
   // === 3. useState区（变量声明顺序） ===
   // 查询/筛选相关
   const [query, setQuery] = useState({
-    insuredName: "",
-    licensePlate: "",
-    signingStartDate: "",
-    signingEndDate: "",
-    policyStartDate: "",
-    policyEndDate: "",
-    policyNumber: "",
-    salesman: "",
+    insuredName: "",        // 被保险人
+    licensePlate: "",       // 车牌号
+    signingDateStart: getTodayDateStr(),   // 签单日期-起
+    signingDateEnd: getTodayDateStr(),     // 签单日期-止
+    policyStartDateStart: "", // 起保日期-起
+    policyStartDateEnd: "",   // 起保日期-止
+    commercialPolicyNumber: "",       // 保单号
+    salesAgent: ""          // 业务员
   });
 
   const [filterField, setFilterField] = useState("");
@@ -102,120 +144,16 @@ const InsuranceCustomers: React.FC = () => {
     received: false,
   });
 
-  // 详细信息数据相关
-  const [originalList, setOriginalList] = useState<InsuranceDetail[]>([
-    {
-      id: "00001",
-      applicantName: "张三",
-      commercialPolicyNumber: "L00001",
-      applicantIdNumber: "张三身份证号",
-      compulsoryPolicyNumber: "B00001",
-      insuredName: "张三2",
-      signingDate: new Date(2025, 5, 5),
-      insuredIdNumber: "张三222222222222222222",
-      vehicleDamageCoverage: 100,
-      registrationOwner: "张三3",
-      vehicleDamagePremium: 100.03,
-      registrationOwnerId: "张三3身份证号",
-      thirdPartyCoverage: 200,
-      licensePlate: "京A88888",
-      thirdPartyPremium: 300,
-      vehicleModel: "布加迪威龙",
-      outMedCoverage: 400,
-      firstRegistrationDate: new Date(2020, 4, 28),
-      outMedPremium: 45.52,
-      engineNumber: "GB34556",
-      driverCoverage: 500,
-      vinNumber: "VN236678",
-      driverPremium: 76.09,
-      approvedSeats: "4",
-      passengerCoverage: 600,
-      approvedLoad: "10",
-      passengerPremium: 5442,
-      deliveryAddress: "北京市",
-      commercialPremium: 7777,
-      phone: "44444-444",
-      compulsoryPremium: 3231,
-      mobile: "123455666",
-      driverAccidentPremium: 444,
-      salesAgent: "甲",
-      vehicleTax: 400,
-      salesManager: "甲+1",
-      receivablePremium: 9787.44,
-      inputDate: new Date(2020, 4, 28),
-      receivedPremium: 0,
-      intermediaryInvoiceNo: "N554544",
-      policyStartDate: new Date(2020, 6, 3),
-      hierarchyCode: "12356778",
-      insuranceCompany: "太平洋",
-      issuingOffice: "丰台",
-      isSettlement: "这是备注",
-      financeVerification: "某人",
-      commercialAdjustment: 1,
-      compulsoryAdjustment: 2
-    },
-    {
-      id: "00002",
-      applicantName: "李四",
-      commercialPolicyNumber: "A00002",
-      applicantIdNumber: "李四身份证号",
-      compulsoryPolicyNumber: "B00002",
-      insuredName: "李四2",
-      signingDate: new Date(2025, 5, 5),
-      insuredIdNumber: "李四2身份证号",
-      vehicleDamageCoverage: 100,
-      registrationOwner: "李四3",
-      vehicleDamagePremium: 100.03,
-      registrationOwnerId: "李四3身份证号",
-      thirdPartyCoverage: 200,
-      licensePlate: "京B66666",
-      thirdPartyPremium: 300,
-      vehicleModel: "su7",
-      outMedCoverage: 400,
-      firstRegistrationDate: new Date(2020, 4, 28),
-      outMedPremium: 45.52,
-      engineNumber: "GB34556",
-      driverCoverage: 500,
-      vinNumber: "VN236678",
-      driverPremium: 76.09,
-      approvedSeats: "4",
-      passengerCoverage: 600,
-      approvedLoad: "10",
-      passengerPremium: 5442,
-      deliveryAddress: "北京市",
-      commercialPremium: 7777,
-      phone: "44444-444",
-      compulsoryPremium: 3231,
-      mobile: "123455666",
-      driverAccidentPremium: 444,
-      salesAgent: "甲",
-      vehicleTax: 400,
-      salesManager: "甲+1",
-      receivablePremium: 9787.44,
-      inputDate: new Date(2020, 4, 28),
-      receivedPremium: 8000,
-      intermediaryInvoiceNo: "N554544",
-      policyStartDate: new Date(2020, 6, 3),
-      hierarchyCode: "12356778",
-      insuranceCompany: "人保01",
-      issuingOffice: "丰台",
-      isSettlement: "这是备注",
-      financeVerification: "某人",
-      commercialAdjustment: 1,
-      compulsoryAdjustment: 2
-    },
-  ]);
-
-  const [myList, setMyList] = useState(originalList);
-  const [searchResult, setSearchResult] = useState(originalList); // 初始等于全部
+  const [insuranceList, setInsuranceList] = useState<InsuranceDetail[]>([]);
+  const [myList, setMyList] = useState<InsuranceDetail[]>([]);
+  const [searchResult, setSearchResult] = useState<InsuranceDetail[]>([]);
 
   // 详情、编辑相关
   const [selectedDetail, setSelectedDetail] = useState<InsuranceDetail | null>(null);
   const [showList, setShowList] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // 权限、编辑、新增相关
-  const isAdmin = isAdminUser();
+  // 编辑、新增相关
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<InsuranceDetail | null>(null);
   const [editType, setEditType] = useState<"add" | "edit">("edit");
@@ -227,13 +165,305 @@ const InsuranceCustomers: React.FC = () => {
     label
   }));
 
+  // state 新增
+  const [agentInput, setAgentInput] = useState(""); // 输入框内容
+  const [agentDropdown, setAgentDropdown] = useState(false); // 是否展示下拉
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null); // 最终选中业务员名
+
+  // 匹配 userList
+  const filteredAgents = userList.filter(
+    u => agentInput && u.displayName && u.displayName.includes(agentInput)
+  );
+
+  const [insuranceCompanyInput, setInsuranceCompanyInput] = useState("");
+  const [insuranceDropdownOpen, setInsuranceDropdownOpen] = useState(false);
+
+  // 查询时，只允许选中下拉项
+  const canSearch =
+    (!agentInput && !selectedAgent) || // 没填=不筛选
+    (!!agentInput && filteredAgents.some(a => a.displayName === agentInput));
+
+  //表单生成
+  const omitKeys = ["id", "commercialPolicyNumber", "compulsoryPolicyNumber"];
+
+  useEffect(() => {
+    if (isNormalUser) {
+      setAgentInput(currentUserName);
+      setSelectedAgent(currentUserName);
+    }
+  }, [isNormalUser, currentUserName]);
+
+  const renderInput = (key: string, value: any) => {
+    if (key === "id") {
+      return <input type="text" className={`${styles.editInput} form-control`} value={value ?? ""} disabled />;
+    }
+    if (omitKeys.includes(key) && editType === "add") {
+      // 新增时这3个字段显示“【不用填】”且不可编辑
+      return (
+        <input
+          type="text"
+          className={`${styles.editInput} form-control`}
+          value="【不用填】"
+          disabled
+          readOnly
+        />
+      );
+    }
+    if (key === "salesAgent") {
+      if (isSuperAdmin) {
+        return (
+          <div style={{ position: "relative", width: "220px" }}>
+            <input
+              type="text"
+              className={styles.editInput + " form-control"}
+              value={value ?? ""}
+              placeholder="请选择业务员"
+              autoComplete="off"
+              onFocus={e => setAgentDropdown(true)}
+              onChange={e => {
+                const inputVal = e.target.value;
+                setEditData(prev => prev ? { ...prev, salesAgent: inputVal } : prev);
+                setAgentDropdown(!!inputVal);
+                // 选业务员自动更新主管
+                const selected = userList.find(u => u.displayName === inputVal);
+                setEditData(prev => prev
+                  ? { ...prev,
+                     salesManager: selected && selected.manager ? selected.manager.displayName : "",
+                     hierarchyCode: selected && selected.hierarchyCode ? String(selected.hierarchyCode) : "" }
+                  : prev);
+              }}
+              onBlur={() => setTimeout(() => setAgentDropdown(false), 120)}
+            />
+            {/* 清除按钮 */}
+            {value && (
+              <button
+                type="button"
+                style={{
+                  position: "absolute", right: -10, top: -9, zIndex: 2, border: "none", background: "none"
+                }}
+                onClick={() => {
+                  setEditData(prev => prev ? { ...prev, salesAgent: "", salesManager: "" } : prev);
+                }}
+                tabIndex={-1}
+              >×</button>
+            )}
+            {/* 下拉选 */}
+            {agentDropdown && (
+              <ul className={styles.agentDropdown} style={{ zIndex: 10 }}>
+                {
+                  userList.filter(u => value && u.displayName.includes(value)).length === 0
+                    ? <li className={styles.noMatch}>无匹配项</li>
+                    : userList.filter(u => value && u.displayName.includes(value)).map(a =>
+                      <li
+                        key={a.id}
+                        onMouseDown={() => {
+                          setEditData(prev => prev
+                            ? {
+                              ...prev,
+                              salesAgent: a.displayName,
+                              salesManager: a.manager ? a.manager.displayName : ""
+                            }
+                            : prev
+                          );
+                          setAgentDropdown(false);
+                        }}
+                      >{a.displayName}</li>
+                    )
+                }
+              </ul>
+            )}
+          </div>
+        );
+      }
+      return (
+        <input
+          type="text"
+          className={styles.editInput + " form-control"}
+          value={value ?? ""}
+          disabled
+          readOnly
+        />
+      );
+
+    }
+
+    // 特殊：主管是只读
+    if (key === "salesManager") {
+      return (
+        <input
+          type="text"
+          className={styles.editInput + " form-control"}
+          value={value ?? ""}
+          readOnly
+          disabled
+          placeholder="自动带出"
+        />
+      );
+    }
+
+    if (key === "hierarchyCode") {
+      return (
+        <input
+          type="text"
+          className={styles.editInput + " form-control"}
+          value={value ?? ""}
+          readOnly
+          disabled
+          placeholder="自动带出"
+        />
+      );
+    }
+
+    if (key === "insuranceCompany") {
+      // 计算下拉可选项
+      const matchedCompanies = insuranceCompanies.filter(
+        c => insuranceCompanyInput &&
+          c.insuranceCompany &&
+          c.insuranceCompany.includes(insuranceCompanyInput)
+      );
+
+      return (
+        <div style={{ position: "relative", width: "220px" }}>
+          <input
+            type="text"
+            className={styles.editInput + " form-control"}
+            value={insuranceCompanyInput}
+            placeholder="请选择保险公司"
+            autoComplete="off"
+            onFocus={() => setInsuranceDropdownOpen(true)}
+            onChange={e => {
+              setInsuranceCompanyInput(e.target.value);
+              setEditData(prev => prev ? { ...prev, insuranceCompany: "" } : prev);
+              setInsuranceDropdownOpen(!!e.target.value);
+            }}
+            onBlur={() => setTimeout(() => setInsuranceDropdownOpen(false), 120)}
+          />
+          {/* 清除按钮 */}
+          {insuranceCompanyInput && (
+            <button
+              type="button"
+              style={{
+                position: "absolute", right: -10, top: -9, zIndex: 22, border: "none", background: "none"
+              }}
+              onClick={() => {
+                setInsuranceCompanyInput("");
+                setEditData(prev => prev ? { ...prev, insuranceCompany: "" } : prev);
+              }}
+              tabIndex={-1}
+            >×</button>
+          )}
+          {/* 下拉选 */}
+          {insuranceDropdownOpen && (
+            <ul className={styles.agentDropdown} style={{ zIndex: 20 }}>
+              {matchedCompanies.length === 0
+                ? <li className={styles.noMatch}>无匹配项</li>
+                : matchedCompanies.map(company =>
+                  <li
+                    key={company.id}
+                    onMouseDown={() => {
+                      setInsuranceCompanyInput(company.insuranceCompany);
+                      setEditData(prev => prev
+                        ? { ...prev, insuranceCompany: company.insuranceCompany }
+                        : prev
+                      );
+                      setInsuranceDropdownOpen(false);
+                    }}
+                  >{company.insuranceCompany}</li>
+                )}
+            </ul>
+          )}
+        </div>
+      );
+    }
+
+
+    // 日期字段
+    if (key.endsWith("Date")) {
+      return (
+        <input
+          type="date"
+          className={`${styles.editInput} form-control`}
+          value={value ? String(value).slice(0, 10) : ""}
+          onChange={e =>
+            setEditData(prev => prev ? { ...prev, [key]: e.target.value } : prev)
+          }
+        />
+      );
+    }
+    // 时间字段
+    if (key.endsWith("Time")) {
+      return (
+        <input
+          type="datetime-local"
+          className={`${styles.editInput} form-control`}
+          step="1"
+          value={value ?? ""}
+          onChange={e =>
+            setEditData(prev => prev ? { ...prev, [key]: e.target.value } : prev)
+          }
+        />
+      );
+    }
+    // 数字字段（自动支持""为0的情况）
+    if (typeof value === "number" || /^\d+$/.test(String(value ?? ""))) {
+      if (key === "receivedPremium") {
+        return (
+          <input
+            type="number"
+            className={`${styles.editInput} form-control`}
+            value={value ?? ""}
+            disabled={!isSuperAdmin}
+            readOnly={!isSuperAdmin}
+            onChange={e => {
+              if (isSuperAdmin) {
+                setEditData(prev => prev ? { ...prev, [key]: Number(e.target.value) } : prev);
+              }
+            }}
+          />
+        );
+      } else {
+        return (
+          <input
+            type="number"
+            className={`${styles.editInput} form-control`}
+            value={value ?? ""}
+            onChange={e =>
+              setEditData(prev => prev ? { ...prev, [key]: Number(e.target.value) } : prev)
+            }
+          />
+        );
+      }
+    }
+    // 普通文本字段
+    return (
+      <input
+        type="text"
+        className={`${styles.editInput} form-control`}
+        value={value ?? ""}
+        onChange={e =>
+          setEditData(prev => prev ? { ...prev, [key]: e.target.value } : prev)
+        }
+      />
+    );
+  };
+
+
+  // useEffect(() => {
+  //   fetchInsuranceDetails().then(res => {
+  //     setMyList(res.data);
+  //     setSearchResult(res.data);
+  //     // 默认选中第一个，如果你需要
+  //     if (res.data && res.data.length > 0) setSelectedDetail(res.data[0]);
+  //   });
+  // }, []);
+
   // === 4. 业务逻辑区（派生变量/条件函数等） ===
   // 是否日期字段
   const isDateField = dateFields.has(filterField);
 
   const filterConditions = {
     notIssued: (item: any) =>
-      item.commercialPolicyNumber.startsWith("QL") || item.commercialPolicyNumber.startsWith("L"),
+      item.commercialPolicyNumber.startsWith("QL"),
     issued: (item: any) =>
       !(item.commercialPolicyNumber.startsWith("QL") || item.commercialPolicyNumber.startsWith("L")),
     received: (item: any) => (item.receivedPremium ?? 0) > 0,
@@ -241,13 +471,18 @@ const InsuranceCustomers: React.FC = () => {
   };
 
   // 判断是否能编辑
-  const canEdit = isAdmin || (selectedDetail && selectedDetail.commercialPolicyNumber.startsWith("L"));
+  const canEdit = isSuperAdmin || isAdmin ||
+    (isNormalUser && selectedDetail && typeof selectedDetail.commercialPolicyNumber === "string" &&
+      selectedDetail.commercialPolicyNumber.startsWith("L"));
+
+
 
   // 获取新增数据模板,新增时不带id/商业号/交强号/所有number字段清空
   const getDefaultNewData = () => {
     if (!selectedDetail) return null;
     const omitKeys = ["id", "commercialPolicyNumber", "compulsoryPolicyNumber"];
     const newData: any = {};
+    
     Object.entries(selectedDetail).forEach(([key, value]) => {
       if (omitKeys.includes(key)) {
         newData[key] = "不用填"; // 显示但不填内容
@@ -256,11 +491,19 @@ const InsuranceCustomers: React.FC = () => {
       if (typeof value === "number") {
         newData[key] = 0;
       } else if (key === "inputDate") {
-        newData[key] = new Date();
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        newData[key] = `${yyyy}-${mm}-${dd}`; // 得到"2024-07-01"这种格式
       } else {
         newData[key] = value;
       }
     });
+    if (!isSuperAdmin) {
+      newData.salesAgent = currentUserName;
+    }
+    newData.hierarchyCode = String(hierarchyCode);  // 自动赋当前登录用户的层级码
     return newData;
   };
 
@@ -269,22 +512,68 @@ const InsuranceCustomers: React.FC = () => {
     setQuery({ ...query, [e.target.name]: e.target.value });
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
+    const {
+      insuredName,
+      licensePlate,
+      signingDateStart,
+      signingDateEnd,
+      policyStartDateStart,
+      policyStartDateEnd,
+      commercialPolicyNumber,
+      // salesAgent: 不要从query里拿！
+    } = query;
+
+    // 用 selectedAgent，没选只能查其他字段
+    const salesAgent = isNormalUser ? currentUserName : (selectedAgent || "");
+
+    // 限制：如果业务员输入了但没选下拉，则禁止查询
+    if (
+      !insuredName &&
+      !licensePlate &&
+      !signingDateStart &&
+      !signingDateEnd &&
+      !policyStartDateStart &&
+      !policyStartDateEnd &&
+      !commercialPolicyNumber &&
+      !salesAgent
+    ) {
+      alert("请至少填写一个查询条件！");
+      return;
+    }
+
+    // 如果业务员输入有值，但是没有选中下拉，直接禁止
+    if (agentInput && !selectedAgent) {
+      alert("请选择下拉列表中的业务员！");
+      return;
+    }
+
     setLoading(true);
-    setShowList(false); // 每次点击先隐藏，再查出来
-    // 模拟后端
-    setTimeout(() => {
-      const result = originalList.filter((item) => {
-        return (
-          (query.insuredName === "" || item.insuredName.includes(query.insuredName)) &&
-          (query.licensePlate === "" || item.licensePlate.includes(query.licensePlate))
-        );
+    setShowList(false);
+
+    try {
+      // 只传选中的业务员，其它字段照常
+      const res = await fetchInsuranceDetails({
+        insuredName,
+        licensePlate,
+        signingDateStart,
+        signingDateEnd,
+        policyStartDateStart,
+        policyStartDateEnd,
+        commercialPolicyNumber,
+        salesAgent
       });
-      setSearchResult(result);
-      setMyList(result);
+
+      setSearchResult(res.data);
+      setMyList(res.data);
+    } catch (e: any) {
+      alert("查询失败: " + (e?.message || e));
+      setSearchResult([]);
+      setMyList([]);
+    } finally {
       setLoading(false);
       setShowList(true);
-    }, 100); // 模拟100ms延迟
+    }
   };
 
   const handleCustomFilter = () => {
@@ -300,10 +589,9 @@ const InsuranceCustomers: React.FC = () => {
       let userInput: string | number = filterValue;
 
       if (isDateField) {
-        const rawDate = new Date(rawVal as Date);
-        const rawStr = rawDate.toISOString().split("T")[0];
-        val = rawStr;
-        userInput = filterValue;
+        // 只用字符串处理
+        val = String(rawVal).slice(0, 10);
+        userInput = String(filterValue).slice(0, 10);
       } else if (typeof rawVal === "number") {
         val = rawVal;
         userInput = Number(filterValue);
@@ -312,8 +600,8 @@ const InsuranceCustomers: React.FC = () => {
       }
 
       if (filterOperator === "=") return val === userInput;
-      if (filterOperator === ">") return Number(val) > Number(userInput);
-      if (filterOperator === "<") return Number(val) < Number(userInput);
+      if (filterOperator === ">") return val > userInput;
+      if (filterOperator === "<") return val < userInput;
       if (filterOperator === "like") return String(val).includes(String(userInput));
       if (filterOperator === "not like") return !String(val).includes(String(userInput));
 
@@ -322,6 +610,7 @@ const InsuranceCustomers: React.FC = () => {
 
     setMyList(filtered);
   };
+
 
   const handleFilterChange = (filterName: keyof typeof filters) => {
     setFilters((prevFilters) => {
@@ -335,12 +624,12 @@ const InsuranceCustomers: React.FC = () => {
       );
 
       if (noFiltersApplied) {
-        setMyList(originalList);
+        setMyList(searchResult);
         setHighlightedFilters({ issued: false, received: false });
         return updatedFilters;
       }
 
-      const filteredList = originalList.filter((item) =>
+      const filteredList = searchResult.filter((item) =>
         Object.keys(updatedFilters)
           .filter((key) => updatedFilters[key as keyof typeof updatedFilters])
           .every((key) =>
@@ -365,46 +654,78 @@ const InsuranceCustomers: React.FC = () => {
 
   // === 编辑保存 ===
   const handleEditSave = async () => {
+
     if (!editData) return;
-    const isAdd = !originalList.some(i => i.id === editData.id);
+    // 校验保险公司
+    const validCompanies = insuranceCompanies.map(c => c.insuranceCompany);
+    if (!editData.insuranceCompany || !validCompanies.includes(editData.insuranceCompany)) {
+      alert("请选择下拉列表中的保险公司！");
+      return;
+    }
     try {
-      await new Promise<{ success: boolean }>(resolve =>
-        setTimeout(() => resolve({ success: true }), 500)
-      );
-      if (isAdd) {
-        setOriginalList(prev => [editData, ...prev]);
-        setSearchResult(prev => [editData, ...prev]);
-        setMyList(prev => [editData, ...prev]);
-        setSelectedDetail(editData);
-      } else {
-        setOriginalList(prev =>
-          prev.map(item => item.id === editData.id ? editData : item)
-        );
-        setSearchResult(prev =>
-          prev.map(item => item.id === editData.id ? editData : item)
-        );
-        setMyList(prev =>
-          prev.map(item => item.id === editData.id ? editData : item)
-        );
-        setSelectedDetail(editData);
-      }
+      const updateRes = await updateInsuranceDetail(editData);
+      const updated = updateRes.data; // 假设后端返回最新对象
+
+      // 1. 列表移除旧项，把最新的插到第一位
+      setMyList(list => [
+        updated,
+        ...list.filter(item => item.id !== updated.id)
+      ]);
+      setSearchResult(list => [
+        updated,
+        ...list.filter(item => item.id !== updated.id)
+      ]);
       setIsEditing(false);
-    } catch {
-      alert("网络错误，请稍后再试");
+      setSelectedDetail(updated); // 2. 右侧详情直接显示
+
+      // 可选提示
+      // alert("保存成功！");
+    } catch (e: any) {
+      alert("保存失败: " + (e?.message || e));
     }
   };
 
+
   const handleCreateSave = async () => {
-    if (false) {
-      // 未来上线后直接启用后端API
-      //await axios.post('/api/insurance/create', editData);
-      //alert("新增成功！");
-    } else {
-      // 现在仅做本地模拟
-      alert("新增成功！（本地模拟）");
+    if (!editData) return;
+    // 校验保险公司
+    const validCompanies = insuranceCompanies.map(c => c.insuranceCompany);
+    if (!editData.insuranceCompany || !validCompanies.includes(editData.insuranceCompany)) {
+      alert("请选择下拉列表中的保险公司！");
+      return;
     }
-    setIsEditing(false);
+    try {
+      // 拷贝一份数据，然后清除这三个字段
+      const submitData = { insurancedetails: { ...editData }, userName: "currentUserName" } as any;
+      if (!isSuperAdmin) {
+        submitData.insurancedetails.salesAgent = currentUserName;
+      }
+      delete submitData.insurancedetails.id;
+      delete submitData.insurancedetails.commercialPolicyNumber;
+      delete submitData.insurancedetails.compulsoryPolicyNumber;
+      const addRes = await addInsuranceDetail(submitData);
+      const newRecord = addRes.data; // 后端返回最新对象（带id等）
+
+      setMyList(list => [newRecord, ...list]);
+      setSearchResult(list => [newRecord, ...list]);
+      setIsEditing(false);
+      setSelectedDetail(newRecord); // 新增的直接右侧展示
+
+      // 可选提示
+      // alert("新增成功！");
+    } catch (e: any) {
+      alert("新增失败: " + (e?.message || e));
+    }
   };
+
+  function getTodayDateStr() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
 
   const handleRenewQuery = () => {
     // TODO: 续保查询功能
@@ -425,6 +746,7 @@ const InsuranceCustomers: React.FC = () => {
         onClick={() => {
           if (!selectedDetail) return;
           const newData = getDefaultNewData();
+          setInsuranceCompanyInput(""); // 新增时保险公司输入框清空
           setEditData(newData);
           setEditType("add");
           setIsEditing(true);
@@ -440,6 +762,7 @@ const InsuranceCustomers: React.FC = () => {
           if (!selectedDetail || !canEdit) return;
           setEditData({ ...selectedDetail });
           setEditType("edit");
+          setInsuranceCompanyInput(selectedDetail.insuranceCompany || ""); // 这里同步！！
           setIsEditing(true);
         }}
         type="button"
@@ -492,16 +815,16 @@ const InsuranceCustomers: React.FC = () => {
                 <label className={styles.queryLabel}>签单日期</label>
                 <input
                   type="date"
-                  name="signingStartDate"
-                  value={query.signingStartDate}
+                  name="signingDateStart"
+                  value={query.signingDateStart}
                   onChange={handleInputChange}
                   className={`form-control form-control-sm ${styles.queryInput}`}
                 />
                 <span className={styles.queryText}>至</span>
                 <input
                   type="date"
-                  name="signingEndDate"
-                  value={query.signingEndDate}
+                  name="signingDateEnd"
+                  value={query.signingDateEnd}
                   onChange={handleInputChange}
                   className={`form-control form-control-sm ${styles.queryInput}`}
                 />
@@ -510,16 +833,16 @@ const InsuranceCustomers: React.FC = () => {
                 <label className={styles.queryLabel}>起保日期</label>
                 <input
                   type="date"
-                  name="policyStartDate"
-                  value={query.policyStartDate}
+                  name="policyStartDateStart"
+                  value={query.policyStartDateStart}
                   onChange={handleInputChange}
                   className={`form-control form-control-sm ${styles.queryInput}`}
                 />
                 <span className={styles.queryText}>至</span>
                 <input
                   type="date"
-                  name="policyEndDate"
-                  value={query.policyEndDate}
+                  name="policyStartDateEnd"
+                  value={query.policyStartDateEnd}
                   onChange={handleInputChange}
                   className={`form-control form-control-sm ${styles.queryInput}`}
                 />
@@ -528,8 +851,8 @@ const InsuranceCustomers: React.FC = () => {
                 <label className={styles.queryLabel}>保单号码</label>
                 <input
                   type="text"
-                  name="policyNumber"
-                  value={query.policyNumber}
+                  name="commercialPolicyNumber"
+                  value={query.commercialPolicyNumber}
                   onChange={handleInputChange}
                   className={`form-control form-control-sm ${styles.queryInput}`}
                   placeholder="请输入保单号码"
@@ -537,18 +860,109 @@ const InsuranceCustomers: React.FC = () => {
               </div>
               <div className={styles.queryRow}>
                 <label className={styles.queryLabel}>业务员</label>
-                <select
-                  name="salesman"
-                  value={query.salesman}
-                  onChange={handleInputChange}
-                  className={`form-select form-select-sm ${styles.queryInput}`}
-                >
-                  <option value="">请选择</option>
-                  <option value="张三">张三</option>
-                  <option value="李四">李四</option>
-                </select>
-                <button className={`btn btn-primary btn-sm ${styles.queryBtn}`} onClick={handleSearch}>查询</button>
+                <div className={styles.inputWrap}>
+                  <input
+                    type="text"
+                    className={`form-control form-control-sm ${styles.queryInputAgent}`}
+                    value={isNormalUser ? currentUserName : agentInput}
+                    placeholder="请输入业务员姓名"
+                    disabled={isNormalUser} // 普通业务员不可改
+                    autoComplete="off"
+                    onFocus={() => !isNormalUser && agentInput && setAgentDropdown(true)}
+                    onChange={e => {
+                      if (!isNormalUser) {
+                        setAgentInput(e.target.value);
+                        setSelectedAgent(null);
+                        setAgentDropdown(!!e.target.value);
+                      }
+                    }}
+                    onClick={() => {
+                      if (!isNormalUser) {
+                        setAgentInput("");
+                        setSelectedAgent(null);
+                      }
+                    }}
+                    onBlur={() => setTimeout(() => setAgentDropdown(false), 120)}
+                  />
+                  {agentInput && (
+                    <button
+                      type="button"
+                      className={styles.clearBtn}
+                      onClick={() => {
+                        setAgentInput("");
+                        setSelectedAgent(null);
+                      }}
+                      tabIndex={-1}
+                      aria-label="清除"
+                    >×</button>
+                  )}
+                  {agentDropdown && (
+                    <ul className={styles.agentDropdown}>
+                      {filteredAgents.length === 0 ? (
+                        <li className={styles.noMatch}>无匹配项</li>
+                      ) : (
+                        filteredAgents.map(a => (
+                          <li
+                            key={a.id}
+                            onMouseDown={() => {
+                              setAgentInput(a.displayName);
+                              setSelectedAgent(a.displayName);
+                              setAgentDropdown(false);
+                            }}
+                          >
+                            {a.displayName}
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  )}
+                </div>
+                <button
+                  className="btn btn-primary btn-sm"
+                  style={{
+                    minWidth: "50px",
+                    paddingLeft: "0px",
+                    paddingRight: "0px",
+                    fontSize: "15px",
+                    letterSpacing: "2px",
+                  }}
+                  type="button"
+                  onClick={handleSearch}
+                  disabled={!!agentInput && !selectedAgent}
+                >查询</button>
+                <button
+                className="btn btn-secondary btn-sm"
+                style={{
+                  minWidth: "50px",
+                  paddingLeft: "0px",
+                  paddingRight: "0px",
+                  fontSize: "15px",
+                  letterSpacing: "2px",
+                }}
+                type="button"
+                onClick={() => {
+                  setQuery({
+                    insuredName: "",
+                    licensePlate: "",
+                    signingDateStart: "",
+                    signingDateEnd: "",
+                    policyStartDateStart: "",
+                    policyStartDateEnd: "",
+                    commercialPolicyNumber: "",
+                    salesAgent: ""
+                  });
+                  setAgentInput(""); // 管理员/超管清空业务员输入
+                  setSelectedAgent(null);
+                  // 普通用户特殊处理
+                  if (isNormalUser) {
+                    setQuery(q => ({ ...q, salesAgent: currentUserName }));
+                  }
+                }}
+              >
+                清除
+              </button>
               </div>
+              
             </div>
           </div>
 
@@ -641,7 +1055,11 @@ const InsuranceCustomers: React.FC = () => {
                       <tr
                         key={item.id}
                         style={{ cursor: "pointer" }}
-                        onClick={() => setSelectedDetail(item)}
+                        onClick={() => {
+                          setSelectedDetail(item);
+                          setIsEditing(false);
+                          setEditData(null);
+                        }}
                         className={selectedDetail?.id === item.id ? styles.selectedRow : ""}
                       >
                         <td className={styles.idxCol}>{idx + 1}</td>
@@ -723,21 +1141,38 @@ const InsuranceCustomers: React.FC = () => {
                 <div>
                   {/** 1. 在这里先过滤字段： */}
                   {(() => {
-                    const visibleEntries = getVisibleFields(selectedDetail, isAdmin, hiddenFieldsForUser);
-
                     return (
                       <table className={`table table-bordered table-hover ${styles.customTable}`}>
                         <tbody>
-                          {groupEntriesInPairs(visibleEntries).map((pair, rowIdx) => {
-                            const [[key1, value1], [key2, value2] = []] = pair;
+                          {detailFieldOrder.map((pair, rowIdx) => {
+                            const [key1, key2] = pair;
+                            // 判断字段是否隐藏
+                            if (
+                              hiddenFieldsForUser.includes(key1) ||
+                              (key2 && hiddenFieldsForUser.includes(key2))
+                            ) {
+                              return null;
+                            }
                             return (
                               <tr key={key1}>
                                 <th>{insuranceDetailsNameMap[key1] || key1}</th>
-                                <td>{value1 instanceof Date ? value1.toLocaleDateString() : String(value1 ?? "")}</td>
+                                <td>
+                                  {typeof selectedDetail?.[key1 as keyof typeof selectedDetail] === "string" &&
+                                    (selectedDetail?.[key1 as keyof typeof selectedDetail] as string).match(/^\d{4}-\d{2}-\d{2}/)
+                                    ? (selectedDetail?.[key1 as keyof typeof selectedDetail] as string).slice(0, 10)
+                                    : String(selectedDetail?.[key1 as keyof typeof selectedDetail] ?? "")
+                                  }
+                                </td>
                                 {key2 ? (
                                   <>
                                     <th>{insuranceDetailsNameMap[key2] || key2}</th>
-                                    <td>{value2 instanceof Date ? value2.toLocaleDateString() : String(value2 ?? "")}</td>
+                                    <td>
+                                      {typeof selectedDetail?.[key2 as keyof typeof selectedDetail] === "string" &&
+                                        (selectedDetail?.[key2 as keyof typeof selectedDetail] as string).match(/^\d{4}-\d{2}-\d{2}/)
+                                        ? (selectedDetail?.[key2 as keyof typeof selectedDetail] as string).slice(0, 10)
+                                        : String(selectedDetail?.[key2 as keyof typeof selectedDetail] ?? "")
+                                      }
+                                    </td>
                                   </>
                                 ) : (
                                   <>
@@ -764,83 +1199,65 @@ const InsuranceCustomers: React.FC = () => {
                     <h4 style={{ marginBottom: 0 }}>
                       {editType === "add" ? "新增车险信息" : "编辑当前信息"}
                     </h4>
-                    {(() => {
-                      // 过滤不显示的字段
-                      const visibleEditFields = getVisibleFields(editData, isAdmin, hiddenFieldsForUser);
-                      // 两两分组渲染
-                      return (
-                        <table className={`table table-sm ${styles.editTable}`}>
-                          <tbody>
-                          {groupEntriesInPairs(visibleEditFields).map((pair, rowIdx) => {
-                            const [[key1, value1], [key2, value2] = []] = pair;
-                              const renderInput = (key: string, value: any) => {
-                                if (key === "id")
-                                  return (
-                                    <input type="text" className={`${styles.editInput} form-control`} value={value} disabled />
-                                  );
-                                if (value instanceof Date)
-                                  return (
-                                    <input
-                                      type="date"
-                                      className={`${styles.editInput} form-control`}
-                                      value={new Date(value).toISOString().split("T")[0]}
-                                      onChange={e =>
-                                        setEditData(prev => prev ? { ...prev, [key]: new Date(e.target.value) } : prev)
-                                      }
-                                    />
-                                  );
-                                if (typeof value === "number")
-                                  return (
-                                    <input
-                                      type="number"
-                                      className={`${styles.editInput} form-control`}
-                                      value={value}
-                                      onChange={e =>
-                                        setEditData(prev => prev ? { ...prev, [key]: Number(e.target.value) } : prev)
-                                      }
-                                    />
-                                  );
-                                return (
-                                  <input
-                                    type="text"
-                                    className={`${styles.editInput} form-control`}
-                                    value={value}
-                                    onChange={e =>
-                                      setEditData(prev => prev ? { ...prev, [key]: e.target.value } : prev)
-                                    }
-                                  />
-                                );
-                              };
-                              return (
-                                <tr key={key1}>
-                                  <th style={{ whiteSpace: "nowrap", width: "15%" }}>{insuranceDetailsNameMap[key1] || key1}</th>
-                                  <td>{renderInput(key1, value1)}</td>
-                                  {key2 ? (
-                                    <>
-                                      <th style={{ whiteSpace: "nowrap", width: "15%" }}>{insuranceDetailsNameMap[key2] || key2}</th>
-                                      <td>{renderInput(key2, value2)}</td>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <th></th>
-                                      <td></td>
-                                    </>
-                                  )}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      );
-                    })()}
+                    <table className={`table table-sm ${styles.editTable}`}>
+                      <tbody>
+                        {detailFieldOrder.map((pair, rowIdx) => {
+                          const [key1, key2] = pair;
+                          // 判断隐藏字段
+                          if (
+                            hiddenFieldsForUser.includes(key1) ||
+                            (key2 && hiddenFieldsForUser.includes(key2))
+                          ) {
+                            return null;
+                          }
+                          return (
+                            <tr key={key1}>
+                              <th style={{ whiteSpace: "nowrap", width: "15%" }}>
+                                {insuranceDetailsNameMap[key1] || key1}
+                              </th>
+                              <td>
+                                {renderInput(
+                                  key1,
+                                  editData[key1 as keyof typeof editData]
+                                )}
+                              </td>
+                              {key2 ? (
+                                <>
+                                  <th style={{ whiteSpace: "nowrap", width: "15%" }}>
+                                    {insuranceDetailsNameMap[key2] || key2}
+                                  </th>
+                                  <td>
+                                    {renderInput(
+                                      key2,
+                                      editData[key2 as keyof typeof editData]
+                                    )}
+                                  </td>
+                                </>
+                              ) : (
+                                <>
+                                  <th></th>
+                                  <td></td>
+                                </>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                     <div className="d-flex justify-content-end mt-2">
-                      <button className={styles.btn} onClick={() => setIsEditing(false)}>取消</button>
-                      <button className={`${styles.btn} ${styles.btnPrimary} ms-2`} onClick={editType === "add" ? handleCreateSave : handleEditSave}>保存</button>
+                      <button className={styles.btn} onClick={() => setIsEditing(false)}>
+                        取消
+                      </button>
+                      <button
+                        className={`${styles.btn} ${styles.btnPrimary} ms-2`}
+                        onClick={editType === "add" ? handleCreateSave : handleEditSave}
+                      >
+                        保存
+                      </button>
                     </div>
                   </div>
                 </div>
               )}
-
               {/*打印弹窗 */}
 
 
@@ -894,10 +1311,10 @@ const InsuranceCustomers: React.FC = () => {
                         </div>
                         <div style={{ width: '21%', display: 'flex', alignItems: 'center' }}>
                           起保日期
-                          <span className={styles.printLine}>
-                            {selectedDetail.policyStartDate instanceof Date
-                              ? selectedDetail.policyStartDate.toLocaleDateString()
-                              : selectedDetail.policyStartDate}
+                          <span>
+                            {typeof selectedDetail.policyStartDate === "string"
+                              ? selectedDetail.policyStartDate.slice(0, 10)
+                              : ""}
                           </span>
                         </div>
                       </div>
@@ -1059,4 +1476,4 @@ const InsuranceCustomers: React.FC = () => {
   );
 };
 
-export default InsuranceCustomers;
+export default InsuranceDetails;

@@ -1,19 +1,25 @@
 import React from 'react';
 import styles from './MainContent.module.css';
-import InsuranceCustomers from '../pages/InsuranceDetails';
+import InsuranceDetails from '../pages/InsuranceDetails';
 import PotentialCustomer from '../pages/PotentialCustomerDetails';
 
 type MainContentProps = {
   currentPage: string;
+  insuranceCompanies: any[];
+  userList: any[];
 };
 
-const MainContent: React.FC<MainContentProps> = ({ currentPage }) => {
+const MainContent: React.FC<MainContentProps> = ({
+  currentPage,
+  insuranceCompanies,
+  userList
+}) => {
   const renderPage = () => {
     switch (currentPage) {
       case '车险客户':
-        return <InsuranceCustomers />;
+        return <InsuranceDetails insuranceCompanies={insuranceCompanies} userList={userList} />;
       case '希望客户':
-        return <PotentialCustomer />;
+        return <PotentialCustomer insuranceCompanies={insuranceCompanies} userList={userList} />;
       case '业务管理':
         return <div>业务管理页面</div>;
       default:

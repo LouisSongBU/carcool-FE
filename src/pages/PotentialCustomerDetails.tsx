@@ -1,62 +1,66 @@
 import React, { useState } from "react";
 import styles from "./PotentialCustomerDetails.module.css";
 import type { InsuranceDetail } from './InsuranceDetails.tsx';
-import { isAdminUser, getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap, getLocalDateFromInput } from "../utils/fieldUtils";
-import { fetchByRecordDate, fetchComprehensive } from '../api/potentialCustomer';
-import { convertDatesInObject } from '../utils/dateUtils'; // 路径自己定
+import { isAdminUser, getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
+import { fetchByRecordDate, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer } from '../api/potentialCustomer';
 
-interface PotentialCustomer {
+type PotentialCustomersProps = {
+    insuranceCompanies: any[];
+    userList: any[];
+  };
+
+export interface PotentialCustomer {
     insuredCount: number | null;
     fourFollowUpNote: string | null;
     licensePlate: string;
-    fourFollowUpDate: Date | null;
+    fourFollowUpDate: string | null;
     vehicleModel: string | null;
     fiveFollowUpNote: string | null;
-    policyStartDate: Date;
-    fiveFollowUpDate: Date | null;
+    policyStartDate: string;
+    fiveFollowUpDate: string | null;
     registrationOwner: string | null;
     sixFollowUpNote: string | null;
     phone: string | null;
-    sixFollowUpDate: Date | null;
-    firstRegistrationDate: Date | null;
+    sixFollowUpDate: string | null;
+    firstRegistrationDate: string | null;
     sevenFollowUpNote: string | null;
     deliveryAddress: string | null;
-    sevenFollowUpDate: Date | null;
+    sevenFollowUpDate: string | null;
     registrationOwnerId: string | null;
     eightFollowUpNote: string | null;
     vinNumber: string | null;
-    eightFollowUpDate: Date | null;
+    eightFollowUpDate: string | null;
     engineNumber: string | null;
     nineFollowUpNote: string | null;
-    recordTime: Date | null;
-    nineFollowUpDate: Date | null;
+    recordTime: string | null;
+    nineFollowUpDate: string | null;
     insuranceCompany: string | null;
     tenFollowUpNote: string | null;
     note1: string | null;
-    tenFollowUpDate: Date | null;
+    tenFollowUpDate: string | null;
     note2: string | null;
     elevenFollowUpNote: string | null;
     salesAgent: string | null;
-    elevenFollowUpDate: Date | null;
+    elevenFollowUpDate: string | null;
     hierarchyCode: string | null;
     twelveFollowUpNote: string | null;
-    scheduleFollowUpDate: Date | null;
-    twelveFollowUpDate: Date | null;
+    scheduleFollowUpDate: string | null;
+    twelveFollowUpDate: string | null;
     firstFollowUpNote: string | null;
     thirteenFollowUpNote: string | null;
-    firstFollowUpDate: Date | null;
-    thirteenFollowUpDate: Date | null;
+    firstFollowUpDate: string | null;
+    thirteenFollowUpDate: string | null;
     secondFollowUpNote: string | null;
     fourteenFollowUpNote: string | null;
-    secondFollowUpDate: Date | null;
-    fourteenFollowUpDate: Date | null;
+    secondFollowUpDate: string | null;
+    fourteenFollowUpDate: string | null;
     thirdFollowUpNote: string | null;
     fifteenFollowUpNote: string | null;
-    thirdFollowUpDate: Date | null;
-    fifteenFollowUpDate: Date | null;
+    thirdFollowUpDate: string | null;
+    fifteenFollowUpDate: string | null;
     id: number | null;
     followUpCount: number | null;
-    previousSignDate: Date | null;
+    previousSignDate: string | null;
 }
 
 const fieldNameMap: Record<string, string> = {
@@ -212,7 +216,7 @@ const followUpNoteFields = [
 // === 2. 组件主体 ===
 // ...模拟数据和 interface 省略...
 
-const PotentialCustomer: React.FC = () => {
+const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompanies, userList }) => {
     // 1. 查询和筛选
     const [query, setQuery] = useState({
         recordTimeStart: "",
@@ -265,9 +269,8 @@ const PotentialCustomer: React.FC = () => {
         }
         fetchByRecordDate(query.recordTimeStart, query.recordTimeEnd)
             .then(res => {
-                const data = convertDatesInObject(res.data);
-                setAllList(data);
-                setMyList(data);
+                setAllList(res.data);
+                setMyList(res.data);
                 setShowList(true);
             })
             .catch(err => {
@@ -292,9 +295,8 @@ const PotentialCustomer: React.FC = () => {
             policyStartDateEnd: query.policyStartDateEnd
         })
             .then(res => {
-                const data = convertDatesInObject(res.data);
-                setAllList(data);
-                setMyList(data);
+                setAllList(res.data);
+                setMyList(res.data);
                 setShowList(true);
             })
             .catch(err => {
@@ -361,10 +363,7 @@ const PotentialCustomer: React.FC = () => {
         setMyList(
             allList.filter(
                 item =>
-                    item.scheduleFollowUpDate &&
-                    (item.scheduleFollowUpDate instanceof Date
-                        ? item.scheduleFollowUpDate.toISOString().split("T")[0] === followUpDateQuery
-                        : String(item.scheduleFollowUpDate).substring(0, 10) === followUpDateQuery)
+                    item.scheduleFollowUpDate && String(item.scheduleFollowUpDate).slice(0, 10) === followUpDateQuery
             )
         );
         setShowList(true);
@@ -412,9 +411,8 @@ const PotentialCustomer: React.FC = () => {
 
                 // 日期字段
                 if (dateFields.has(filterField)) {
-                    if (!(v instanceof Date)) return false;
-                    // 只支持等于比较
-                    return v.toISOString().split("T")[0] === filterValue;
+                    if (!v) return false;
+                    return String(v).slice(0, 10) === filterValue;
                 }
 
                 // 非日期字段
@@ -462,7 +460,7 @@ const PotentialCustomer: React.FC = () => {
             fourFollowUpDate: null,
             vehicleModel: "",
             fiveFollowUpNote: null,
-            policyStartDate: new Date(),
+            policyStartDate: "",
             fiveFollowUpDate: null,
             registrationOwner: "",
             sixFollowUpNote: null,
@@ -478,7 +476,7 @@ const PotentialCustomer: React.FC = () => {
             eightFollowUpDate: null,
             engineNumber: "",
             nineFollowUpNote: null,
-            recordTime: new Date(),
+            recordTime: new Date().toISOString().slice(0, 19),
             nineFollowUpDate: null,
             insuranceCompany: "",
             tenFollowUpNote: null,
@@ -525,25 +523,20 @@ const PotentialCustomer: React.FC = () => {
             <button
                 className={`btn btn-success btn-sm`}
                 style={{ marginRight: 20, minWidth: 94 }}
-                onClick={() => {
+                onClick={async () => {
                     if (!nextFollowUpDate || !selectedDetail) return;
-                    // 更新当前记录 scheduleFollowUpDate
-                    const updated = { ...selectedDetail, scheduleFollowUpDate: getLocalDateFromInput(nextFollowUpDate) };
-                    setSelectedDetail(updated);
-                    setMyList(list =>
-                        list.map(item =>
-                            item.id === updated.id ? updated : item
-                        )
-                    );
-                    // 关键：同步更新 AllList
-                    setAllList(list =>
-                        list.map(item =>
-                            item.id === updated.id ? updated : item
-                        )
-                    );
-                    alert("下次回访日期已保存！");
+                    const updated = { ...selectedDetail, scheduleFollowUpDate: nextFollowUpDate || "" };
+                    try {
+                        const res = await updatePotentialCustomer(updated);
+                        const saved = res.data;
+                        setSelectedDetail(saved);
+                        setMyList(list => list.map(item => item.id === saved.id ? saved : item));
+                        setAllList(list => list.map(item => item.id === saved.id ? saved : item));
+                        alert("下次回访日期已保存！");
+                    } catch (err: any) {
+                        alert("保存失败：" + (err.message || "未知错误"));
+                    }
                 }}
-
             >
                 保存下次回访
             </button>
@@ -601,7 +594,7 @@ const PotentialCustomer: React.FC = () => {
                         applicantIdNumber: "",
                         compulsoryPolicyNumber: "不用填",
                         insuredName: "",
-                        signingDate: new Date(),
+                        signingDate: new Date().toISOString().slice(0, 10),
                         insuredIdNumber: "",
                         vehicleDamageCoverage: 0,
                         registrationOwner: selectedDetail?.registrationOwner ?? "",
@@ -612,7 +605,7 @@ const PotentialCustomer: React.FC = () => {
                         thirdPartyPremium: 0,
                         vehicleModel: selectedDetail?.vehicleModel ?? "",
                         outMedCoverage: 0,
-                        firstRegistrationDate: selectedDetail?.firstRegistrationDate ?? new Date(),
+                        firstRegistrationDate: selectedDetail?.firstRegistrationDate ?? new Date().toISOString().slice(0, 10),
                         outMedPremium: 0,
                         engineNumber: selectedDetail?.engineNumber ?? "",
                         driverCoverage: 0,
@@ -632,10 +625,10 @@ const PotentialCustomer: React.FC = () => {
                         vehicleTax: 0,
                         salesManager: "",
                         receivablePremium: 0,
-                        inputDate: new Date(),
+                        inputDate: new Date().toISOString().slice(0, 10),
                         receivedPremium: 0,
                         intermediaryInvoiceNo: "",
-                        policyStartDate: selectedDetail?.policyStartDate ?? new Date(),
+                        policyStartDate: selectedDetail?.policyStartDate ?? new Date().toISOString().slice(0, 10),
                         hierarchyCode: selectedDetail?.hierarchyCode ?? "",
                         insuranceCompany: selectedDetail?.insuranceCompany ?? "",
                         issuingOffice: "",
@@ -920,7 +913,7 @@ const PotentialCustomer: React.FC = () => {
                                                 <td>{item.insuredCount}</td>
                                                 <td>{item.licensePlate}</td>
                                                 <td>{item.vehicleModel}</td>
-                                                <td>{item.policyStartDate.toLocaleDateString()}</td>
+                                                <td>{item.policyStartDate ? String(item.policyStartDate).slice(0, 10) : ""}</td>
                                                 <td>{item.registrationOwner}</td>
                                             </tr>
                                         ))}
@@ -958,19 +951,19 @@ const PotentialCustomer: React.FC = () => {
                                                     <tr key={key1}>
                                                         <th>{fieldNameMap[key1] || key1}</th>
                                                         <td>
-                                                            {value1 instanceof Date
-                                                                ? (key1 === "recordTime"
-                                                                    ? value1.toLocaleString()
-                                                                    : value1.toLocaleDateString())
-                                                                : String(value1 ?? "")}
+                                                            {typeof value1 === "string" && value1.match(/^\d{4}-\d{2}-\d{2}/)
+                                                                ? (key1 === "recordTime" ? value1.replace("T", " ").slice(0, 19) : value1.slice(0, 10))
+                                                                : String(value1 ?? "")
+                                                            }
                                                         </td>
                                                         {key2 ? (
                                                             <>
                                                                 <th>{fieldNameMap[key2] || key2}</th>
                                                                 <td>
-                                                                    {value2 instanceof Date
-                                                                        ? value2.toLocaleDateString()
-                                                                        : String(value2 ?? "")}
+                                                                    {typeof value2 === "string" && value2.match(/^\d{4}-\d{2}-\d{2}/)
+                                                                        ? value2.slice(0, 10)
+                                                                        : String(value2 ?? "")
+                                                                    }
                                                                 </td>
                                                             </>
                                                         ) : (
@@ -980,6 +973,7 @@ const PotentialCustomer: React.FC = () => {
                                                             </>
                                                         )}
                                                     </tr>
+
                                                 );
                                             })}
                                         </tbody>
@@ -999,208 +993,235 @@ const PotentialCustomer: React.FC = () => {
                                 {editForm.id != null ? "编辑希望客户" : "新增希望客户"}
                             </h4>
                             <form
-                                onSubmit={e => {
+                                onSubmit={async e => {
                                     e.preventDefault();
-                                    setTimeout(() => {
-                                        if (!editForm) return;
-                                        if (editForm.id != null) {
-                                            // ---- 编辑 ----
-                                            setMyList(list =>
-                                                list.map(item =>
-                                                    item.id === editForm.id ? { ...editForm } : item
-                                                )
-                                            );
-                                            setSelectedDetail({ ...editForm });
-                                        } else {
-                                            // ---- 新增 ----
-                                            const newId = Math.max(0, ...myList.map(x => x.id || 0)) + 1;
-                                            const newCustomer = { ...editForm, id: newId, recordTime: new Date() };
-                                            setMyList(list => [newCustomer, ...list]);
-                                            setSelectedDetail(newCustomer);
+                                    if (!editForm) return;
+
+                                    // 1. 必填字段（字段名和中文名都与你的fieldNameMap严格一致）
+                                    const requiredFields = [
+                                        { key: "licensePlate", label: "车牌号" },
+                                        { key: "vehicleModel", label: "厂牌型号" },
+                                        { key: "policyStartDate", label: "起保日期" },
+                                        { key: "registrationOwner", label: "车主" },
+                                        { key: "phone", label: "电话" },
+                                        { key: "firstRegistrationDate", label: "初登日期" },
+                                        { key: "vinNumber", label: "车架号" },
+                                        { key: "engineNumber", label: "发动机号" },
+                                    ];
+
+                                    // 2. 检查哪些字段为空
+                                    const missingFields = requiredFields.filter(({ key }) => {
+                                        // 推荐：用 as keyof PotentialCustomer 保证类型安全
+                                        const v = editForm[key as keyof PotentialCustomer];
+                                        return !v || String(v).trim() === "";
+                                    });
+
+                                    if (missingFields.length > 0) {
+                                        alert(
+                                            "以下字段不能为空：\n" +
+                                            missingFields.map(f => f.label).join("、")
+                                        );
+                                        return; // 阻止提交
+                                    }
+
+                                    if (editForm.id != null) {
+                                        // ---- 编辑 ----
+                                        try {
+                                            const res = await updatePotentialCustomer(editForm);
+                                            const updated = res.data;
+                                            setMyList(list => list.map(item => item.id === updated.id ? updated : item));
+                                            setAllList(list => list.map(item => item.id === updated.id ? updated : item));
+                                            setSelectedDetail(updated);
+                                            setEditModalVisible(false);
+                                            alert("保存成功！");
+                                        } catch (err: any) {
+                                            alert("保存失败：" + (err.message || "未知错误"));
                                         }
-                                        setEditModalVisible(false);
-                                    }, 100); // 400毫秒模拟后端延迟
+                                    } else {
+                                        // ---- 新增 ----
+                                        try {
+                                            const res = await addPotentialCustomer(editForm);
+                                            const newCustomer = res.data;
+                                            setMyList(list => [newCustomer, ...list]);
+                                            setAllList(list => [newCustomer, ...list]);
+                                            setSelectedDetail(newCustomer);
+                                            setEditModalVisible(false);
+                                            alert("新增成功！");
+                                        } catch (err: any) {
+                                            alert("新增失败：" + (err.message || "未知错误"));
+                                        }
+                                    }
                                 }}
                             >
-                                <table className={`table table-sm ${styles.editTable}`}>
-                                    <tbody>
-                                        {(() => {
-                                            // 2. 计算当前隐藏字段
-                                            const editHiddenFields = isAdmin
-                                                ? hiddenFieldsForAll
-                                                : [...hiddenFieldsForAll, ...hiddenCreateFieldsForUser];
-                                            // 3. 过滤可见字段
-                                            const visibleEditFields: [string, any][] = detailFieldOrder
-                                                .filter(key => !editHiddenFields.includes(key) && editForm.hasOwnProperty(key))
-                                                .map(key => [key, editForm[key as keyof PotentialCustomer]]);
-                                            // 4. 两两分组
-                                            return groupEntriesInPairs(visibleEditFields).map((pair, rowIdx) => {
-                                                const [[key1, value1], [key2, value2] = []] = pair;
-
-                                                // 渲染输入控件
-                                                const renderInput = (key: string, value: any) => {
-                                                    // id 不可编辑
-                                                    if (key === "id") {
-                                                        return (
-                                                            <input
-                                                                type="text"
-                                                                value={value}
-                                                                disabled
-                                                                className={styles.editInput}
-                                                            />
-                                                        );
-                                                    }
-
-                                                    // === 只读所有回访时间 ===
-                                                    if (followUpDateFields.includes(key)) {
-                                                        return (
-                                                            <input
-                                                                type="date"
-                                                                className={`${styles.editInput} form-control`}
-                                                                value={value ? value.toISOString().split("T")[0] : ""}
-                                                                disabled
-                                                                readOnly
-                                                            />
-                                                        );
-                                                    }
-
-                                                    // === 可编辑所有回访内容，同时自动生成下一个回访时间 ===
-                                                    if (followUpNoteFields.includes(key)) {
-                                                        const idx = followUpNoteFields.indexOf(key);
-                                                        const dateField = followUpDateFields[idx];
-
-                                                        // 新增模式，只允许编辑第一次回访内容
-                                                        if (!editForm?.id) {
-                                                            // 只允许 idx == 0
-                                                            const canEdit = idx === 0;
-                                                            return (
-                                                                <input
-                                                                    type="text"
-                                                                    className={`${styles.editInput} form-control`}
-                                                                    value={value ?? ""}
-                                                                    disabled={!canEdit}
-                                                                    onChange={e => {
-                                                                        const inputVal = e.target.value;
-                                                                        setEditForm(prev => {
-                                                                            if (!prev) return prev;
-                                                                            const updated = { ...prev, [key]: inputVal };
-                                                                            // 自动填第一次回访时间
-                                                                            if (canEdit && inputVal && !(prev as any)[dateField]) {
-                                                                                (updated as any)[dateField] = new Date();
-                                                                            }
-                                                                            return updated;
-                                                                        });
-                                                                    }}
-                                                                />
-                                                            );
-                                                        }
-
-                                                        // 用编辑开始时的 initialFirstEmptyDateIdx
-                                                        const canEdit =
-                                                            idx < initialFirstEmptyDateIdx ||
-                                                            idx === initialFirstEmptyDateIdx;
-
-
-                                                        // 限制：如果idx > firstEmptyDateIdx，绝对不能编辑
-                                                        // 只要还没保存，不能自动放开后面input
-                                                        return (
-                                                            <input
-                                                                type="text"
-                                                                className={`${styles.editInput} form-control`}
-                                                                value={value ?? ""}
-                                                                disabled={!canEdit}
-                                                                onChange={e => {
-                                                                    const inputVal = e.target.value;
-                                                                    setEditForm(prev => {
-                                                                        if (!prev) return prev;
-                                                                        const updated = { ...prev, [key]: inputVal };
-                                                                        // 只允许本条生成时间
-                                                                        if (canEdit && idx === initialFirstEmptyDateIdx && inputVal && !(prev as any)[dateField]) {
-                                                                            (updated as any)[dateField] = new Date();
-                                                                        }
-                                                                        return updated;
-                                                                    });
-                                                                }}
-                                                            />
-                                                        );
-                                                    }
-
-                                                    // --- 回访时间输入（全部禁用）---
-                                                    if (followUpDateFields.includes(key)) {
-                                                        return (
-                                                            <input
-                                                                type="date"
-                                                                className={`${styles.editInput} form-control`}
-                                                                value={value ? value.toISOString().split("T")[0] : ""}
-                                                                disabled
-                                                                readOnly
-                                                            />
-                                                        );
-                                                    }
-
-                                                    // === 日期类型 ===
-                                                    if (value instanceof Date) {
-                                                        return (
-                                                            <input
-                                                                type="date"
-                                                                className={`${styles.editInput} form-control`}
-                                                                value={value ? value.toISOString().split("T")[0] : ""}
-                                                                onChange={e =>
-                                                                    setEditForm(prev => prev ? { ...prev, [key]: e.target.value ? getLocalDateFromInput(e.target.value) : null } : prev)
-                                                                }
-                                                            />
-                                                        );
-                                                    }
-
-                                                    // === 数字类型 ===
-                                                    if (typeof value === "number") {
-                                                        return (
-                                                            <input
-                                                                type="number"
-                                                                className={`${styles.editInput} form-control`}
-                                                                value={value}
-                                                                onChange={e =>
-                                                                    setEditForm(prev => prev ? { ...prev, [key]: Number(e.target.value) } : prev)
-                                                                }
-                                                            />
-                                                        );
-                                                    }
-
-                                                    // === 其它文本 ===
-                                                    return (
-                                                        <input
-                                                            type="text"
-                                                            className={`${styles.editInput} form-control`}
-                                                            value={value ?? ""}
-                                                            onChange={e =>
-                                                                setEditForm(prev => prev ? { ...prev, [key]: e.target.value } : prev)
-                                                            }
-                                                        />
-                                                    );
-                                                };
-
-
+                                {/* -------- renderInput 单独定义在这里 -------- */}
+                                {(() => {
+                                    const isDateField = (key: string) => key.endsWith("Date");
+                                    const isTimeField = (key: string) => key.endsWith("Time");
+                                    const renderInput = (key: string, value: any) => {
+                                        // id 不可编辑
+                                        if (key === "id") {
+                                            return <input type="text" value={value ?? ""} disabled className={styles.editInput} />;
+                                        }
+                                        // 只读所有回访时间
+                                        if (followUpDateFields.includes(key)) {
+                                            return (
+                                                <input
+                                                    type="date"
+                                                    className={`${styles.editInput} form-control`}
+                                                    value={value ? String(value).slice(0, 10) : ""}
+                                                    disabled
+                                                    readOnly
+                                                />
+                                            );
+                                        }
+                                        // 可编辑所有回访内容，同时自动生成下一个回访时间
+                                        if (followUpNoteFields.includes(key)) {
+                                            const idx = followUpNoteFields.indexOf(key);
+                                            const dateField = followUpDateFields[idx];
+                                            // 新增模式，只允许编辑第一次回访内容
+                                            if (!editForm?.id) {
+                                                const canEdit = idx === 0;
                                                 return (
-                                                    <tr key={key1}>
-                                                        <th style={{ whiteSpace: "nowrap", width: "15%" }}>{fieldNameMap[key1] || key1}</th>
-                                                        <td>{renderInput(key1, value1)}</td>
-                                                        {key2 ? (
-                                                            <>
-                                                                <th style={{ whiteSpace: "nowrap", width: "15%" }}>{fieldNameMap[key2] || key2}</th>
-                                                                <td>{renderInput(key2, value2)}</td>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <th></th>
-                                                                <td></td>
-                                                            </>
-                                                        )}
-                                                    </tr>
+                                                    <input
+                                                        type="text"
+                                                        className={`${styles.editInput} form-control`}
+                                                        value={value ?? ""}
+                                                        disabled={!canEdit}
+                                                        onChange={e => {
+                                                            const inputVal = e.target.value;
+                                                            setEditForm(prev => {
+                                                                if (!prev) return prev;
+                                                                const updated = { ...prev, [key]: inputVal };
+                                                                if (canEdit && inputVal && !(prev as any)[dateField]) {
+                                                                    (updated as any)[dateField] = new Date().toISOString().slice(0, 10);
+                                                                }
+                                                                return updated;
+                                                            });
+                                                        }}
+                                                    />
                                                 );
-                                            });
-                                        })()}
-                                    </tbody>
-                                </table>
+                                            }
+                                            const canEdit =
+                                                idx < initialFirstEmptyDateIdx ||
+                                                idx === initialFirstEmptyDateIdx;
+                                            return (
+                                                <input
+                                                    type="text"
+                                                    className={`${styles.editInput} form-control`}
+                                                    value={value ?? ""}
+                                                    disabled={!canEdit}
+                                                    onChange={e => {
+                                                        const inputVal = e.target.value;
+                                                        setEditForm(prev => {
+                                                            if (!prev) return prev;
+                                                            const updated = { ...prev, [key]: inputVal };
+                                                            if (
+                                                                canEdit &&
+                                                                idx === initialFirstEmptyDateIdx &&
+                                                                inputVal &&
+                                                                !(prev as any)[dateField]
+                                                            ) {
+                                                                (updated as any)[dateField] = new Date().toISOString().slice(0, 10);
+                                                            }
+                                                            return updated;
+                                                        });
+                                                    }}
+                                                />
+                                            );
+                                        }
+                                        // 普通日期
+                                        if (isDateField(key)) {
+                                            return (
+                                                <input
+                                                    type="date"
+                                                    className={`${styles.editInput} form-control`}
+                                                    value={value ?? ""}
+                                                    onChange={e =>
+                                                        setEditForm(prev => prev ? { ...prev, [key]: e.target.value } : prev)
+                                                    }
+                                                />
+                                            );
+                                        }
+                                        // 时间
+                                        if (isTimeField(key)) {
+                                            return (
+                                                <input
+                                                    type="datetime-local"
+                                                    step="1"
+                                                    className={`${styles.editInput} form-control`}
+                                                    value={value ? String(value).slice(0, 19) : ""}
+                                                    onChange={e =>
+                                                        setEditForm(prev => prev ? { ...prev, [key]: e.target.value } : prev)
+                                                    }
+                                                />
+                                            );
+                                        }
+                                        // 数字
+                                        if (typeof value === "number" || /^\d+$/.test(String(value ?? ""))) {
+                                            return (
+                                                <input
+                                                    type="number"
+                                                    className={`${styles.editInput} form-control`}
+                                                    value={value ?? ""}
+                                                    onChange={e =>
+                                                        setEditForm(prev => prev ? { ...prev, [key]: Number(e.target.value) } : prev)
+                                                    }
+                                                />
+                                            );
+                                        }
+                                        // 默认文本
+                                        return (
+                                            <input
+                                                type="text"
+                                                className={`${styles.editInput} form-control`}
+                                                value={value ?? ""}
+                                                onChange={e =>
+                                                    setEditForm(prev => prev ? { ...prev, [key]: e.target.value } : prev)
+                                                }
+                                            />
+                                        );
+                                    };
+
+                                    // 2. 计算当前隐藏字段
+                                    const editHiddenFields = isAdmin
+                                        ? hiddenFieldsForAll
+                                        : [...hiddenFieldsForAll, ...hiddenCreateFieldsForUser];
+                                    // 3. 过滤可见字段
+                                    const visibleEditFields: [string, any][] = detailFieldOrder
+                                        .filter(key => !editHiddenFields.includes(key) && editForm.hasOwnProperty(key))
+                                        .map(key => [key, editForm[key as keyof PotentialCustomer]]);
+                                    // 4. 两两分组
+                                    return (
+                                        <table className={`table table-sm ${styles.editTable}`}>
+                                            <tbody>
+                                                {groupEntriesInPairs(visibleEditFields).map((pair, rowIdx) => {
+                                                    const [[key1, value1], [key2, value2] = []] = pair;
+                                                    return (
+                                                        <tr key={key1}>
+                                                            <th style={{ whiteSpace: "nowrap", width: "15%" }}>
+                                                                {fieldNameMap[key1] || key1}
+                                                            </th>
+                                                            <td>{renderInput(key1, value1)}</td>
+                                                            {key2 ? (
+                                                                <>
+                                                                    <th style={{ whiteSpace: "nowrap", width: "15%" }}>
+                                                                        {fieldNameMap[key2] || key2}
+                                                                    </th>
+                                                                    <td>{renderInput(key2, value2)}</td>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <th></th>
+                                                                    <td></td>
+                                                                </>
+                                                            )}
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    );
+                                })()}
                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 14, marginTop: 16 }}>
                                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditModalVisible(false)}>
                                         取消
@@ -1213,6 +1234,7 @@ const PotentialCustomer: React.FC = () => {
                         </div>
                     </div>
                 )}
+
 
 
 
@@ -1278,18 +1300,20 @@ const PotentialCustomer: React.FC = () => {
                                                 const renderInput = (key: string, value: any) => {
                                                     // id 不可编辑
                                                     if (key === "id") return <input type="text" value={value} disabled className={`${styles.editInput} form-control`} />;
-                                                    // 日期类型
-                                                    if (value instanceof Date)
+                                                    // 日期字段
+                                                    if (key.endsWith("Date")) {
                                                         return (
                                                             <input
                                                                 type="date"
                                                                 className={`${styles.editInput} form-control`}
-                                                                value={value ? value.toISOString().split("T")[0] : ""}
+                                                                value={value ?? ""}
                                                                 onChange={e =>
-                                                                    setCreateForm(prev => prev ? { ...prev, [key]: e.target.value ? getLocalDateFromInput(e.target.value) : null } : prev)
+                                                                    setCreateForm(prev => prev ? { ...prev, [key]: e.target.value } : prev)
                                                                 }
                                                             />
                                                         );
+                                                    }
+
                                                     // 数字类型
                                                     if (typeof value === "number")
                                                         return (
