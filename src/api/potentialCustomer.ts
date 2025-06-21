@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from "./api";
 import type { PotentialCustomer } from '../pages/PotentialCustomerDetails.tsx';
 
 // 工具函数，保证输入格式为 "YYYY-MM-DD"，拼接时间段
@@ -14,7 +14,7 @@ export function fetchByRecordDate(recordTimeStart: string, recordTimeEnd: string
   // 自动补全时间部分
   const recordTimeStartFull = toDateTimeRange(recordTimeStart, 'start');
   const recordTimeEndFull = toDateTimeRange(recordTimeEnd, 'end');
-  return axios.get('http://localhost:8080/api/potential-customers/byRecordTime', {
+  return api.get('/potential-customers/byRecordTime', {
     params: { recordTimeStart: recordTimeStartFull, recordTimeEnd: recordTimeEndFull }
   });
 }
@@ -33,15 +33,15 @@ export function fetchComprehensive(query: {
     recordTimeEnd: toDateTimeRange(query.recordTimeEnd, 'end')
     // policyStartDateStart/End不用补全，后端是LocalDate，前端直接传"YYYY-MM-DD"即可
   };
-  return axios.get('http://localhost:8080/api/potential-customers/byRecordTimeAndPolicyStartDate', {
+  return api.get('/potential-customers/byRecordTimeAndPolicyStartDate', {
     params
   });
 }
 
 export function updatePotentialCustomer(customer: PotentialCustomer) {
-  return axios.post("http://localhost:8080/api/potential-customers/update", customer);
+  return api.post("/api/potential-customers/update", customer);
 }
 
 export function addPotentialCustomer(customer: PotentialCustomer) {
-  return axios.post("http://localhost:8080/api/potential-customers/add", customer);
+  return api.post("/api/potential-customers/add", customer);
 }

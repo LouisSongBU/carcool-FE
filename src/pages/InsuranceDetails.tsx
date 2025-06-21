@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import styles from "./InsuranceDetails.module.css";
 import { insuranceDetailsNameMap } from "../utils/fieldUtils";
 import { useEffect } from "react";
-import { addInsuranceDetail, fetchInsuranceDetails, updateInsuranceDetail } from "../api/insuranceDetails.ts"; // 你API的路径
+import { addInsuranceDetail, fetchInsuranceDetails, updateInsuranceDetail, confirmIssueInsuranceDetail } from "../api/insuranceDetails.ts"; // 你API的路径
 
 type InsuranceDetailsProps = {
   insuranceCompanies: any[];
@@ -49,7 +49,7 @@ export interface InsuranceDetail {
   receivablePremium: number;
   inputDate: string | null;
   receivedPremium: number;
-  intermediaryInvoiceNo: string | null;
+  intermediaryInvoiceNo: number | null;
   policyStartDate: string | null;
   hierarchyCode: string | null;
   insuranceCompany: string | null;
@@ -90,9 +90,9 @@ const detailFieldOrder: string[][] = [
 
 
 const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || '{}');
-const hierarchyCode = Number(userInfo.hierarchyCode);
-const isSuperAdmin = hierarchyCode === 0;
-const isAdmin = hierarchyCode === 1;
+const hierarchyCode = userInfo.hierarchyCode || "";
+const isSuperAdmin = hierarchyCode === "0";
+const isAdmin = hierarchyCode === "1";
 const isNormalUser = !isSuperAdmin && !isAdmin;
 const currentUserName = userInfo.displayName || "";
 
@@ -178,10 +178,18 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   const [insuranceCompanyInput, setInsuranceCompanyInput] = useState("");
   const [insuranceDropdownOpen, setInsuranceDropdownOpen] = useState(false);
 
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirming, setConfirming] = useState(false); // 加载状态
+
   // 查询时，只允许选中下拉项
   const canSearch =
     (!agentInput && !selectedAgent) || // 没填=不筛选
     (!!agentInput && filteredAgents.some(a => a.displayName === agentInput));
+
+  const canConfirmIssue =
+    !!selectedDetail &&
+    selectedDetail.commercialPolicyNumber &&
+    selectedDetail.commercialPolicyNumber.startsWith("L");
 
   //表单生成
   const omitKeys = ["id", "commercialPolicyNumber", "compulsoryPolicyNumber"];
@@ -194,16 +202,12 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   }, [isNormalUser, currentUserName]);
 
   const renderInput = (key: string, value: any) => {
-    if (key === "id") {
-      return <input type="text" className={`${styles.editInput} form-control`} value={value ?? ""} disabled />;
-    }
-    if (omitKeys.includes(key) && editType === "add") {
-      // 新增时这3个字段显示“【不用填】”且不可编辑
+    if (omitKeys.includes(key)) {
       return (
         <input
           type="text"
           className={`${styles.editInput} form-control`}
-          value="【不用填】"
+          value={value ?? ""}
           disabled
           readOnly
         />
@@ -227,9 +231,11 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                 // 选业务员自动更新主管
                 const selected = userList.find(u => u.displayName === inputVal);
                 setEditData(prev => prev
-                  ? { ...prev,
-                     salesManager: selected && selected.manager ? selected.manager.displayName : "",
-                     hierarchyCode: selected && selected.hierarchyCode ? String(selected.hierarchyCode) : "" }
+                  ? {
+                    ...prev,
+                    salesManager: selected && selected.manager ? selected.manager.displayName : "",
+                    hierarchyCode: selected && selected.hierarchyCode ? String(selected.hierarchyCode) : ""
+                  }
                   : prev);
               }}
               onBlur={() => setTimeout(() => setAgentDropdown(false), 120)}
@@ -376,6 +382,63 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       );
     }
 
+    // 1. 中介票号
+    if (key === "intermediaryInvoiceNo") {
+      const isFieldEditable = isSuperAdmin;
+      return (
+        <input
+          type="number"
+          className={`${styles.editInput} form-control`}
+          value={value ?? ""}
+          onChange={e => {
+            if (isFieldEditable) {
+              // 如果为空，设为 null，否则转 number
+              const newVal = e.target.value === "" ? null : Number(e.target.value);
+              setEditData(prev => prev ? { ...prev, [key]: newVal } : prev);
+            }
+          }}
+          disabled={!isFieldEditable}
+          readOnly={!isFieldEditable}
+        />
+      );
+    }
+
+    // 2. 出单处
+    if (key === "issuingOffice") {
+      const isFieldEditable = isSuperAdmin || isAdmin;
+      return (
+        <input
+          type="text"
+          className={`${styles.editInput} form-control`}
+          value={value ?? ""}
+          onChange={e =>
+            isFieldEditable &&
+            setEditData(prev => prev ? { ...prev, [key]: e.target.value } : prev)
+          }
+          disabled={!isFieldEditable}
+          readOnly={!isFieldEditable}
+        />
+      );
+    }
+
+    if (key === "inputDate" || key === "signingDate") {
+      // 超管可编辑，其它人不可编辑
+      const isFieldEditable = isSuperAdmin || (isAdmin && key === "signingDate");
+      return (
+        <input
+          type="date"
+          className={`${styles.editInput} form-control`}
+          value={value ? String(value).slice(0, 10) : ""}
+          onChange={e =>
+            isFieldEditable &&
+            setEditData(prev => prev ? { ...prev, [key]: e.target.value } : prev)
+          }
+          disabled={!isFieldEditable}
+          readOnly={!isFieldEditable}
+        />
+      );
+    }
+
 
     // 日期字段
     if (key.endsWith("Date")) {
@@ -479,13 +542,38 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
   // 获取新增数据模板,新增时不带id/商业号/交强号/所有number字段清空
   const getDefaultNewData = () => {
+    console.log("当前层级码：", userInfo.hierarchyCode, typeof userInfo.hierarchyCode);
     if (!selectedDetail) return null;
     const omitKeys = ["id", "commercialPolicyNumber", "compulsoryPolicyNumber"];
     const newData: any = {};
-    
+
     Object.entries(selectedDetail).forEach(([key, value]) => {
       if (omitKeys.includes(key)) {
-        newData[key] = "不用填"; // 显示但不填内容
+        newData[key] = ""; // 显示但不填内容
+        return;
+      }
+      if (key === "inputDate" || key === "signingDate") {
+        // 普通用户 inputDate/signingDate 都要自动赋值
+        // 管理员 signingDate 需要自动赋值，inputDate 不能填
+        // 超管随便保留原值
+        if (!isSuperAdmin && (!isAdmin || key === "inputDate")) {
+          const now = new Date();
+          const yyyy = now.getFullYear();
+          const mm = String(now.getMonth() + 1).padStart(2, '0');
+          const dd = String(now.getDate()).padStart(2, '0');
+          newData[key] = `${yyyy}-${mm}-${dd}`;
+          return;
+        }
+      }
+      // 中介票号
+      if (key === "intermediaryInvoiceNo") {
+        newData[key] = "0";
+        return;
+      }
+
+      // 出单处
+      if (key === "issuingOffice") {
+        newData[key] = "";
         return;
       }
       if (typeof value === "number") {
@@ -696,7 +784,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     }
     try {
       // 拷贝一份数据，然后清除这三个字段
-      const submitData = { insurancedetails: { ...editData }, userName: "currentUserName" } as any;
+      const submitData = { insurancedetails: { ...editData }, username: userInfo.username || "" } as any;
       if (!isSuperAdmin) {
         submitData.insurancedetails.salesAgent = currentUserName;
       }
@@ -725,6 +813,17 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     const dd = String(now.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   }
+
+  const handleConfirmIssue = async (detail: InsuranceDetail) => {
+    const updated = await confirmIssueInsuranceDetail(detail);
+    setMyList(list => list.map(item =>
+      item.id === updated.id ? updated : item
+    ));
+    setSearchResult(list => list.map(item =>
+      item.id === updated.id ? updated : item
+    ));
+    setSelectedDetail(updated);
+  };
 
 
   const handleRenewQuery = () => {
@@ -767,7 +866,14 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         }}
         type="button"
       >编辑</button>
-
+      <button
+        className={styles.btn}
+        disabled={!canConfirmIssue}
+        onClick={() => setShowConfirmModal(true)}
+        type="button"
+      >
+        确认出单
+      </button>
       {/* 续保查询 */}
       <button className={styles.btn} type="button" onClick={handleRenewQuery}>续保查询</button>
       {/* 打印 */}
@@ -931,38 +1037,38 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                   disabled={!!agentInput && !selectedAgent}
                 >查询</button>
                 <button
-                className="btn btn-secondary btn-sm"
-                style={{
-                  minWidth: "50px",
-                  paddingLeft: "0px",
-                  paddingRight: "0px",
-                  fontSize: "15px",
-                  letterSpacing: "2px",
-                }}
-                type="button"
-                onClick={() => {
-                  setQuery({
-                    insuredName: "",
-                    licensePlate: "",
-                    signingDateStart: "",
-                    signingDateEnd: "",
-                    policyStartDateStart: "",
-                    policyStartDateEnd: "",
-                    commercialPolicyNumber: "",
-                    salesAgent: ""
-                  });
-                  setAgentInput(""); // 管理员/超管清空业务员输入
-                  setSelectedAgent(null);
-                  // 普通用户特殊处理
-                  if (isNormalUser) {
-                    setQuery(q => ({ ...q, salesAgent: currentUserName }));
-                  }
-                }}
-              >
-                清除
-              </button>
+                  className="btn btn-secondary btn-sm"
+                  style={{
+                    minWidth: "50px",
+                    paddingLeft: "0px",
+                    paddingRight: "0px",
+                    fontSize: "15px",
+                    letterSpacing: "2px",
+                  }}
+                  type="button"
+                  onClick={() => {
+                    setQuery({
+                      insuredName: "",
+                      licensePlate: "",
+                      signingDateStart: "",
+                      signingDateEnd: "",
+                      policyStartDateStart: "",
+                      policyStartDateEnd: "",
+                      commercialPolicyNumber: "",
+                      salesAgent: ""
+                    });
+                    setAgentInput(""); // 管理员/超管清空业务员输入
+                    setSelectedAgent(null);
+                    // 普通用户特殊处理
+                    if (isNormalUser) {
+                      setQuery(q => ({ ...q, salesAgent: currentUserName }));
+                    }
+                  }}
+                >
+                  清除
+                </button>
               </div>
-              
+
             </div>
           </div>
 
@@ -1258,9 +1364,47 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                   </div>
                 </div>
               )}
+
+              {showConfirmModal && (
+                <div className={styles.confirmModalOverlay}>
+                  <div className={styles.confirmModal}>
+                    <h4>确认出单</h4>
+                    <div style={{ margin: "20px 0 30px 0", color: "#333", fontSize: "1.07rem" }}>
+                      您确定要出单吗？
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "center" }}>
+                      <button
+                        className={styles.cancelBtn}
+                        onClick={() => setShowConfirmModal(false)}
+                        type="button"
+                      >
+                        取消
+                      </button>
+                      <button
+                        className={styles.confirmBtn}
+                        disabled={confirming}
+                        type="button"
+                        onClick={async () => {
+                          if (!selectedDetail) return;
+                          setConfirming(true);
+                          try {
+                            await handleConfirmIssue(selectedDetail);
+                            setShowConfirmModal(false);
+                            alert("出单操作已完成！");
+                          } catch (e: any) {
+                            alert("出单操作失败: " + (e?.message || e));
+                          }
+                          setConfirming(false);
+                        }}
+                      >
+                        确认
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/*打印弹窗 */}
-
-
               {showPrintModal && selectedDetail && (
                 <div className={styles.printOverlay}>
                   <div className={`${styles.printPanel} print-panel-global`}>
