@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import styles from "./InsuranceDetails.module.css";
-import { insuranceDetailsNameMap } from "../utils/fieldUtils";
+import { insuranceDetailsNameMap, insuranceDetailFieldTypeMap } from "../utils/fieldUtils";
 import { useEffect } from "react";
 import {
   addInsuranceDetail, fetchInsuranceDetails, updateInsuranceDetail, confirmIssueInsuranceDetail, fetchInsuranceHistory, uploadInsuranceImage,
-  fetchInsuranceImages, deleteInsuranceImage, updateInsuranceImageRemark, uploadIdCardImage, fetchIdCardImage
-} from "../api/insuranceDetails.ts"; // 你API的路径
+  fetchInsuranceImages, deleteInsuranceImage, updateInsuranceImageRemark, uploadIdCardImage, fetchIdCardImage, fetchInsuranceChangeLogs, saveInsuranceChangeLogs
+} from "../api/insuranceDetails.ts"; 
 
 type InsuranceDetailsProps = {
   insuranceCompanies: any[];
@@ -134,11 +134,12 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     policyStartDateStart: "", // 起保日期-起
     policyStartDateEnd: "",   // 起保日期-止
     commercialPolicyNumber: "",       // 保单号
+    mobileOrPhone: "",        //电话或手机号
     salesAgent: ""          // 业务员
   });
 
   const [filterField, setFilterField] = useState("");
-  const [filterOperator, setFilterOperator] = useState("=");
+  const [filterOperator, setFilterOperator] = useState("like");
   const [filterValue, setFilterValue] = useState("");
 
   const [filters, setFilters] = useState<{ [key: string]: boolean }>({
@@ -214,6 +215,10 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   // 新增身份证图片的状态
   const [idCardImages, setIdCardImages] = useState<{ faceUrl?: string, backUrl?: string }>({});
   const [idCardUploading, setIdCardUploading] = useState<{ face: boolean, back: boolean }>({ face: false, back: false });
+
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [logRecords, setLogRecords] = useState<any[]>([]);
+  const [logLoading, setLogLoading] = useState(false);
 
   //表单生成
   const omitKeys = ["id", "commercialPolicyNumber", "compulsoryPolicyNumber"];
@@ -491,7 +496,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       );
     }
     // 数字字段（自动支持""为0的情况）
-    if (typeof value === "number" || /^\d+$/.test(String(value ?? ""))) {
+    if (insuranceDetailFieldTypeMap[key] === "number") {
       if (key === "receivedPremium") {
         return (
           <input
@@ -533,16 +538,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     );
   };
 
-
-  // useEffect(() => {
-  //   fetchInsuranceDetails().then(res => {
-  //     setMyList(res.data);
-  //     setSearchResult(res.data);
-  //     // 默认选中第一个，如果你需要
-  //     if (res.data && res.data.length > 0) setSelectedDetail(res.data[0]);
-  //   });
-  // }, []);
-
   // === 4. 业务逻辑区（派生变量/条件函数等） ===
   // 是否日期字段
   const isDateField = dateFields.has(filterField);
@@ -560,8 +555,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   const canEdit = isSuperAdmin || isAdmin ||
     (isNormalUser && selectedDetail && typeof selectedDetail.commercialPolicyNumber === "string" &&
       selectedDetail.commercialPolicyNumber.startsWith("L"));
-
-
 
   // 获取新增数据模板,新增时不带id/商业号/交强号/所有number字段清空
   const getDefaultNewData = () => {
@@ -595,7 +588,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       }
 
       // 出单处
-      if (key === "issuingOffice") {
+      if (key === "issuingOffice" || key === "isSettlement" || key === "financeVerification") {
         newData[key] = "";
         return;
       }
@@ -632,6 +625,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       policyStartDateStart,
       policyStartDateEnd,
       commercialPolicyNumber,
+      mobileOrPhone,
       // salesAgent: 不要从query里拿！
     } = query;
 
@@ -647,6 +641,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       !policyStartDateStart &&
       !policyStartDateEnd &&
       !commercialPolicyNumber &&
+      !mobileOrPhone &&
       !salesAgent
     ) {
       alert("请至少填写一个查询条件！");
@@ -672,6 +667,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         policyStartDateStart,
         policyStartDateEnd,
         commercialPolicyNumber,
+        mobileOrPhone,
         salesAgent
       });
 
@@ -789,8 +785,85 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       setIsEditing(false);
       setSelectedDetail(updated); // 2. 右侧详情直接显示
 
-      // 可选提示
-      // alert("保存成功！");
+      alert("保存成功！");
+
+      const logFields = [
+        "commercialPolicyNumber", "commercialPremium", "compulsoryPremium",
+        "receivedPremium", "isSettlement", "financeVerification",
+        "commercialAdjustment", "compulsoryAdjustment"
+      ];
+
+      const oldData = selectedDetail;
+      const newData = editData;
+
+
+      const logs: any[] = [];
+
+      const oldPolicy = (oldData as any)?.commercialPolicyNumber || "";
+      const newPolicy = (newData as any)?.commercialPolicyNumber || "";
+
+      // 1. 新增（原来没有保单号，现在有）
+      const isNew = !oldPolicy && !!newPolicy;
+
+      // 2. L 变 QL
+      const isLtoQL = oldPolicy.startsWith("L") && newPolicy.startsWith("QL");
+
+      // 3. 当前是L，且不是L变QL
+      const isPureL = newPolicy.startsWith("L") && !isLtoQL;
+
+      // 记录 commercialPolicyNumber 的变动
+      const isPolicyNumberChanged = (oldPolicy !== newPolicy);
+
+      // 情况1、新增
+      if (isNew && isPolicyNumberChanged) {
+        logs.push({
+          detailId: oldData?.id,
+          fieldName: "商业保单号",
+          oldValue: oldPolicy,
+          newValue: newPolicy,
+          updateUser: currentUserName,
+          updateTime: new Date().toLocaleString().slice(0, 19).replace("T", " "),
+        });
+      }
+      // 情况2，L变QL
+      else if (isLtoQL && isPolicyNumberChanged) {
+        logs.push({
+          detailId: oldData?.id,
+          fieldName: "商业保单号",
+          oldValue: oldPolicy,
+          newValue: newPolicy,
+          updateUser: currentUserName,
+          updateTime: new Date().toLocaleString().slice(0, 19).replace("T", " "),
+        });
+      }
+      // 情况3，当前L且不是L变QL，不记录任何日志
+      else if (isPureL) {
+        // 什么都不做
+      }
+      // 情况4，其他情况，对8字段分别做变动对比
+      else {
+        logFields.forEach(field => {
+          if (field === "commercialPolicyNumber") return; // 只比较其他7个字段
+          const oldValue = (oldData as any)?.[field];
+          const newValue = (newData as any)[field];
+          if (oldValue !== newValue) {
+            logs.push({
+              detailId: oldData?.id,
+              fieldName: insuranceDetailsNameMap[field] || field,
+              oldValue: oldValue ?? "",
+              newValue: newValue ?? "",
+              updateUser: currentUserName,
+              updateTime: new Date().toLocaleString().slice(0, 19).replace("T", " "),
+            });
+          }
+        });
+      }
+
+
+      if (logs.length > 0) {
+        await saveInsuranceChangeLogs(logs);
+      }
+
     } catch (e: any) {
       alert("保存失败: " + (e?.message || e));
     }
@@ -822,8 +895,17 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       setIsEditing(false);
       setSelectedDetail(newRecord); // 新增的直接右侧展示
 
-      // 可选提示
-      // alert("新增成功！");
+      alert("新增成功！");
+
+      const log = {
+        detailId: newRecord.id,
+        fieldName: "商业保单号",
+        oldValue: "",
+        newValue: newRecord.commercialPolicyNumber,
+        updateUser: currentUserName,
+        updateTime: new Date().toLocaleString().slice(0, 19).replace("T", " ")
+      };
+      await saveInsuranceChangeLogs([log]);
     } catch (e: any) {
       alert("新增失败: " + (e?.message || e));
     }
@@ -839,6 +921,17 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
   const handleConfirmIssue = async (detail: InsuranceDetail) => {
     const updated = await confirmIssueInsuranceDetail(detail);
+    if (updated.commercialPolicyNumber !== detail.commercialPolicyNumber) {
+      const log = {
+        detailId: detail.id,
+        fieldName: "商业保单号",
+        oldValue: detail.commercialPolicyNumber,
+        newValue: updated.commercialPolicyNumber,
+        updateUser: currentUserName,
+        updateTime: new Date().toLocaleString().slice(0, 19).replace("T", " ")
+      };
+      await saveInsuranceChangeLogs([log]);
+    }
     setMyList(list => list.map(item =>
       item.id === updated.id ? updated : item
     ));
@@ -926,6 +1019,19 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     setIdCardImages({ faceUrl: data.faceUrl, backUrl: data.backUrl });
   };
 
+  const handleShowLogModal = async () => {
+    if (!selectedDetail) return;
+    setShowLogModal(true);
+    setLogLoading(true);
+    try {
+      const logs = await fetchInsuranceChangeLogs(selectedDetail.id);
+      setLogRecords(logs || []);
+    } catch {
+      setLogRecords([]);
+    }
+    setLogLoading(false);
+  };
+
   // === 6. 渲染相关函数 ===
   // === 新增/编辑按钮组 ===
   const renderButtonGroup = () => (
@@ -978,18 +1084,28 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       </button>
       {/* 图片 */}
       <button
-  className={styles.btn}
-  type="button"
-  onClick={handleImage}
-  disabled={!!selectedDetail?.commercialPolicyNumber?.startsWith("L")}
-  style={
-    selectedDetail?.commercialPolicyNumber?.startsWith("L")
-      ? { background: "#bbb", color: "#fff", cursor: "not-allowed", border: "1px solid #ccc" }
-      : {}
-  }
->
-  图片
-</button>
+        className={styles.btn}
+        type="button"
+        onClick={handleImage}
+        disabled={!!selectedDetail?.commercialPolicyNumber?.startsWith("L")}
+        style={
+          selectedDetail?.commercialPolicyNumber?.startsWith("L")
+            ? { background: "#bbb", color: "#fff", cursor: "not-allowed", border: "1px solid #ccc" }
+            : {}
+        }
+      >
+        图片
+      </button>
+      {isSuperAdmin && (
+        <button
+          className={styles.btn}
+          type="button"
+          style={{ background: "#323c68", color: "#fff", marginLeft: 8 }}
+          onClick={handleShowLogModal}
+        >
+          日志
+        </button>
+      )}
     </div>
   );
 
@@ -1066,6 +1182,17 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                   onChange={handleInputChange}
                   className={`form-control form-control-sm ${styles.queryInput}`}
                   placeholder="请输入保单号码"
+                />
+              </div>
+              <div className={styles.queryRow}>
+                <label className={styles.queryLabel}>手机号</label>
+                <input
+                  type="text"
+                  name="mobileOrPhone"
+                  value={query.mobileOrPhone || ""}
+                  onChange={handleInputChange}
+                  className={`form-control form-control-sm ${styles.queryInput}`}
+                  placeholder="请输入手机号"
                 />
               </div>
               <div className={styles.queryRow}>
@@ -1159,6 +1286,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                       policyStartDateStart: "",
                       policyStartDateEnd: "",
                       commercialPolicyNumber: "",
+                      mobileOrPhone: "",
                       salesAgent: ""
                     });
                     setAgentInput(""); // 管理员/超管清空业务员输入
@@ -1358,8 +1486,8 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                             const [key1, key2] = pair;
                             // 判断字段是否隐藏
                             if (
-                              hiddenFieldsForUser.includes(key1) ||
-                              (key2 && hiddenFieldsForUser.includes(key2))
+                              (!isSuperAdmin && hiddenFieldsForUser.includes(key1)) ||
+                              (!isSuperAdmin && key2 && hiddenFieldsForUser.includes(key2))
                             ) {
                               return null;
                             }
@@ -1415,8 +1543,8 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                           const [key1, key2] = pair;
                           // 判断隐藏字段
                           if (
-                            hiddenFieldsForUser.includes(key1) ||
-                            (key2 && hiddenFieldsForUser.includes(key2))
+                            (!isSuperAdmin && hiddenFieldsForUser.includes(key1)) ||
+                            (!isSuperAdmin && key2 && hiddenFieldsForUser.includes(key2))
                           ) {
                             return null;
                           }
@@ -1726,7 +1854,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                               </div>
                             ) : (
                               <div className={styles.cardActionRow} style={{ justifyContent: "center" }}>
-                                <span style={{ color: img.remark ? "#49597b" : "#bbb", marginRight:10}}>
+                                <span style={{ color: img.remark ? "#49597b" : "#bbb", marginRight: 10 }}>
                                   {img.remark || "无备注"}
                                 </span>
                                 <button
@@ -1756,6 +1884,52 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                 </div>
               )}
 
+              {/*日志弹窗 */}
+              {showLogModal && (
+                <div className={styles.historyModalOverlay /* 可以用已有弹窗的class */}>
+                  <div className={styles.historyModal}>
+                    <div className={styles.historyModalHeader}>
+                      <span>变动日志</span>
+                      <button className={styles.closeBtn} onClick={() => setShowLogModal(false)}>×</button>
+                    </div>
+                    <div className={styles.logModalBody} style={{ maxHeight: 440, overflowY: "auto" }}>
+                      {logLoading ? (
+                        <div style={{ padding: 30, textAlign: "center" }}>加载中...</div>
+                      ) : (
+                        <table className={styles.historyTable}>
+                          <thead>
+                            <tr>
+                              <th>车险信息ID</th>
+                              <th>字段</th>
+                              <th>更改前</th>
+                              <th>更改后</th>
+                              <th>时间</th>
+                              <th>变动人</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {logRecords.map((row, idx) => (
+                              <tr key={row.id || idx}>
+                                <td>{row.detailId}</td>
+                                <td>{row.fieldName}</td>
+                                <td>{row.oldValue}</td>
+                                <td>{row.newValue}</td>
+                                <td>{row.updateTime?.replace("T", " ").slice(0, 19)}</td>
+                                <td>{row.updateUser}</td>
+                              </tr>
+                            ))}
+                            {logRecords.length === 0 && (
+                              <tr>
+                                <td colSpan={6} style={{ color: "#bbb", textAlign: "center" }}>暂无日志记录</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/*打印弹窗 */}
               {showPrintModal && selectedDetail && (

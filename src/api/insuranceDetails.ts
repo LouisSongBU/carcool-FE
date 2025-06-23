@@ -86,3 +86,12 @@ export function fetchIdCardImage(insuredIdNumber: string) {
   return api.get(`/insurance-details/idcard-images?insuredIdNumber=${insuredIdNumber}`)
     .then(res => res.data); 
 }
+
+// 查询日志
+export function fetchInsuranceChangeLogs(detailId: string) {
+  return api.get(`/insurance-details/change-log`, { params: { detailId } }).then(res => res.data);
+}
+
+export function saveInsuranceChangeLogs(logList: any[]) {
+  return api.post(`/insurance-details/change-log`, logList).then(res => res.data);
+}
