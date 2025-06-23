@@ -645,3 +645,232 @@
 }
 
 
+/* 历史记录弹窗 Overlay */
+.historyModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  z-index: 9999;
+  padding-top: 60px;
+}
+
+/* 历史记录弹窗主体 */
+.historyModal {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 28px 36px 18px 36px;
+  min-width: 580px;
+  max-width: 90vw; /* 适应大屏 */
+  min-height: 240px;
+  box-shadow: 0 5px 20px rgba(60, 160, 90, 0.18);
+  animation: fadeInModal 0.23s cubic-bezier(.61,-0.03,.6,1.13);
+  position: relative;
+  overflow-x: auto; /* 横向滚动，防止内容溢出 */
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; transform: scale(0.96);}
+  to { opacity: 1; transform: scale(1);}
+}
+
+/* 弹窗头部 */
+.historyModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 18px;
+  font-weight: bold;
+  color: #377ad6;
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #d1f7d8;
+}
+
+/* 关闭按钮 */
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #b1b1b1;
+  cursor: pointer;
+  padding: 0 6px;
+  line-height: 1;
+  transition: color 0.18s;
+}
+.closeBtn:hover {
+  color: #148d2e;
+}
+
+/* 历史记录表格 */
+.historyTable th,
+.historyTable td {
+  white-space: nowrap !important;
+  min-width: 90px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+/* 表头样式（有淡蓝渐变背景） */
+.historyTable th {
+  background: linear-gradient(90deg, #eaf1fd 0%, #f5faff 100%);
+  color: #377ad6;
+  font-weight: bold;
+  text-align: center;
+  border-bottom: 2px solid #cdecd9;
+}
+
+/* 表体样式（带淡色底） */
+.historyTable td {
+  background: #f5faff;
+  color: #295080;
+  text-align: center;
+  border-bottom: 1px solid #dbf3e2;
+}
+
+/* 鼠标悬浮高亮 */
+.historyTable tbody tr:hover {
+  background: #e3faee;
+  transition: background 0.16s;
+}
+
+/* 最后一行不显示底线 */
+.historyTable tr:last-child td {
+  border-bottom: none;
+}
+
+
+.historyTable tr:last-child td {
+  border-bottom: none;
+}
+.historyTable tbody tr:hover {
+  background: #e3faee;
+  transition: background 0.16s;
+}
+
+.imageModalOverlay {
+  position: fixed;
+  z-index: 1200;
+  left: 0; top: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.23);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.imageModal {
+  background: #fff;
+  border-radius: 14px;
+  min-width: 1200px;    /* 原来560，可以更大 */
+  max-width: 1200px;   /* 原来900，可以更大 */
+  min-height: 100vh;
+  box-shadow: 0 8px 32px rgba(70,100,150,0.14), 0 1.5px 6px #c7d6ec3a;
+  padding: 0 0 18px 0;
+  overflow: hidden;
+  position: relative;
+  animation: modalFadeIn .23s;
+  max-height: 100vh;    /* 控制弹窗本体的最大高度 */
+  display: flex;
+  flex-direction: column;
+}
+.imageModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 6px 20px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2957a2;
+  border-bottom: 1.5px solid #e6ebf5;
+}
+.closeBtn {
+  font-size: 26px;
+  font-weight: 700;
+  color: #aaa;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.imageGridScroll {
+  max-height: 100vh;
+  overflow-y: auto;
+  padding: 16px 18px 0 18px;
+}
+
+.imageGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;  /* 两列固定 */
+  gap: 10px;   /* 不要间隙（可调大为 8~16px 但你要求尽量无间隙） */
+}
+
+.imageCard {
+  background: #f5faff;
+  border: 1.5px solid #e2eaf5;
+  border-radius: 12px;
+  padding: 2px 2px 2px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+  min-height: 240px;
+  box-sizing: border-box;
+}
+
+.insuranceImg {
+  width: 98%;
+  max-width: 340px;
+  max-height: 220px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #f3f3f3;
+  margin-bottom: 0px;
+}
+.cardActionRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+.cardBtn {
+  height: 36px;
+  line-height: 36px;
+  padding: 0 22px;
+  font-size: 15px;
+  border-radius: 7px;
+  font-weight: 500;
+  background: #377ad6;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  margin: 0;
+  display: inline-block;
+  transition: background 0.15s;
+}
+.cardBtn:hover {
+  background: #2457a7;
+}
+.uploadingTip {
+  color: #19ad53;
+  font-size: 13px;
+}
+.deleteBtn {
+  position: absolute;
+  right: 16px;
+  top: 14px;
+  background: none;
+  border: none;
+  color: #e06666;
+  font-weight: 900;
+  font-size: 20px;
+  cursor: pointer;
+}
+

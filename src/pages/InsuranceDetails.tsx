@@ -2,11 +2,20 @@ import React, { useState } from "react";
 import styles from "./InsuranceDetails.module.css";
 import { insuranceDetailsNameMap } from "../utils/fieldUtils";
 import { useEffect } from "react";
-import { addInsuranceDetail, fetchInsuranceDetails, updateInsuranceDetail, confirmIssueInsuranceDetail } from "../api/insuranceDetails.ts"; // 你API的路径
+import {
+  addInsuranceDetail, fetchInsuranceDetails, updateInsuranceDetail, confirmIssueInsuranceDetail, fetchInsuranceHistory, uploadInsuranceImage,
+  fetchInsuranceImages, deleteInsuranceImage, updateInsuranceImageRemark, uploadIdCardImage, fetchIdCardImage
+} from "../api/insuranceDetails.ts"; // 你API的路径
 
 type InsuranceDetailsProps = {
   insuranceCompanies: any[];
   userList: any[];
+};
+
+type InsuranceImage = {
+  id: string;
+  url: string;
+  remark: string;
 };
 
 export interface InsuranceDetail {
@@ -29,7 +38,7 @@ export interface InsuranceDetail {
   outMedCoverage: number | null;
   firstRegistrationDate: string | null;
   outMedPremium: number | null;
-  engineNumber: string | null;
+  engineNumber: string;
   driverCoverage: number | null;
   vinNumber: string | null;
   driverPremium: number | null;
@@ -190,6 +199,21 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     !!selectedDetail &&
     selectedDetail.commercialPolicyNumber &&
     selectedDetail.commercialPolicyNumber.startsWith("L");
+
+  //历史投保
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [insuranceHistory, setInsuranceHistory] = useState<any[]>([]);
+
+  //图片相关
+  const [imageModalVisible, setImageModalVisible] = useState(false);
+  const [insuranceImages, setInsuranceImages] = useState<InsuranceImage[]>([]);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [editingRemarkId, setEditingRemarkId] = useState<string | null>(null);
+  const [remarkDraft, setRemarkDraft] = useState("");
+
+  // 新增身份证图片的状态
+  const [idCardImages, setIdCardImages] = useState<{ faceUrl?: string, backUrl?: string }>({});
+  const [idCardUploading, setIdCardUploading] = useState<{ face: boolean, back: boolean }>({ face: false, back: false });
 
   //表单生成
   const omitKeys = ["id", "commercialPolicyNumber", "compulsoryPolicyNumber"];
@@ -438,7 +462,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         />
       );
     }
-
 
     // 日期字段
     if (key.endsWith("Date")) {
@@ -826,12 +849,81 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   };
 
 
-  const handleRenewQuery = () => {
-    // TODO: 续保查询功能
+  const handleRenewQuery = async () => {
+    if (!selectedDetail) return;
+    try {
+      const res = await fetchInsuranceHistory({
+        licensePlate: selectedDetail.licensePlate,
+        engineNumber: selectedDetail.engineNumber
+      });
+      setInsuranceHistory(res.data || []);
+      setHistoryModalVisible(true);
+    } catch (err: any) {
+      alert("查询失败: " + (err.message || "未知错误"));
+    }
   };
 
-  const handleImage = () => {
-    // TODO: 图片功能
+  const handleImage = async () => {
+    if (!selectedDetail) return;
+    setImageModalVisible(true);
+    try {
+      // 拉身份证图片
+      const data = await fetchIdCardImage(selectedDetail.insuredIdNumber);
+      setIdCardImages({ faceUrl: data.faceUrl, backUrl: data.backUrl }); // ★★必须加上这句★★
+
+      const res = await fetchInsuranceImages(selectedDetail.id);
+      setInsuranceImages(res.data || []);
+    } catch {
+      setInsuranceImages([]);
+    }
+  };
+
+  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedDetail) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const MAX_SIZE_MB = 20;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      alert(`文件不能超过 ${MAX_SIZE_MB}MB`);
+      return false;
+    }
+    setImageUploading(true);
+    await uploadInsuranceImage({ detailId: selectedDetail.id, file });
+    const imgRes = await fetchInsuranceImages(selectedDetail.id);
+    setInsuranceImages(imgRes.data || []);
+    setImageUploading(false);
+  };
+
+  const handleDeleteImage = async (imageId: string) => {
+    if (!window.confirm("确定删除该图片？")) return;
+    await deleteInsuranceImage(imageId);
+    const imgRes = await fetchInsuranceImages(selectedDetail!.id);
+    setInsuranceImages(imgRes.data || []);
+  };
+  const handleEditRemark = (image: InsuranceImage) => {
+    setEditingRemarkId(image.id);
+    setRemarkDraft(image.remark || "");
+  };
+  const handleSaveRemark = async (image: InsuranceImage) => {
+    await updateInsuranceImageRemark(image.id, remarkDraft);
+    setEditingRemarkId(null);
+    // 刷新图片
+    const imgRes = await fetchInsuranceImages(selectedDetail!.id);
+    setInsuranceImages(imgRes.data || []);
+  };
+
+  const handleUploadIdCardImage = async (file: File, type: "face" | "back") => {
+    if (!selectedDetail) return;
+    setIdCardUploading(up => ({ ...up, [type]: true }));
+    await uploadIdCardImage(file, selectedDetail.insuredIdNumber, type);
+    await refreshIdCardImage();
+    setIdCardUploading(up => ({ ...up, [type]: false }));
+  };
+
+  const refreshIdCardImage = async () => {
+    if (!selectedDetail) return;
+    const data = await fetchIdCardImage(selectedDetail.insuredIdNumber);
+    setIdCardImages({ faceUrl: data.faceUrl, backUrl: data.backUrl });
   };
 
   // === 6. 渲染相关函数 ===
@@ -885,7 +977,19 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         打印
       </button>
       {/* 图片 */}
-      <button className={styles.btn} type="button" onClick={handleImage}>图片</button>
+      <button
+  className={styles.btn}
+  type="button"
+  onClick={handleImage}
+  disabled={!!selectedDetail?.commercialPolicyNumber?.startsWith("L")}
+  style={
+    selectedDetail?.commercialPolicyNumber?.startsWith("L")
+      ? { background: "#bbb", color: "#fff", cursor: "not-allowed", border: "1px solid #ccc" }
+      : {}
+  }
+>
+  图片
+</button>
     </div>
   );
 
@@ -1403,6 +1507,255 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                   </div>
                 </div>
               )}
+
+              {/*历史投保弹窗 */}
+              {historyModalVisible && (
+                <div className={styles.historyModalOverlay}>
+                  <div className={styles.historyModal}>
+                    <div className={styles.historyModalHeader}>
+                      <span>投保历史（最近10条）</span>
+                      <button
+                        className={styles.closeBtn}
+                        onClick={() => setHistoryModalVisible(false)}
+                      >×</button>
+                    </div>
+                    <table className={styles.historyTable}>
+                      <thead>
+                        <tr>
+                          <th>车牌号</th>
+                          <th>发动机号</th>
+                          <th>被保险人</th>
+                          <th>起保日期</th>
+                          <th>保险公司</th>
+                          <th>业务员</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {insuranceHistory.map((row, idx) => (
+                          <tr key={idx}>
+                            <td>{row.licensePlate}</td>
+                            <td>{row.engineNumber}</td>
+                            <td>{row.insuredName}</td>
+                            <td>{row.policyStartDate ? String(row.policyStartDate).slice(0, 10) : ''}</td>
+                            <td>{row.insuranceCompany}</td>
+                            <td>{row.salesAgent}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {insuranceHistory.length === 0 && (
+                      <div style={{ padding: 18, color: "#bbb", textAlign: "center" }}>暂无历史记录</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 图片 */}
+              {imageModalVisible && (
+                <div className={styles.imageModalOverlay}>
+                  <div className={styles.imageModal}>
+                    <div className={styles.imageModalHeader}>
+                      <span>图片管理</span>
+                      <button className={styles.closeBtn} onClick={() => setImageModalVisible(false)}>×</button>
+                    </div>
+                    <div className={styles.imageGridScroll}>
+
+                      {/* ===== 第一行：身份证照片 ===== */}
+                      <div className={styles.imageGrid}>
+                        {/* 人像面 */}
+                        <div className={styles.imageCard}>
+                          <img
+                            src={idCardImages.faceUrl || "/uploads/insured_idcards/idcard_face_example.png"}
+                            alt="人像面"
+                            className={styles.insuranceImg}
+                          />
+                          <div className={styles.cardActionRow} style={{ justifyContent: "center" }}>
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                color: "#377ad6",
+                                fontSize: 17,
+                                marginRight: 28,
+                                flexShrink: 0,
+                                minWidth: 124,
+                                textAlign: "center"
+                              }}
+                            >
+                              身份证人像面
+                            </span>
+                            <label className={styles.cardBtn} style={{ marginRight: 16 }}>
+                              上传/替换
+                              <input
+                                type="file"
+                                accept="image/*"
+                                disabled={idCardUploading.face}
+                                onChange={e => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleUploadIdCardImage(file, "face");
+                                }}
+                                style={{ display: "none" }}
+                              />
+                            </label>
+                            {idCardImages.faceUrl && (
+                              <a
+                                href={idCardImages.faceUrl}
+                                download
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={styles.cardBtn}
+                                style={{ background: "#ffa600" }}
+                              >
+                                下载
+                              </a>
+                            )}
+                            {idCardUploading.face && (
+                              <span className={styles.uploadingTip} style={{ marginLeft: 10 }}>
+                                上传中...
+                              </span>
+                            )}
+                          </div>
+
+
+                        </div>
+                        {/* 国徽面 */}
+                        <div className={styles.imageCard}>
+                          <img
+                            src={idCardImages.backUrl || "/uploads/insured_idcards/idcard_back_example.png"}
+                            alt="国徽面"
+                            className={styles.insuranceImg}
+                          />
+                          <div className={styles.cardActionRow} style={{ justifyContent: "center" }}>
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                color: "#377ad6",
+                                fontSize: 17,
+                                marginRight: 28,
+                                flexShrink: 0,
+                                minWidth: 124,
+                                textAlign: "center"
+                              }}
+                            >
+                              身份证国徽面
+                            </span>
+                            <label className={styles.cardBtn} style={{ marginRight: 16 }}>
+                              上传/替换
+                              <input
+                                type="file"
+                                accept="image/*"
+                                disabled={idCardUploading.face}
+                                onChange={e => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleUploadIdCardImage(file, "face");
+                                }}
+                                style={{ display: "none" }}
+                              />
+                            </label>
+                            {idCardImages.faceUrl && (
+                              <a
+                                href={idCardImages.faceUrl}
+                                download
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={styles.cardBtn}
+                                style={{ background: "#ffa600" }}
+                              >
+                                下载
+                              </a>
+                            )}
+                            {idCardUploading.face && (
+                              <span className={styles.uploadingTip} style={{ marginLeft: 10 }}>
+                                上传中...
+                              </span>
+                            )}
+                          </div>
+
+                        </div>
+                      </div>
+
+                      {/* ===== 第二行：上传新图片按钮 ===== */}
+                      <div style={{ margin: "18px 0 8px 0", display: "flex", alignItems: "center" }}>
+                        <label className={styles.cardBtn} style={{ fontSize: 15 }}>
+                          上传图片
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={imageUploading}
+                            onChange={handleUploadImage}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                        {imageUploading && (
+                          <span className={styles.uploadingTip} style={{ marginLeft: 12 }}>
+                            正在上传...
+                          </span>
+                        )}
+                      </div>
+
+                      {/* ===== 第三行起：所有已上传的图片，每行2个 ===== */}
+                      <div className={styles.imageGrid}>
+                        {insuranceImages.length === 0 && (
+                          <span style={{ color: "#bbb", gridColumn: "1/3" }}>暂无图片</span>
+                        )}
+                        {insuranceImages.map(img => (
+                          <div key={img.id} className={styles.imageCard}>
+                            {/* 删除按钮 */}
+                            <button
+                              onClick={() => handleDeleteImage(img.id)}
+                              className={styles.deleteBtn}
+                              title="删除图片"
+                            >
+                              ×
+                            </button>
+                            {/* 图片 */}
+                            <img
+                              src={img.url}
+                              alt="保险图片"
+                              className={styles.insuranceImg}
+                            />
+                            {/* 操作区 */}
+                            {editingRemarkId === img.id ? (
+                              <div className={styles.cardActionRow}>
+                                <input
+                                  value={remarkDraft}
+                                  onChange={e => setRemarkDraft(e.target.value)}
+                                  className={styles.remarkInput}
+                                />
+                                <button onClick={() => handleSaveRemark(img)} className={styles.cardBtn}>保存</button>
+                                <button onClick={() => setEditingRemarkId(null)} className={styles.cardBtn} style={{ background: "#bbb" }}>取消</button>
+                              </div>
+                            ) : (
+                              <div className={styles.cardActionRow} style={{ justifyContent: "center" }}>
+                                <span style={{ color: img.remark ? "#49597b" : "#bbb", marginRight:10}}>
+                                  {img.remark || "无备注"}
+                                </span>
+                                <button
+                                  onClick={() => handleEditRemark(img)}
+                                  className={styles.cardBtn}
+                                  style={{ background: "#19ad53" }}
+                                >
+                                  编辑备注
+                                </button>
+                                <a
+                                  href={img.url}
+                                  download
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={styles.cardBtn}
+                                  style={{ background: "#ffa600" }}
+                                >
+                                  下载
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
 
               {/*打印弹窗 */}
               {showPrintModal && selectedDetail && (
