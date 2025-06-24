@@ -1,0 +1,57 @@
+.container {
+  background: #fff1f0;
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: 0 2px 8px rgba(200,80,80,0.08);
+  margin-top: 22px;
+}
+
+.header {
+  font-size: 22px;
+  color: #c4463a;
+  font-weight: 600;
+  margin-bottom: 18px;
+  letter-spacing: 2px;
+}
+
+.table {
+  background: #fff8f7;         /* 柔和的偏粉色，区分白色主背景 */
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1.5px solid #ffe8e6; /* 更浅的粉色边框 */
+}
+
+.table th {
+  background: #ffe8e6;         /* 表头也用淡粉 */
+  color: #c4463a;
+  font-weight: 600;
+}
+
+.table td {
+  background: #fff8f7;         /* 和表格背景色统一 */
+}
+
+.operateBtn {
+  margin-right: 8px;
+  min-width: 64px;
+}
+
+.queryArea {
+  padding: 14px 0 10px 0;
+  background: #fff1f0;         /* 和主背景色一致 */
+  border-radius: 14px;
+  margin-bottom: 14px;
+}
+
+.modal {
+  border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+  .table {
+    font-size: 13px;
+  }
+}

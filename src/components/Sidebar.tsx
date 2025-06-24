@@ -14,7 +14,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {
     },
     {
       title: "财务信息",
-      items: ["保费统计", "工资结算"],
+      items: ["提成维护", "工资结算"],
     },
     {
       title: "管理界面",
@@ -25,7 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {
   const iconMap: Record<string, string> = {
     "车险客户": "bi-car-front-fill",
     "希望客户": "bi-people-fill",
-    "保费统计": "bi-bar-chart-line-fill",
+    "提成维护": "bi-bar-chart-line-fill",
     "工资结算": "bi-currency-dollar",
     "管理用户": "bi-person-circle",
     "更改设置": "bi-gear-fill",
