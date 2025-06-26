@@ -2,7 +2,8 @@ import React from 'react';
 import styles from './MainContent.module.css';
 import InsuranceDetails from '../pages/InsuranceDetails';
 import PotentialCustomer from '../pages/PotentialCustomerDetails';
-import InsuranceCompanyCommissionPage from '../pages/InsuranceCompanyCommissionPage';
+import InsuranceCompanyCommission from '../pages/InsuranceCompanyCommission.tsx';
+import WageSettlement from '../pages/WageSettlement.tsx';
 
 type MainContentProps = {
   currentPage: string;
@@ -22,7 +23,9 @@ const MainContent: React.FC<MainContentProps> = ({
       case '希望客户':
         return <PotentialCustomer insuranceCompanies={insuranceCompanies} userList={userList} />;
       case '提成维护':
-        return <InsuranceCompanyCommissionPage />;
+        return <InsuranceCompanyCommission />;
+      case '工资结算':
+        return <WageSettlement userList={userList}/>;
       default:
         return <div>页面未找到</div>;
     }

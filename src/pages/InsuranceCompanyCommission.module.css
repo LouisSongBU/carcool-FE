@@ -1,9 +1,9 @@
 .container {
   background: #fff1f0;
   border-radius: 18px;
-  padding: 20px 22px;
+  padding: 5px 5px;
   box-shadow: 0 2px 8px rgba(200,80,80,0.08);
-  margin-top: 22px;
+  margin-top: 5px;
 }
 
 .header {
@@ -37,7 +37,7 @@
 }
 
 .queryArea {
-  padding: 14px 0 10px 0;
+  padding: 0px 2px 0px 2px;
   background: #fff1f0;         /* 和主背景色一致 */
   border-radius: 14px;
   margin-bottom: 14px;

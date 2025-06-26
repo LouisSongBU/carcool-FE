@@ -12,6 +12,7 @@ const pageTitles: Record<string, string> = {
   '车险客户': '车险客户信息',
   '希望客户': '希望客户信息',
   '提成维护': '提成维护',
+  '工资结算': '工资结算',
 };
 
 const App: React.FC = () => {

@@ -255,18 +255,18 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
               onFocus={e => setAgentDropdown(true)}
               onChange={e => {
                 const inputVal = e.target.value;
-                setEditData(prev => prev ? { ...prev, salesAgent: inputVal } : prev);
-                setAgentDropdown(!!inputVal);
-                // 选业务员自动更新主管
                 const selected = userList.find(u => u.displayName === inputVal);
                 setEditData(prev => prev
                   ? {
-                    ...prev,
-                    salesManager: selected && selected.manager ? selected.manager.displayName : "",
-                    hierarchyCode: selected && selected.hierarchyCode ? String(selected.hierarchyCode) : ""
-                  }
-                  : prev);
-              }}
+                      ...prev,
+                      salesAgent: inputVal,
+                      salesManager: selected && selected.manager ? selected.manager.displayName : "",
+                      hierarchyCode: selected && selected.hierarchyCode ? String(selected.hierarchyCode) : ""
+                    }
+                  : prev
+                );
+                setAgentDropdown(!!inputVal);
+              }}              
               onBlur={() => setTimeout(() => setAgentDropdown(false), 120)}
             />
             {/* 清除按钮 */}
@@ -291,13 +291,15 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                     : userList.filter(u => value && u.displayName.includes(value)).map(a =>
                       <li
                         key={a.id}
-                        onMouseDown={() => {
+                        onMouseDown={e => {
+                          e.preventDefault();
                           setEditData(prev => prev
                             ? {
-                              ...prev,
-                              salesAgent: a.displayName,
-                              salesManager: a.manager ? a.manager.displayName : ""
-                            }
+                                ...prev,
+                                salesAgent: a.displayName,
+                                salesManager: a.manager ? a.manager.displayName : "",
+                                hierarchyCode: a.hierarchyCode ? String(a.hierarchyCode) : ""
+                              }
                             : prev
                           );
                           setAgentDropdown(false);
@@ -1185,14 +1187,14 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                 />
               </div>
               <div className={styles.queryRow}>
-                <label className={styles.queryLabel}>手机号</label>
+                <label className={styles.queryLabel}>手机(电话)号</label>
                 <input
                   type="text"
                   name="mobileOrPhone"
                   value={query.mobileOrPhone || ""}
                   onChange={handleInputChange}
                   className={`form-control form-control-sm ${styles.queryInput}`}
-                  placeholder="请输入手机号"
+                  placeholder="请输入手机（电话）号"
                 />
               </div>
               <div className={styles.queryRow}>
