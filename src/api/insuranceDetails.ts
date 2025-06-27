@@ -95,3 +95,7 @@ export function fetchInsuranceChangeLogs(detailId: string) {
 export function saveInsuranceChangeLogs(logList: any[]) {
   return api.post(`/insurance-details/change-log`, logList).then(res => res.data);
 }
+
+// 只更新备注
+export const updateInsuranceComment = (id: string, comment: string) =>
+  api.post("/insurance-details/updateComment", { id, comment });

@@ -26,6 +26,16 @@
   height: 88%;
 }
 
+.confirmPayBtn {
+  min-width: 60px;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  margin-left: 10px; /* 再保险一点，防止style丢失 */
+  box-shadow: 0 2px 8px rgba(200,30,30,0.08);
+}
+
 .summaryArea {
   height: 40%;
   min-height: 100px;
@@ -56,6 +66,7 @@
   margin-bottom: 0;
   font-size: 14px;
   margin-top: 0;
+  min-width: max-content;
 }
 .table th {
   background: #ffd2cf;

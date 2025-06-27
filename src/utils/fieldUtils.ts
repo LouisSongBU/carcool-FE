@@ -73,7 +73,9 @@ export const insuranceDetailsNameMap: Record<string, string> = {
     isSettlement: "是否对账",
     financeVerification: "财务验证",
     commercialAdjustment: "商业加减点",
-    compulsoryAdjustment: "交强加减点"
+    compulsoryAdjustment: "交强加减点",
+    comment:"备注"
+    
 };
 
 export function getLocalDateFromInput(inputStr: string): Date | null {

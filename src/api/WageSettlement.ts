@@ -24,3 +24,13 @@ export async function settleCommission(detailIds: string[], amounts: number[]) {
   });
   return res.data;
 }
+
+export const batchPay = (params: { id: number; intermediaryInvoiceNo: number }[]): Promise<PayResult[]> =>
+  api.post('/commission/batchPay', params).then(res => res.data);
+
+
+export interface PayResult {
+  id: number;
+  intermediaryInvoiceNo: number;
+  payStatus: string;
+}

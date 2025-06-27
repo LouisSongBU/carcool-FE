@@ -4,8 +4,9 @@ import { insuranceDetailsNameMap, insuranceDetailFieldTypeMap } from "../utils/f
 import { useEffect } from "react";
 import {
   addInsuranceDetail, fetchInsuranceDetails, updateInsuranceDetail, confirmIssueInsuranceDetail, fetchInsuranceHistory, uploadInsuranceImage,
-  fetchInsuranceImages, deleteInsuranceImage, updateInsuranceImageRemark, uploadIdCardImage, fetchIdCardImage, fetchInsuranceChangeLogs, saveInsuranceChangeLogs
-} from "../api/insuranceDetails.ts"; 
+  fetchInsuranceImages, deleteInsuranceImage, updateInsuranceImageRemark, uploadIdCardImage, fetchIdCardImage, fetchInsuranceChangeLogs
+  , saveInsuranceChangeLogs, updateInsuranceComment
+} from "../api/insuranceDetails.ts";
 
 type InsuranceDetailsProps = {
   insuranceCompanies: any[];
@@ -67,6 +68,7 @@ export interface InsuranceDetail {
   financeVerification: string | null;
   commercialAdjustment: number | null;
   compulsoryAdjustment: number | null;
+  comment: string | null;
 }
 
 const detailFieldOrder: string[][] = [
@@ -92,6 +94,7 @@ const detailFieldOrder: string[][] = [
   ["receivedPremium", "intermediaryInvoiceNo"],
   ["policyStartDate", "hierarchyCode"],
   ["insuranceCompany", "issuingOffice"],
+  ["comment"],
   ["isSettlement", "financeVerification"],
   ["commercialAdjustment", "compulsoryAdjustment"]
 ];
@@ -191,6 +194,10 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirming, setConfirming] = useState(false); // 加载状态
 
+  // 备注弹窗和内容
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [commentEditValue, setCommentEditValue] = useState("");
+
   // 查询时，只允许选中下拉项
   const canSearch =
     (!agentInput && !selectedAgent) || // 没填=不筛选
@@ -230,6 +237,15 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     }
   }, [isNormalUser, currentUserName]);
 
+  function calcReceivablePremium(data: Partial<InsuranceDetail>): number {
+    return (
+      (Number(data.commercialPremium) || 0) +
+      (Number(data.compulsoryPremium) || 0) +
+      (Number(data.driverAccidentPremium) || 0) +
+      (Number(data.vehicleTax) || 0)
+    );
+  }
+
   const renderInput = (key: string, value: any) => {
     if (omitKeys.includes(key)) {
       return (
@@ -258,15 +274,15 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                 const selected = userList.find(u => u.displayName === inputVal);
                 setEditData(prev => prev
                   ? {
-                      ...prev,
-                      salesAgent: inputVal,
-                      salesManager: selected && selected.manager ? selected.manager.displayName : "",
-                      hierarchyCode: selected && selected.hierarchyCode ? String(selected.hierarchyCode) : ""
-                    }
+                    ...prev,
+                    salesAgent: inputVal,
+                    salesManager: selected && selected.manager ? selected.manager.displayName : "",
+                    hierarchyCode: selected && selected.hierarchyCode ? String(selected.hierarchyCode) : ""
+                  }
                   : prev
                 );
                 setAgentDropdown(!!inputVal);
-              }}              
+              }}
               onBlur={() => setTimeout(() => setAgentDropdown(false), 120)}
             />
             {/* 清除按钮 */}
@@ -295,11 +311,11 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                           e.preventDefault();
                           setEditData(prev => prev
                             ? {
-                                ...prev,
-                                salesAgent: a.displayName,
-                                salesManager: a.manager ? a.manager.displayName : "",
-                                hierarchyCode: a.hierarchyCode ? String(a.hierarchyCode) : ""
-                              }
+                              ...prev,
+                              salesAgent: a.displayName,
+                              salesManager: a.manager ? a.manager.displayName : "",
+                              hierarchyCode: a.hierarchyCode ? String(a.hierarchyCode) : ""
+                            }
                             : prev
                           );
                           setAgentDropdown(false);
@@ -334,6 +350,21 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
           readOnly
           disabled
           placeholder="自动带出"
+        />
+      );
+    }
+
+    if (key === "comment") {
+      return (
+        <textarea
+          className={`${styles.editInput} form-control`}
+          value={value ?? ""}
+          rows={3}
+          placeholder="请输入备注"
+          onChange={e => {
+            const val = e.target.value;
+            setEditData(prev => prev ? { ...prev, comment: val } : prev);
+          }}
         />
       );
     }
@@ -497,6 +528,41 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         />
       );
     }
+
+    if (key === "receivablePremium") {
+      // 实现：只读显示
+      return (
+        <input
+          type="number"
+          className={`${styles.editInput} form-control`}
+          value={value ?? ""}
+          disabled
+          readOnly
+        />
+      );
+    }
+
+    if (["commercialPremium", "compulsoryPremium", "driverAccidentPremium", "vehicleTax"].includes(key)) {
+      return (
+        <input
+          type="number"
+          className={`${styles.editInput} form-control`}
+          value={value ?? ""}
+          onChange={e => {
+            const numVal = Number(e.target.value) || 0;
+            setEditData(prev => {
+              if (!prev) return prev;
+              // 更新当前字段
+              const newData = { ...prev, [key]: numVal };
+              // 重新计算应收保费
+              newData.receivablePremium = calcReceivablePremium(newData);
+              return newData;
+            });
+          }}
+        />
+      );
+    }
+
     // 数字字段（自动支持""为0的情况）
     if (insuranceDetailFieldTypeMap[key] === "number") {
       if (key === "receivedPremium") {
@@ -1045,7 +1111,8 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         onClick={() => {
           if (!selectedDetail) return;
           const newData = getDefaultNewData();
-          setInsuranceCompanyInput(""); // 新增时保险公司输入框清空
+          newData.receivablePremium = calcReceivablePremium(newData); // 这里加上自动算
+          setInsuranceCompanyInput("");
           setEditData(newData);
           setEditType("add");
           setIsEditing(true);
@@ -1059,11 +1126,14 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         disabled={!selectedDetail || !canEdit}
         onClick={() => {
           if (!selectedDetail || !canEdit) return;
-          setEditData({ ...selectedDetail });
+          const newData = { ...selectedDetail };
+          newData.receivablePremium = calcReceivablePremium(newData); // 这里加上自动算
+          setEditData(newData);
           setEditType("edit");
-          setInsuranceCompanyInput(selectedDetail.insuranceCompany || ""); // 这里同步！！
+          setInsuranceCompanyInput(selectedDetail.insuranceCompany || "");
           setIsEditing(true);
         }}
+
         type="button"
       >编辑</button>
       <button
@@ -1486,7 +1556,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                         <tbody>
                           {detailFieldOrder.map((pair, rowIdx) => {
                             const [key1, key2] = pair;
-                            // 判断字段是否隐藏
                             if (
                               (!isSuperAdmin && hiddenFieldsForUser.includes(key1)) ||
                               (!isSuperAdmin && key2 && hiddenFieldsForUser.includes(key2))
@@ -1496,29 +1565,49 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                             return (
                               <tr key={key1}>
                                 <th>{insuranceDetailsNameMap[key1] || key1}</th>
-                                <td>
-                                  {typeof selectedDetail?.[key1 as keyof typeof selectedDetail] === "string" &&
-                                    (selectedDetail?.[key1 as keyof typeof selectedDetail] as string).match(/^\d{4}-\d{2}-\d{2}/)
-                                    ? (selectedDetail?.[key1 as keyof typeof selectedDetail] as string).slice(0, 10)
-                                    : String(selectedDetail?.[key1 as keyof typeof selectedDetail] ?? "")
-                                  }
-                                </td>
                                 {key2 ? (
                                   <>
+                                    <td>
+                                      {typeof selectedDetail?.[key1 as keyof InsuranceDetail] === "string"
+                                        && (selectedDetail?.[key1 as keyof InsuranceDetail] as string).match(/^\d{4}-\d{2}-\d{2}/)
+                                        ? (selectedDetail?.[key1 as keyof InsuranceDetail] as string).slice(0, 10)
+                                        : String(selectedDetail?.[key1 as keyof InsuranceDetail] ?? "")}
+                                    </td>
                                     <th>{insuranceDetailsNameMap[key2] || key2}</th>
                                     <td>
-                                      {typeof selectedDetail?.[key2 as keyof typeof selectedDetail] === "string" &&
-                                        (selectedDetail?.[key2 as keyof typeof selectedDetail] as string).match(/^\d{4}-\d{2}-\d{2}/)
-                                        ? (selectedDetail?.[key2 as keyof typeof selectedDetail] as string).slice(0, 10)
-                                        : String(selectedDetail?.[key2 as keyof typeof selectedDetail] ?? "")
-                                      }
+                                      {typeof selectedDetail?.[key2 as keyof InsuranceDetail] === "string"
+                                        && (selectedDetail?.[key2 as keyof InsuranceDetail] as string).match(/^\d{4}-\d{2}-\d{2}/)
+                                        ? (selectedDetail?.[key2 as keyof InsuranceDetail] as string).slice(0, 10)
+                                        : String(selectedDetail?.[key2 as keyof InsuranceDetail] ?? "")}
                                     </td>
                                   </>
                                 ) : (
-                                  <>
-                                    <th></th>
-                                    <td></td>
-                                  </>
+                                  <td colSpan={3}>
+                                    {key1 === "comment" ? (
+                                      <div
+                                        style={{
+                                          whiteSpace: "nowrap",
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          cursor: "pointer",
+                                          minHeight: 28,
+                                          color: "#49597b"
+                                        }}
+                                        title={selectedDetail?.comment ?? ""}
+                                        onClick={() => {
+                                          setCommentEditValue(selectedDetail?.comment ?? "");
+                                          setShowCommentModal(true);
+                                        }}
+                                      >
+                                        {selectedDetail?.comment ?? ""}
+                                        <span style={{ marginLeft: 10, color: "#198cff", fontSize: 12 }}>📝点击编辑</span>
+                                      </div>
+                                    ) : (
+                                      typeof selectedDetail?.[key1 as keyof InsuranceDetail] === "string"
+                                        ? selectedDetail[key1 as keyof InsuranceDetail]
+                                        : String(selectedDetail?.[key1 as keyof InsuranceDetail] ?? "")
+                                    )}
+                                  </td>
                                 )}
                               </tr>
                             );
@@ -1928,6 +2017,62 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                           </tbody>
                         </table>
                       )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/*编辑备注 */}
+              {showCommentModal && (
+                <div className={styles.customModalOverlay}>
+                  <div className={styles.customModal} style={{ minWidth: 400, maxWidth: 560 }}>
+                    <h5>编辑备注</h5>
+                    <textarea
+                      className="form-control"
+                      value={commentEditValue}
+                      rows={7}
+                      style={{ fontSize: 16, marginBottom: 20, marginTop: 10, resize: "vertical" }}
+                      onChange={e => setCommentEditValue(e.target.value)}
+                      placeholder="请输入备注"
+                    />
+                    <div className="d-flex justify-content-end mt-2">
+                      <button className={styles.btn} onClick={() => setShowCommentModal(false)}>
+                        取消
+                      </button>
+                      <button
+                        className={`${styles.btn} ${styles.btnPrimary} ms-2`}
+                        onClick={async () => {
+                          if (!selectedDetail) return;
+                          // 你需要写一个 updateInsuranceComment 接口，只发 id 和 comment
+                          try {
+                            await updateInsuranceComment(selectedDetail.id, commentEditValue);
+                            // 本地同步数据
+                            setSelectedDetail(prev =>
+                              prev ? { ...prev, comment: commentEditValue } : prev
+                            );
+                            setMyList(list =>
+                              list.map(item =>
+                                item.id === selectedDetail.id
+                                  ? { ...item, comment: commentEditValue }
+                                  : item
+                              )
+                            );
+                            setSearchResult(list =>
+                              list.map(item =>
+                                item.id === selectedDetail.id
+                                  ? { ...item, comment: commentEditValue }
+                                  : item
+                              )
+                            );
+                            setShowCommentModal(false);
+                            alert("备注已保存！");
+                          } catch (err: any) {
+                            alert("备注保存失败: " + (err?.message || "未知错误"));
+                          }
+                        }}
+                      >
+                        保存
+                      </button>
                     </div>
                   </div>
                 </div>
