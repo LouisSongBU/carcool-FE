@@ -7,6 +7,8 @@ import {
   fetchInsuranceImages, deleteInsuranceImage, updateInsuranceImageRemark, uploadIdCardImage, fetchIdCardImage, fetchInsuranceChangeLogs
   , saveInsuranceChangeLogs, updateInsuranceComment
 } from "../api/insuranceDetails.ts";
+import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
+
 
 type InsuranceDetailsProps = {
   insuranceCompanies: any[];
@@ -890,7 +892,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
           oldValue: oldPolicy,
           newValue: newPolicy,
           updateUser: currentUserName,
-          updateTime: new Date().toLocaleString().slice(0, 19).replace("T", " "),
+          updateTime: getNowDateTime(),
         });
       }
       // 情况2，L变QL
@@ -901,7 +903,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
           oldValue: oldPolicy,
           newValue: newPolicy,
           updateUser: currentUserName,
-          updateTime: new Date().toLocaleString().slice(0, 19).replace("T", " "),
+          updateTime: getNowDateTime(),
         });
       }
       // 情况3，当前L且不是L变QL，不记录任何日志
@@ -921,7 +923,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
               oldValue: oldValue ?? "",
               newValue: newValue ?? "",
               updateUser: currentUserName,
-              updateTime: new Date().toLocaleString().slice(0, 19).replace("T", " "),
+              updateTime: getNowDateTime(),
             });
           }
         });
@@ -971,7 +973,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         oldValue: "",
         newValue: newRecord.commercialPolicyNumber,
         updateUser: currentUserName,
-        updateTime: new Date().toLocaleString().slice(0, 19).replace("T", " ")
+        updateTime: getNowDateTime()
       };
       await saveInsuranceChangeLogs([log]);
     } catch (e: any) {
@@ -996,7 +998,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         oldValue: detail.commercialPolicyNumber,
         newValue: updated.commercialPolicyNumber,
         updateUser: currentUserName,
-        updateTime: new Date().toLocaleString().slice(0, 19).replace("T", " ")
+        updateTime: getNowDateTime()
       };
       await saveInsuranceChangeLogs([log]);
     }
@@ -2025,7 +2027,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
               {/*编辑备注 */}
               {showCommentModal && (
                 <div className={styles.customModalOverlay}>
-                  <div className={styles.customModal} style={{ minWidth: 400, maxWidth: 560 }}>
+                  <div className={styles.customCommentModal} style={{ minWidth: 400, maxWidth: 560 }}>
                     <h5>编辑备注</h5>
                     <textarea
                       className="form-control"

@@ -371,6 +371,17 @@
   animation: fadeInModal 0.3s ease-in-out;
 }
 
+.customCommentModal {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  width: 80%;
+  height: 320px;
+  overflow-y: auto;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  animation: fadeInModal 0.3s ease-in-out;
+}
+
 @keyframes fadeInModal {
   from {
     opacity: 0;

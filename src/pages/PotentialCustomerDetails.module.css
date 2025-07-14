@@ -181,6 +181,7 @@
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(50, 180, 90, 0.06);
     animation: fadeIn 0.6s ease-in;
+    margin-bottom: 5px;
   }
   
   .customTable th,
@@ -225,9 +226,10 @@
   }
 
   .buttonGroupBox {
-    margin-top: 24px;
+    margin-top: 0px;
+    margin-bottom: 5px;
     display: flex;
-    gap: 18px;
+    gap: 5px;
     align-items: center;
   }
   .dateInput, .input {
@@ -274,7 +276,18 @@
     border-radius: 8px;
     padding: 20px;
     width: 80%;
-    height: 720px;
+    height: 400px;
+    overflow-y: auto;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    animation: fadeInModal 0.3s ease-in-out;
+  }
+
+  .customNewPolicy {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    width: 80%;
+    height: 700px;
     overflow-y: auto;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
     animation: fadeInModal 0.3s ease-in-out;
@@ -326,5 +339,138 @@
   font-size: 15px !important;
   line-height: 1.2 !important;
 }
-  
-  
+
+.customCommentModal {
+  background: #ffffff;
+  border-radius: 9px;
+  padding: 28px 28px 22px 28px;
+  width: 880px;
+  box-shadow: 0 6px 36px rgba(40, 140, 100, 0.14), 0 1.5px 7px #b4f1c9;
+  border: 2px solid #e3faee;
+  animation: fadeInModal 0.25s;
+}
+
+.customCommentModal h5 {
+  color: #19924c;
+  font-size: 19px;
+  font-weight: bold;
+  margin-bottom: 14px;
+}
+
+.customCommentModal textarea {
+  width: 100%;
+  min-height: 120px;
+  font-size: 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1.5px solid #ccead4;
+  background: #f8fff9;
+  resize: vertical;
+  color: #295080;
+  font-family: "Roboto", "Microsoft YaHei", sans-serif;
+  margin-bottom: 0;
+  transition: border 0.14s, box-shadow 0.15s;
+}
+.customCommentModal textarea:focus {
+  border: 1.5px solid #19924c;
+  outline: none;
+  box-shadow: 0 0 6px #b4f1c9;
+}
+
+.customCommentModal .d-flex {
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.customCommentModal button {
+  min-width: 70px;
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-size: 15px;
+  font-weight: 500;
+  border: 1.5px solid #43c776;
+  color: #fff;
+  background: #24bc46;
+  transition: all 0.15s;
+}
+.customCommentModal button:hover {
+  background: #19924c;
+  border-color: #19924c;
+}
+
+.customCommentModal button:not(:last-child) {
+  background: #e9ecef;
+  color: #229e5f;
+  border: 1.5px solid #b4f1c9;
+}
+.customCommentModal button:not(:last-child):hover {
+  background: #ccead4;
+  color: #128d46;
+  border-color: #43c776;
+}
+
+.followUpTable {
+  width: 100%;
+  margin-top: 0px;
+  border-radius: 9px;
+  background: #f8fff9;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(50, 200, 90, 0.08);
+  border: 1.5px solid #d1f7d8;
+  font-size: 12px;
+}
+
+.followUpTable th,
+.followUpTable td {
+  padding: 8px 10px;
+  text-align: center;
+  vertical-align: middle;
+  border-bottom: 1px solid #e3faee;
+}
+
+.followUpTable th {
+  background: linear-gradient(90deg, #eafaf0 0%, #f8fff9 100%);
+  color: #229e5f;
+  font-weight: bold;
+  font-size: 14px;
+  border-bottom: 2px solid #cdecd9;
+}
+
+.followUpTable td {
+  background: none;
+  color: #305f3c;
+  font-size: 13px;
+}
+
+.followUpTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.followUpTable tr:hover td {
+  background: #e3faee;
+}
+
+.followUpEmpty {
+  color: #bbb;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.followUpTableWrapper {
+  max-height: 400px;   /* 这里高度可以自己调整，比如270px大约7行 */
+  overflow-y: auto;
+  border-radius: 9px;
+  box-shadow: 0 2px 8px rgba(50, 200, 90, 0.08);
+  background: #f8fff9;
+  /* 可选，配合你表格背景、圆角、阴影统一 */
+}
+
+/* 优化滚动条（可选） */
+.followUpTableWrapper::-webkit-scrollbar {
+  width: 7px;
+  background: #eefbf5;
+}
+.followUpTableWrapper::-webkit-scrollbar-thumb {
+  background: #ccead4;
+  border-radius: 8px;
+}

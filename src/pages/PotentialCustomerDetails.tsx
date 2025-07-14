@@ -1,144 +1,76 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./PotentialCustomerDetails.module.css";
 import type { InsuranceDetail } from './InsuranceDetails.tsx';
 import { isAdminUser, getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
-import { fetchByRecordDate, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer } from '../api/potentialCustomer';
+import { fetchByRecordDate, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer, addFollowUpPotential, updateFollowUpPotential, fetchFollowUpPotentialList } from '../api/potentialCustomer';
+import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
 
 type PotentialCustomersProps = {
     insuranceCompanies: any[];
     userList: any[];
-  };
+};
 
 export interface PotentialCustomer {
     insuredCount: number | null;
-    fourFollowUpNote: string | null;
     licensePlate: string;
-    fourFollowUpDate: string | null;
     vehicleModel: string | null;
-    fiveFollowUpNote: string | null;
     policyStartDate: string;
-    fiveFollowUpDate: string | null;
     registrationOwner: string | null;
-    sixFollowUpNote: string | null;
     phone: string | null;
-    sixFollowUpDate: string | null;
     firstRegistrationDate: string | null;
-    sevenFollowUpNote: string | null;
     deliveryAddress: string | null;
-    sevenFollowUpDate: string | null;
     registrationOwnerId: string | null;
-    eightFollowUpNote: string | null;
     vinNumber: string | null;
-    eightFollowUpDate: string | null;
     engineNumber: string | null;
-    nineFollowUpNote: string | null;
     recordTime: string | null;
-    nineFollowUpDate: string | null;
     insuranceCompany: string | null;
-    tenFollowUpNote: string | null;
-    note1: string | null;
-    tenFollowUpDate: string | null;
+    note: string | null;
     note2: string | null;
-    elevenFollowUpNote: string | null;
     salesAgent: string | null;
-    elevenFollowUpDate: string | null;
     hierarchyCode: string | null;
-    twelveFollowUpNote: string | null;
     scheduleFollowUpDate: string | null;
-    twelveFollowUpDate: string | null;
-    firstFollowUpNote: string | null;
-    thirteenFollowUpNote: string | null;
-    firstFollowUpDate: string | null;
-    thirteenFollowUpDate: string | null;
-    secondFollowUpNote: string | null;
-    fourteenFollowUpNote: string | null;
-    secondFollowUpDate: string | null;
-    fourteenFollowUpDate: string | null;
-    thirdFollowUpNote: string | null;
-    fifteenFollowUpNote: string | null;
-    thirdFollowUpDate: string | null;
-    fifteenFollowUpDate: string | null;
     id: number | null;
     followUpCount: number | null;
     previousSignDate: string | null;
 }
 
+interface FollowUpPotential {
+    index: number;
+    content: string;
+    date: string;
+    // 其它字段可加
+}
+
 const fieldNameMap: Record<string, string> = {
     insuredCount: "成功投保",
-    fourFollowUpNote: "四次回访",
     licensePlate: "车牌号",
-    fourFollowUpDate: "四次时间",
     vehicleModel: "厂牌型号",
-    fiveFollowUpNote: "五次回访",
     policyStartDate: "起保日期",
-    fiveFollowUpDate: "五次时间",
     registrationOwner: "车主",
-    sixFollowUpNote: "六次回访",
     phone: "电话",
-    sixFollowUpDate: "六次时间",
     firstRegistrationDate: "初登日期",
-    sevenFollowUpNote: "七次回访",
     deliveryAddress: "地址",
-    sevenFollowUpDate: "七次时间",
     registrationOwnerId: "车主身份证",
-    eightFollowUpNote: "八次回访",
     vinNumber: "车架号",
-    eightFollowUpDate: "八次时间",
     engineNumber: "发动机号",
-    nineFollowUpNote: "九次回访",
     recordTime: "记录时间",
-    nineFollowUpDate: "九次时间",
     insuranceCompany: "保险公司",
-    tenFollowUpNote: "十次回访",
-    note1: "备注1",
-    tenFollowUpDate: "十次时间",
-    note2: "备注2",
-    elevenFollowUpNote: "十一次回访",
+    note: "备注",
     salesAgent: "业务员",
-    elevenFollowUpDate: "十一次时间",
     hierarchyCode: "层级码",
-    twelveFollowUpNote: "十二次回访",
     scheduleFollowUpDate: "下次回访时间",
-    twelveFollowUpDate: "十二次时间",
-    firstFollowUpNote: "一次回访",
-    thirteenFollowUpNote: "十三次回访",
-    firstFollowUpDate: "一次时间",
-    thirteenFollowUpDate: "十三次时间",
-    secondFollowUpNote: "二次回访",
-    fourteenFollowUpNote: "十四次回访",
-    secondFollowUpDate: "二次时间",
-    fourteenFollowUpDate: "十四次时间",
-    thirdFollowUpNote: "三次回访",
-    fifteenFollowUpNote: "十五次回访",
-    thirdFollowUpDate: "三次时间",
-    fifteenFollowUpDate: "十五次时间"
 }
 
 const detailFieldOrder = [
-    "insuredCount", "fourFollowUpNote",
-    "licensePlate", "fourFollowUpDate",
-    "vehicleModel", "fiveFollowUpNote",
-    "policyStartDate", "fiveFollowUpDate",
-    "registrationOwner", "sixFollowUpNote",
-    "phone", "sixFollowUpDate",
-    "firstRegistrationDate", "sevenFollowUpNote",
-    "deliveryAddress", "sevenFollowUpDate",
-    "registrationOwnerId", "eightFollowUpNote",
-    "vinNumber", "eightFollowUpDate",
-    "engineNumber", "nineFollowUpNote",
-    "recordTime", "nineFollowUpDate",
-    "insuranceCompany", "tenFollowUpNote",
-    "note1", "tenFollowUpDate",
-    "note2", "elevenFollowUpNote",
-    "salesAgent", "elevenFollowUpDate",
-    "hierarchyCode", "twelveFollowUpNote",
-    "scheduleFollowUpDate", "twelveFollowUpDate",
-    "firstFollowUpNote", "thirteenFollowUpNote",
-    "firstFollowUpDate", "thirteenFollowUpDate",
-    "secondFollowUpNote", "fourteenFollowUpNote",
-    "secondFollowUpDate", "fourteenFollowUpDate",
-    "thirdFollowUpNote", "fifteenFollowUpNote",
-    "thirdFollowUpDate", "fifteenFollowUpDate"
+    "insuredCount", "registrationOwnerId",
+    "licensePlate", "vinNumber",
+    "vehicleModel", "engineNumber",
+    "policyStartDate", "recordTime",
+    "registrationOwner", "insuranceCompany",
+    "phone", "salesAgent",
+    "firstRegistrationDate", "hierarchyCode",
+    "deliveryAddress", "scheduleFollowUpDate",
+    "note"
 ];
 
 const dateFields = new Set([
@@ -261,7 +193,32 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     const [selectedDetail, setSelectedDetail] = useState<PotentialCustomer | null>(null);
     const [showList, setShowList] = useState(false);
 
+    const [followUpList, setFollowUpList] = useState<FollowUpPotential[]>([]);
+    const [commentEditValue, setCommentEditValue] = useState("");
+    const [showCommentModal, setShowCommentModal] = useState(false);
+
+    // 回访相关弹窗控制
+    const [followUpModalVisible, setFollowUpModalVisible] = useState(false);
+    const [followUpEditMode, setFollowUpEditMode] = useState<"add" | "edit" | null>(null);
+    const [followUpContent, setFollowUpContent] = useState("");
+    const [editingFollowUpId, setEditingFollowUpId] = useState<number | null>(null);
+
+    // 计算今日回访（每次回访包含字段如：id, potential_customer_id, content, date）
+    const today = getTodayDate();
+    const todayFollowUp = followUpList.find(f => f.date === today);
+
     // 3. 查询逻辑
+
+    useEffect(() => {
+        if (selectedDetail?.id) {
+            fetchFollowUpPotentialList(selectedDetail.id).then(res => {
+                setFollowUpList(res.data || []); // 保证是数组
+            });
+        } else {
+            setFollowUpList([]);
+        }
+    }, [selectedDetail?.id]);
+
     const handleRecordDateSearch = () => {
         if (!query.recordTimeStart || !query.recordTimeEnd) {
             alert("请选择完整记录日期");
@@ -455,53 +412,23 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     function getEmptyPotentialCustomer(): PotentialCustomer {
         return {
             insuredCount: null,
-            fourFollowUpNote: null,
             licensePlate: "",
-            fourFollowUpDate: null,
             vehicleModel: "",
-            fiveFollowUpNote: null,
             policyStartDate: "",
-            fiveFollowUpDate: null,
             registrationOwner: "",
-            sixFollowUpNote: null,
             phone: "",
-            sixFollowUpDate: null,
             firstRegistrationDate: null,
-            sevenFollowUpNote: null,
             deliveryAddress: "",
-            sevenFollowUpDate: null,
             registrationOwnerId: "",
-            eightFollowUpNote: null,
             vinNumber: "",
-            eightFollowUpDate: null,
             engineNumber: "",
-            nineFollowUpNote: null,
-            recordTime: new Date().toISOString().slice(0, 19),
-            nineFollowUpDate: null,
+            recordTime: getNowDateTime(),
             insuranceCompany: "",
-            tenFollowUpNote: null,
-            note1: "",
-            tenFollowUpDate: null,
+            note: "",
             note2: "",
-            elevenFollowUpNote: null,
             salesAgent: "",
-            elevenFollowUpDate: null,
             hierarchyCode: "",
-            twelveFollowUpNote: null,
             scheduleFollowUpDate: null,
-            twelveFollowUpDate: null,
-            firstFollowUpNote: "",
-            thirteenFollowUpNote: null,
-            firstFollowUpDate: null,
-            thirteenFollowUpDate: null,
-            secondFollowUpNote: "",
-            fourteenFollowUpNote: null,
-            secondFollowUpDate: null,
-            fourteenFollowUpDate: null,
-            thirdFollowUpNote: "",
-            fifteenFollowUpNote: null,
-            thirdFollowUpDate: null,
-            fifteenFollowUpDate: null,
             id: null,
             followUpCount: null,
             previousSignDate: null,
@@ -511,7 +438,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     // === 6. 渲染相关函数 ===
     // === 新增/编辑按钮组 ===
     const renderButtonGroup = () => (
-        <div className={styles.buttonGroupBox} style={{ display: "flex", gap: 16, marginTop: 18, alignItems: "center" }}>
+        <div className={styles.buttonGroupBox}>
             {/* 下次回访日期选择和保存 */}
             <input
                 type="date"
@@ -522,7 +449,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             />
             <button
                 className={`btn btn-success btn-sm`}
-                style={{ marginRight: 20, minWidth: 94 }}
+                style={{ marginRight: 6, minWidth: 94 }}
                 onClick={async () => {
                     if (!nextFollowUpDate || !selectedDetail) return;
                     const updated = { ...selectedDetail, scheduleFollowUpDate: nextFollowUpDate || "" };
@@ -544,7 +471,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             {/* 编辑按钮 */}
             <button
                 className={`btn btn-outline-success btn-sm`}
-                style={{ marginRight: 16, minWidth: 70 }}
+                style={{ marginRight: 6, minWidth: 70 }}
                 onClick={() => {
                     setEditForm(selectedDetail);
                     // 关键：计算初始空date下标，只看编辑前的数据
@@ -559,7 +486,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             {/* 投保历史 */}
             <button
                 className={`btn btn-outline-primary btn-sm`}
-                style={{ marginRight: 16, minWidth: 85 }}
+                style={{ marginRight: 6, minWidth: 85 }}
                 onClick={() => {
                     // 模拟后端请求
                     setTimeout(() => {
@@ -584,7 +511,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             {/* 提交出单 */}
             <button
                 className={`btn btn btn-primary btn-sm`}
-                style={{ minWidth: 85 }}
+                style={{ minWidth: 85, marginRight: 6 }}
                 onClick={() => {
                     // 自动提取字段填入新增浮窗
                     setCreateForm({
@@ -594,7 +521,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                         applicantIdNumber: "",
                         compulsoryPolicyNumber: "不用填",
                         insuredName: "",
-                        signingDate: new Date().toISOString().slice(0, 10),
+                        signingDate: getTodayDate(),
                         insuredIdNumber: "",
                         vehicleDamageCoverage: 0,
                         registrationOwner: selectedDetail?.registrationOwner ?? "",
@@ -605,7 +532,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                         thirdPartyPremium: 0,
                         vehicleModel: selectedDetail?.vehicleModel ?? "",
                         outMedCoverage: 0,
-                        firstRegistrationDate: selectedDetail?.firstRegistrationDate ?? new Date().toISOString().slice(0, 10),
+                        firstRegistrationDate: selectedDetail?.firstRegistrationDate ?? getTodayDate(),
                         outMedPremium: 0,
                         engineNumber: selectedDetail?.engineNumber ?? "",
                         driverCoverage: 0,
@@ -625,10 +552,10 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                         vehicleTax: 0,
                         salesManager: "",
                         receivablePremium: 0,
-                        inputDate: new Date().toISOString().slice(0, 10),
+                        inputDate: getTodayDate(),
                         receivedPremium: 0,
                         intermediaryInvoiceNo: "",
-                        policyStartDate: selectedDetail?.policyStartDate ?? new Date().toISOString().slice(0, 10),
+                        policyStartDate: selectedDetail?.policyStartDate ?? getTodayDate(),
                         hierarchyCode: selectedDetail?.hierarchyCode ?? "",
                         insuranceCompany: selectedDetail?.insuranceCompany ?? "",
                         issuingOffice: "",
@@ -642,6 +569,40 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             >
                 提交出单
             </button>
+
+            <button
+                className="btn btn-warning btn-sm"
+                style={{
+                    marginRight: 6,
+                    minWidth: 100,
+                    opacity: todayFollowUp ? 0.4 : 1,
+                    pointerEvents: todayFollowUp ? 'none' : 'auto'
+                }}
+                disabled={!!todayFollowUp}
+                onClick={() => {
+                    setFollowUpContent("");
+                    setFollowUpEditMode("add");
+                    setEditingFollowUpId(null);
+                    setFollowUpModalVisible(true);
+                }}
+            >
+                新增回访
+            </button>
+
+            <button
+                className="btn btn-outline-warning btn-sm"
+                style={{ marginRight: 6, minWidth: 120, opacity: todayFollowUp ? 1 : 0.4, pointerEvents: todayFollowUp ? 'auto' : 'none' }}
+                disabled={!todayFollowUp}
+                onClick={() => {
+                    setFollowUpContent(todayFollowUp?.content || "");
+                    setEditingFollowUpId(todayFollowUp?.index || null);
+                    setFollowUpEditMode("edit");
+                    setFollowUpModalVisible(true);
+                }}
+            >
+                编辑今日回访
+            </button>
+
         </div>
     );
 
@@ -936,6 +897,8 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                     {/* 右侧 详情 */}
                     {selectedDetail && (
                         <div>
+                            {/* 按钮组 */}
+                            {renderButtonGroup()}
                             {(() => {
                                 const visibleEntries: [string, any][] = detailFieldOrder
                                     .filter(key => !hiddenFieldsForAll.includes(key))
@@ -949,39 +912,138 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                 const [[key1, value1], [key2, value2] = []] = pair;
                                                 return (
                                                     <tr key={key1}>
-                                                        <th>{fieldNameMap[key1] || key1}</th>
-                                                        <td>
-                                                            {typeof value1 === "string" && value1.match(/^\d{4}-\d{2}-\d{2}/)
-                                                                ? (key1 === "recordTime" ? value1.replace("T", " ").slice(0, 19) : value1.slice(0, 10))
-                                                                : String(value1 ?? "")
-                                                            }
-                                                        </td>
+                                                        <th style={{ width: 110 }}>{fieldNameMap[key1] || key1}</th>
                                                         {key2 ? (
                                                             <>
-                                                                <th>{fieldNameMap[key2] || key2}</th>
                                                                 <td>
-                                                                    {typeof value2 === "string" && value2.match(/^\d{4}-\d{2}-\d{2}/)
-                                                                        ? value2.slice(0, 10)
-                                                                        : String(value2 ?? "")
-                                                                    }
+                                                                    {selectedDetail[key1 as keyof PotentialCustomer] ?? ""}
+                                                                </td>
+                                                                <th style={{ width: 110 }}>{fieldNameMap[key2] || key2}</th>
+                                                                <td>
+                                                                    {selectedDetail[key2 as keyof PotentialCustomer] ?? ""}
                                                                 </td>
                                                             </>
                                                         ) : (
-                                                            <>
-                                                                <th></th>
-                                                                <td></td>
-                                                            </>
+                                                            // 单字段一行（备注专用，合并3列）
+                                                            <td colSpan={3}>
+                                                                {key1 === "note" ? (
+                                                                    <div
+                                                                        style={{
+                                                                            whiteSpace: "nowrap",
+                                                                            overflow: "hidden",
+                                                                            textOverflow: "ellipsis",
+                                                                            cursor: "pointer",
+                                                                            minHeight: 28,
+                                                                            color: "#49597b"
+                                                                        }}
+                                                                        title={selectedDetail.note ?? ""}
+                                                                        onClick={() => {
+                                                                            setCommentEditValue(selectedDetail.note ?? "");
+                                                                            setShowCommentModal(true);
+                                                                        }}
+                                                                    >
+                                                                        {selectedDetail.note || <span style={{ color: "#bbb" }}>暂无备注</span>}
+                                                                        <span style={{ marginLeft: 10, color: "#198cff", fontSize: 12 }}>📝点击编辑</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    selectedDetail[key1 as keyof PotentialCustomer] ?? ""
+                                                                )}
+                                                            </td>
                                                         )}
                                                     </tr>
-
                                                 );
                                             })}
                                         </tbody>
                                     </table>
                                 );
                             })()}
-                            {/* 按钮组 */}
-                            {renderButtonGroup()}
+
+                            {/* 回访信息表格 */}
+                            <div className={styles.followUpTableWrapper}>
+                                <table className={styles.followUpTable}>
+                                    <thead>
+                                        <tr>
+                                            <th style={{ width: "10%" }}>序号</th>
+                                            <th style={{ width: "70%" }}>回访信息</th>
+                                            <th style={{ width: "20%" }}>时间</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {followUpList.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={3} className={styles.followUpEmpty}>暂无回访信息</td>
+                                            </tr>
+                                        ) : (
+                                            followUpList.map(item => (
+                                                <tr key={item.index}>
+                                                    <td>{item.index}</td>
+                                                    <td style={{ whiteSpace: "pre-line", textAlign: "left" }}>{item.content}</td>
+                                                    <td>{item.date}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+
+                            {/* 备注编辑弹窗 */}
+                            {showCommentModal && (
+                                <div className={styles.customModalOverlay}>
+                                    <div className={styles.customCommentModal} style={{ minWidth: 400, maxWidth: 560 }}>
+                                        <h5>编辑备注</h5>
+                                        <textarea
+                                            className="form-control"
+                                            value={commentEditValue}
+                                            rows={7}
+                                            style={{ fontSize: 16, marginBottom: 20, marginTop: 10, resize: "vertical" }}
+                                            onChange={e => setCommentEditValue(e.target.value)}
+                                            placeholder="请输入备注"
+                                        />
+                                        <div className="d-flex justify-content-end mt-2">
+                                            <button className={styles.btn} onClick={() => setShowCommentModal(false)}>
+                                                取消
+                                            </button>
+                                            <button
+                                                className={`${styles.btn} ${styles.btnPrimary} ms-2`}
+                                                onClick={async () => {
+                                                    if (!selectedDetail) return;
+                                                    try {
+                                                        // 这里用你的实际接口
+                                                        await updatePotentialCustomer({
+                                                            ...selectedDetail,
+                                                            note: commentEditValue
+                                                        });
+                                                        setSelectedDetail(prev =>
+                                                            prev ? { ...prev, note: commentEditValue } : prev
+                                                        );
+                                                        setMyList(list =>
+                                                            list.map(item =>
+                                                                item.id === selectedDetail.id
+                                                                    ? { ...item, note: commentEditValue }
+                                                                    : item
+                                                            )
+                                                        );
+                                                        setAllList(list =>
+                                                            list.map(item =>
+                                                                item.id === selectedDetail.id
+                                                                    ? { ...item, note: commentEditValue }
+                                                                    : item
+                                                            )
+                                                        );
+                                                        setShowCommentModal(false);
+                                                        alert("备注已保存！");
+                                                    } catch (err: any) {
+                                                        alert("备注保存失败: " + (err?.message || "未知错误"));
+                                                    }
+                                                }}
+                                            >
+                                                保存
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -1093,7 +1155,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                                 if (!prev) return prev;
                                                                 const updated = { ...prev, [key]: inputVal };
                                                                 if (canEdit && inputVal && !(prev as any)[dateField]) {
-                                                                    (updated as any)[dateField] = new Date().toISOString().slice(0, 10);
+                                                                    (updated as any)[dateField] = getTodayDate();
                                                                 }
                                                                 return updated;
                                                             });
@@ -1121,7 +1183,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                                 inputVal &&
                                                                 !(prev as any)[dateField]
                                                             ) {
-                                                                (updated as any)[dateField] = new Date().toISOString().slice(0, 10);
+                                                                (updated as any)[dateField] = getTodayDate();
                                                             }
                                                             return updated;
                                                         });
@@ -1277,7 +1339,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
 
                 {createModalVisible && createForm && (
                     <div className={styles.customModalOverlay}>
-                        <div className={styles.customModal}>
+                        <div className={styles.customNewPolicy}>
                             <h4 style={{ marginBottom: 0 }}>新增保单</h4>
                             <form
                                 onSubmit={e => {
@@ -1373,6 +1435,63 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                     </div>
                 )}
 
+                {followUpModalVisible && (
+                    <div className={styles.customModalOverlay}>
+                        <div className={styles.customModal} style={{ width: 800, height: 300 }}>
+                            <h5>{followUpEditMode === "add" ? "新增回访" : "编辑今日回访"}</h5>
+                            <textarea
+                                className="form-control"
+                                value={followUpContent}
+                                rows={6}
+                                style={{ fontSize: 16, marginBottom: 16 }}
+                                placeholder="请输入回访内容"
+                                onChange={e => setFollowUpContent(e.target.value)}
+                            />
+                            <div className="d-flex justify-content-end mt-2">
+                                <button className="btn btn-secondary btn-sm" onClick={() => setFollowUpModalVisible(false)}>
+                                    取消
+                                </button>
+                                <button
+                                    className="btn btn-success btn-sm ms-2"
+                                    onClick={async () => {
+                                        if (!selectedDetail?.id) return alert("未选中客户");
+                                        if (!followUpContent.trim()) return alert("请填写回访内容");
+                                        try {
+
+                                            if (followUpEditMode === "add") {
+                                                const nextIndex = followUpList.length === 0
+                                                    ? 1
+                                                    : Math.max(...followUpList.map(f => f.index || 0)) + 1;
+                                                await addFollowUpPotential({
+                                                    potentialCustomerId: selectedDetail.id,
+                                                    content: followUpContent,
+                                                    date: today,
+                                                    index: nextIndex,
+                                                });
+                                            } else if (followUpEditMode === "edit" && editingFollowUpId) {
+                                                await updateFollowUpPotential({
+                                                    potentialCustomerId: selectedDetail.id,
+                                                    index: editingFollowUpId,
+                                                    content: followUpContent,
+                                                });
+                                            }
+                                            // 无论新增还是编辑，接下来都 fetch 一次回访最新列表
+                                            const res = await fetchFollowUpPotentialList(selectedDetail.id);
+                                            setFollowUpList(res.data || []);
+                                            setFollowUpModalVisible(false);
+                                            setFollowUpContent("");
+                                            setEditingFollowUpId(null);
+                                        } catch (err: any) {
+                                            alert("操作失败：" + (err?.message || "未知错误"));
+                                        }
+                                    }}
+                                >
+                                    保存
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
 
 

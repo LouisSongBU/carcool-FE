@@ -30,3 +30,43 @@ export function convertDatesInObject<T>(obj: T): T {
     }
     return obj;
 }
+
+/** 获取本地当天日期字符串，格式 yyyy-mm-dd */
+export function getTodayDate(): string {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+/** 获取本地当前时间字符串，格式 yyyy-mm-dd HH:mm:ss */
+export function getNowDateTime(): string {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const HH = String(now.getHours()).padStart(2, '0');
+    const MM = String(now.getMinutes()).padStart(2, '0');
+    const SS = String(now.getSeconds()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${HH}:${MM}:${SS}`;
+}
+
+/** 格式化任意 Date 对象为 yyyy-mm-dd HH:mm:ss */
+export function formatDateTime(date: Date): string {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const HH = String(date.getHours()).padStart(2, '0');
+    const MM = String(date.getMinutes()).padStart(2, '0');
+    const SS = String(date.getSeconds()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${HH}:${MM}:${SS}`;
+}
+
+/** 格式化任意 Date 对象为 yyyy-mm-dd */
+export function formatDate(date: Date): string {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
