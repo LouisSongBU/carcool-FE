@@ -53,3 +53,12 @@
   font-size: 18px;
   margin-right: 0.5rem;
 }
+
+.accordion-collapse {
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  max-height: 0;
+}
+.accordion-collapse.show {
+  max-height: 300px; /* 你可以根据实际内容多少调整上限 */
+}

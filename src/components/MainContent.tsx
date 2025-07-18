@@ -4,6 +4,7 @@ import InsuranceDetails from '../pages/InsuranceDetails';
 import PotentialCustomer from '../pages/PotentialCustomerDetails';
 import InsuranceCompanyCommission from '../pages/InsuranceCompanyCommission.tsx';
 import WageSettlement from '../pages/WageSettlement.tsx';
+import InsuredExpirationPage from '../pages/InsuredExpirationPage.tsx';
 
 type MainContentProps = {
   currentPage: string;
@@ -26,6 +27,8 @@ const MainContent: React.FC<MainContentProps> = ({
         return <InsuranceCompanyCommission />;
       case '工资结算':
         return <WageSettlement userList={userList}/>;
+      case '已保客户保险到期':
+        return <InsuredExpirationPage/>;
       default:
         return <div>页面未找到</div>;
     }
