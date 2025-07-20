@@ -5,6 +5,7 @@ import PotentialCustomer from '../pages/PotentialCustomerDetails';
 import InsuranceCompanyCommission from '../pages/InsuranceCompanyCommission.tsx';
 import WageSettlement from '../pages/WageSettlement.tsx';
 import InsuredExpirationPage from '../pages/InsuredExpirationPage.tsx';
+import PotentialExpirationPage from '../pages/PotentialExpirationPage.tsx';
 
 type MainContentProps = {
   currentPage: string;
@@ -29,6 +30,8 @@ const MainContent: React.FC<MainContentProps> = ({
         return <WageSettlement userList={userList}/>;
       case '已保客户保险到期':
         return <InsuredExpirationPage/>;
+      case '希望客户保险到期':
+        return <PotentialExpirationPage/>;
       default:
         return <div>页面未找到</div>;
     }
