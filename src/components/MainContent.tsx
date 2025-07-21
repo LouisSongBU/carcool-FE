@@ -6,6 +6,7 @@ import InsuranceCompanyCommission from '../pages/InsuranceCompanyCommission.tsx'
 import WageSettlement from '../pages/WageSettlement.tsx';
 import InsuredExpirationPage from '../pages/InsuredExpirationPage.tsx';
 import PotentialExpirationPage from '../pages/PotentialExpirationPage.tsx';
+import InsuredBirthdayPage from '../pages/InsuredBirthdayPage.tsx';
 
 type MainContentProps = {
   currentPage: string;
@@ -32,6 +33,8 @@ const MainContent: React.FC<MainContentProps> = ({
         return <InsuredExpirationPage/>;
       case '希望客户保险到期':
         return <PotentialExpirationPage/>;
+      case '已保客户生日提醒':
+        return <InsuredBirthdayPage/>;
       default:
         return <div>页面未找到</div>;
     }
