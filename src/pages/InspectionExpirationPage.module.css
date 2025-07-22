@@ -1,0 +1,112 @@
+.expirationPage {
+  width: 100%;
+  margin-top: 0px;
+  margin-left: 0px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #f3fcfb;       /* 主背景：淡薄荷青 */
+}
+
+.topBar {
+  width: 100%;
+  max-width: 1100px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #e4faf4;       /* 顶部栏：淡青绿 */
+  border-radius: 10px;
+  padding: 0px 0px;
+  margin-bottom: 5px;
+  box-shadow: 0 1px 6px 0 rgba(104, 194, 177, 0.08); /* 柔和青绿影 */
+}
+
+.title {
+  font-size: 1.2rem;
+  color: #3db29e;           /* 主标题：明快薄荷绿 */
+  font-weight: 600;
+}
+
+.count {
+  color: #4cd6b9;           /* 柔和高亮数字 */
+  font-size: 1.4rem;
+  margin: 0 6px;
+  font-weight: bold;
+}
+
+.daysSelect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+}
+
+.input {
+  width: 60px;
+  border: 1px solid #b2ede2;   /* 淡青边框 */
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 1rem;
+  margin: 0 4px;
+  outline: none;
+  transition: border 0.2s;
+  background: #f3fcfb;      /* 主背景淡薄荷 */
+}
+.input:focus {
+  border-color: #4cd6b9;    /* 高亮青绿边框 */
+}
+
+.confirmBtn {
+  margin-left: 10px;
+  padding: 5px 18px;
+  border-radius: 6px;
+  border: none;
+  background: #4cd6b9;        /* 主按钮 薄荷青 */
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background 0.18s;
+  cursor: pointer;
+}
+.confirmBtn:hover {
+  background: #3db29e;        /* 按钮悬浮：深薄荷 */
+}
+
+.tableContainer {
+  width: 100%;
+  max-width:1200px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px 0 rgba(104, 194, 177, 0.07);  /* 柔和青绿影 */
+  padding: 2px 3px 3px 2px;
+  overflow-x: auto;
+  height: 660px;
+  overflow-y: auto;
+}
+
+.table {
+  min-width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 0.9rem;
+  background: #fff;
+}
+
+.table th, .table td {
+  border-bottom: 1px solid #e4faf4;  /* 淡青分割线 */
+  padding: 0px 0px;
+  text-align: center;
+  white-space: nowrap;
+  border-right: 1px solid #e4faf4;
+}
+
+.table th {
+  background: #e9fbf8;        /* 表头淡薄荷 */
+  font-weight: 600;
+  color: #3db29e;             /* 薄荷青标题 */
+  font-size: 1rem;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
