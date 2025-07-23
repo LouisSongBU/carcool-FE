@@ -2,6 +2,7 @@ import { getCommissionData, batchPay } from "../api/WageSettlement.ts";
 import styles from "./WageSettlement.module.css";
 import React, { useEffect, useState } from "react";
 import { Button, Form, Table, Row, Col } from "react-bootstrap";
+import { UserItem } from "../App";
 
 // commissionTypes.ts
 export interface CommissionSummary {
@@ -43,7 +44,7 @@ export interface CommissionDetail {
 }
 
 type WageSettlementProps = {
-  userList: any[];
+  userList: UserItem[];
 };
 
 

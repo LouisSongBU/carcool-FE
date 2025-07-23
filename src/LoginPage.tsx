@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { login } from "./api/UserApi";
 
 type LoginPageProps = {
     onLogin: (username: string) => void;
@@ -14,12 +15,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         setLoading(true);
 
         // 这里是访问后端的代码
-        const res = await fetch("http://localhost:8080/api/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
-        });
-        const data = await res.json();
+        const res = await login({ username, password });
+        const data = res.data;
 
         setLoading(false);
 

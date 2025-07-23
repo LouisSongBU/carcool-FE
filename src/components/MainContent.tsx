@@ -9,17 +9,20 @@ import PotentialExpirationPage from '../pages/PotentialExpirationPage.tsx';
 import InsuredBirthdayPage from '../pages/InsuredBirthdayPage.tsx';
 import PotentialBirthdayPage from '../pages/PotentialBirthdayPage.tsx';
 import InspectionExpirationPage from '../pages/InspectionExpirationPage.tsx';
+import UserManagementPage from '../pages/UserManagementPage.tsx';
 
 type MainContentProps = {
   currentPage: string;
   insuranceCompanies: any[];
   userList: any[];
+  reloadUserList: () => Promise<void>;
 };
 
 const MainContent: React.FC<MainContentProps> = ({
   currentPage,
   insuranceCompanies,
-  userList
+  userList,
+  reloadUserList
 }) => {
   const renderPage = () => {
     switch (currentPage) {
@@ -41,6 +44,8 @@ const MainContent: React.FC<MainContentProps> = ({
         return <PotentialBirthdayPage/>;
       case '已保客户年检到期':
         return <InspectionExpirationPage/>;
+      case '管理用户':
+        return <UserManagementPage userList={userList} onUpdate={reloadUserList} />;
       default:
         return <div>页面未找到</div>;
     }

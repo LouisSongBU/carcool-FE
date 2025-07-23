@@ -18,7 +18,7 @@ const sections = [
   },
   {
     title: "管理界面",
-    items: ["管理用户", "更改设置"],
+    items: ["管理用户"],
   },
   {
     title: "到期提醒",
