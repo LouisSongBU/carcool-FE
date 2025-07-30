@@ -22,3 +22,7 @@ export const editUser = (id: number, data: Partial<any>) => {
 export const resetUserPassword = (id: number, password: string) => {
     api.post(`/user/${id}/reset-password`, { password });
 }
+
+export const addUser = (user: Partial<any>) => {
+    return api.post('/user', user);
+  }
