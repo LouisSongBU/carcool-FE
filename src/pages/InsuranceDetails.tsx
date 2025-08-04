@@ -109,6 +109,7 @@ const isSuperAdmin = hierarchyCode === "0";
 const isAdmin = hierarchyCode === "1";
 const isNormalUser = !isSuperAdmin && !isAdmin;
 const currentUserName = userInfo.displayName || "";
+const canEditPolicyNumber = isSuperAdmin || isAdmin;
 
 // === 1. 常量配置区 ===
 const dateFields = new Set([
@@ -248,7 +249,52 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     );
   }
 
+  const normalizeEditData = (data: any) => {
+    return {
+      ...data,
+      commercialPolicyNumber:
+        data.commercialPolicyNumber === "" ? null : data.commercialPolicyNumber,
+      compulsoryPolicyNumber:
+        data.compulsoryPolicyNumber === "" ? null : data.compulsoryPolicyNumber,
+    };
+  };
+
+
   const renderInput = (key: string, value: any) => {
+    if (
+      (key === "commercialPolicyNumber" || key === "compulsoryPolicyNumber") &&
+      editType === "edit"
+    ) {
+      return (
+        <div className={styles.policyNumberRow}>
+          <input
+            type="text"
+            className={styles.policyNumberInput + " " + styles.editInput + " form-control"}
+            value={value ?? ""}
+            disabled={!canEditPolicyNumber}
+            readOnly={!canEditPolicyNumber}
+            onChange={e => {
+              if (canEditPolicyNumber) {
+                setEditData(prev => prev ? { ...prev, [key]: e.target.value } : prev);
+              }
+            }}
+          />
+          {canEditPolicyNumber && (
+            <button
+              type="button"
+              className={styles.clearBtn}
+              onClick={() =>
+                setEditData(prev => prev ? { ...prev, [key]: null } : prev)
+              }
+              tabIndex={-1}
+            >
+              清空
+            </button>
+          )}
+        </div>
+
+      );
+    }
     if (omitKeys.includes(key)) {
       return (
         <input
@@ -831,8 +877,33 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
   // === 编辑保存 ===
   const handleEditSave = async () => {
-
     if (!editData) return;
+    const dataToSave = normalizeEditData(editData);
+
+    // 1. 校验商业保费必须有保单号
+    if ((editData.commercialPremium != null && Number(editData.commercialPremium) !== 0)
+      && (!editData.commercialPolicyNumber || editData.commercialPolicyNumber === "")) {
+      alert("商业保费不为0时，商业保单号不能为空！");
+      return;
+    }
+
+    // 2. 校验交强保费必须有交强保单号
+    if ((editData.compulsoryPremium != null && Number(editData.compulsoryPremium) !== 0)
+      && (!editData.compulsoryPolicyNumber || editData.compulsoryPolicyNumber === "")) {
+      alert("交强保费不为0时，交强保单号不能为空！");
+      return;
+    }
+    if (
+      (editData.commercialPolicyNumber && (editData.commercialPolicyNumber.startsWith("QL") || editData.commercialPolicyNumber.startsWith("L"))) ||
+      (editData.compulsoryPolicyNumber && (editData.compulsoryPolicyNumber.startsWith("QL") || editData.compulsoryPolicyNumber.startsWith("L")))
+    ) {
+      alert("商业保单号和交强保单号都不能以QL或L开头！");
+      return;
+    }
+    if (!editData.commercialPolicyNumber && !editData.compulsoryPolicyNumber) {
+      alert("商业保单号和交强保单号不能同时为空！");
+      return;
+    }
     // 校验保险公司
     const validCompanies = insuranceCompanies.map(c => c.insuranceCompany);
     if (!editData.insuranceCompany || !validCompanies.includes(editData.insuranceCompany)) {

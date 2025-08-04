@@ -30,6 +30,10 @@ const sections = [
       "已保客户年检到期",
     ],
   },
+  {
+    title: "统计数据",
+    items: ["部门统计"],
+  },
 ];
 
 const iconMap: Record<string, string> = {
@@ -44,6 +48,7 @@ const iconMap: Record<string, string> = {
   "已保客户生日提醒": "bi-cake2",
   "希望客户生日提醒": "bi-gift",
   "已保客户年检到期": "bi-alarm",
+  "部门统计": "bi-diagram-3-fill",
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {
