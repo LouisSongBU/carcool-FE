@@ -11,6 +11,7 @@ import PotentialBirthdayPage from '../pages/PotentialBirthdayPage.tsx';
 import InspectionExpirationPage from '../pages/InspectionExpirationPage.tsx';
 import UserManagementPage from '../pages/UserManagementPage.tsx';
 import DepartmentStatsTable from '../pages/DepartmentStatsTable.tsx';
+import RankingStats from '../pages/RankingStats.tsx';
 
 type MainContentProps = {
   currentPage: string;
@@ -49,6 +50,8 @@ const MainContent: React.FC<MainContentProps> = ({
         return <UserManagementPage userList={userList} onUpdate={reloadUserList} />;
       case '部门统计':
         return <DepartmentStatsTable/>;
+      case '排名统计':
+        return <RankingStats/>;
       default:
         return <div>页面未找到</div>;
     }

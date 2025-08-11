@@ -23,6 +23,7 @@ const pageTitles: Record<string, string> = {
   '已保客户年检到期': '到期提醒',
   '管理用户': '管理用户',
   '部门统计': '部门统计',
+  '排名统计': '排名统计',
 };
 
 export type UserItem = {

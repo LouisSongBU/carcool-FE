@@ -37,9 +37,20 @@ const DepartmentStatsTable: React.FC = () => {
   // 加载状态
   const [loading, setLoading] = useState(false);
 
+  // 获取上一个 21 号
+  const getLast21st = () => {
+    const today = dayjs();
+    // 如果今天 >= 21 号，就取本月 21
+    if (today.date() >= 21) {
+      return today.date(21);
+    }
+    // 否则取上个月 21
+    return today.subtract(1, "month").date(21);
+  };
+
   // 查询条件
+  const [dateFrom, setDateFrom] = useState<Dayjs>(getLast21st());
   const [dateTo, setDateTo] = useState<Dayjs>(dayjs());
-  const [dateFrom, setDateFrom] = useState<Dayjs>(dayjs().subtract(30, "day"));
   const [paidStatus, setPaidStatus] = useState<"ALL" | "PAID" | "UNPAID">("ALL");
 
   // 页面加载只请求部门表头

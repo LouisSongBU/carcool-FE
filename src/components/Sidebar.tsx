@@ -32,7 +32,7 @@ const sections = [
   },
   {
     title: "统计数据",
-    items: ["部门统计"],
+    items: ["部门统计","排名统计"],
   },
 ];
 
@@ -49,6 +49,7 @@ const iconMap: Record<string, string> = {
   "希望客户生日提醒": "bi-gift",
   "已保客户年检到期": "bi-alarm",
   "部门统计": "bi-diagram-3-fill",
+  "排名统计": "bi-bar-chart-fill",
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {
