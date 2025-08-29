@@ -1,0 +1,151 @@
+.pageWrap {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cardsWrap {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cardBodyScrollable {
+  height: 440px;
+  overflow: auto;
+  padding-right: 4px;
+  font-size: 15px;
+}
+
+/* 玻璃拟态背景 */
+.glassCard,
+.glassCardOrange,
+.glassCardPink {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+  height: 500px;
+}
+.glassCard {
+  background: linear-gradient(135deg, rgba(110, 168, 254, 0.18), rgba(163, 113, 247, 0.18));
+}
+.glassCardOrange {
+  background: linear-gradient(135deg, rgba(248, 178, 106, 0.20), rgba(241, 124, 88, 0.18));
+}
+.glassCardPink {
+  background: linear-gradient(135deg, rgba(255, 157, 187, 0.20), rgba(255, 111, 145, 0.18));
+}
+
+/* 调整卡片头和内容 padding */
+.glassCard :global(.ant-card-body),
+.glassCardOrange :global(.ant-card-body),
+.glassCardPink :global(.ant-card-body) {
+  padding: 6px;
+}
+.glassCard :global(.ant-card-head),
+.glassCardOrange :global(.ant-card-head),
+.glassCardPink :global(.ant-card-head) {
+  padding: 0 8px;
+}
+
+/* 条目行 */
+.itemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 2px 1px;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.06);
+}
+.itemRow.editing {
+  background: rgba(255, 255, 200, 0.35);
+  border-left: 3px solid #fadb14; /* 黄色高亮 */
+}
+
+.itemLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.ellipsis {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemRight {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.amount {
+  min-width: 96px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 行内动作按钮 */
+.actions {
+  display: flex;
+  gap: 6px;
+}
+.actions :global(.ant-btn) {
+  padding: 0 6px;
+  height: 24px;
+  font-size: 12px;
+}
+
+/* 表单小样式 */
+.formRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.formLabel {
+  width: 64px;
+  color: rgba(0, 0, 0, 0.65);
+  text-align: right;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+/* 卡片内字体 */
+.pageWrap :global(.ant-card span) {
+  font-size: 16px !important;
+}
+.subtotal :global(.ant-typography) {
+  font-size: 16px;
+}
+
+/* 固定支出卡片按钮区 */
+.cardHeaderButtons :global(.ant-btn) {
+  height: 28px;
+  font-size: 13px;
+  border-radius: 6px;
+  padding: 0 10px;
+}
+.cardHeaderButtons :global(.ant-btn):not(.ant-btn-primary) {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.cardHeaderButtons :global(.ant-btn):hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.15);
+}

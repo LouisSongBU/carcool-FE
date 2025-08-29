@@ -12,6 +12,7 @@ import InspectionExpirationPage from '../pages/InspectionExpirationPage.tsx';
 import UserManagementPage from '../pages/UserManagementPage.tsx';
 import DepartmentStatsTable from '../pages/DepartmentStatsTable.tsx';
 import RankingStats from '../pages/RankingStats.tsx';
+import ProfitPage from '../pages/ProfitPage.tsx';
 
 type MainContentProps = {
   currentPage: string;
@@ -52,6 +53,8 @@ const MainContent: React.FC<MainContentProps> = ({
         return <DepartmentStatsTable/>;
       case '排名统计':
         return <RankingStats/>;
+      case '利润统计':
+        return <ProfitPage/>;
       default:
         return <div>页面未找到</div>;
     }

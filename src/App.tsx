@@ -24,6 +24,7 @@ const pageTitles: Record<string, string> = {
   '管理用户': '管理用户',
   '部门统计': '部门统计',
   '排名统计': '排名统计',
+  '利润统计': '利润统计',
 };
 
 export type UserItem = {
