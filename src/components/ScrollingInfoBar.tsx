@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import ReactDOM from "react-dom";
 import styles from "./ScrollingInfoBar.module.css";
 import { getTodayOrders } from "../api/scrollingInfoBar";
 
@@ -10,8 +9,8 @@ type Order = {
   compulsoryPremium: number;
 };
 
-const DURATION = 10000;
-const POLL_INTERVAL = 60000;
+const DURATION = 1000;      // 每条展示时间
+const POLL_INTERVAL = 60000; // 轮询间隔
 
 const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
 const currentUser = userInfo.displayName || "";
@@ -20,14 +19,11 @@ const ScrollingInfoBar: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [announcements, setAnnouncements] = useState<string[]>(["加载中..."]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(
-    null
-  );
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // 拉取订单数据
   const fetchOrders = async () => {
     try {
       const data: Order[] = await getTodayOrders();
@@ -53,6 +49,7 @@ const ScrollingInfoBar: React.FC = () => {
     }
   };
 
+  // 初始化 + 定时轮询
   useEffect(() => {
     fetchOrders();
     pollRef.current = setInterval(fetchOrders, POLL_INTERVAL);
@@ -61,108 +58,22 @@ const ScrollingInfoBar: React.FC = () => {
     };
   }, []);
 
+  // 自动切换
   useEffect(() => {
-    if (paused || announcements.length <= 1) return;
+    if (announcements.length <= 1) return;
     timerRef.current = setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % announcements.length);
     }, DURATION);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [currentIndex, paused, announcements]);
-
-  const totalCount = orders.length;
-  const totalCommercial = orders.reduce(
-    (sum, o) => sum + (o.commercialPremium || 0),
-    0
-  );
-  const totalCompulsory = orders.reduce(
-    (sum, o) => sum + (o.compulsoryPremium || 0),
-    0
-  );
-
-  const myOrders = orders.filter((o) => o.salesAgent === currentUser);
-  const myCount = myOrders.length;
-  const myCommercial = myOrders.reduce(
-    (sum, o) => sum + (o.commercialPremium || 0),
-    0
-  );
-  const myCompulsory = myOrders.reduce(
-    (sum, o) => sum + (o.compulsoryPremium || 0),
-    0
-  );
+  }, [currentIndex, announcements]);
 
   return (
-    <div
-      className={styles.scrollingBarOuter}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => {
-        setPaused(false);
-        setTooltipPos(null);
-      }}
-      onMouseMove={(e) => {
-        const tooltipWidth = 320;
-        const tooltipHeight = 160;
-        const offset = 15;
-        const margin = 10;
-
-        let x = e.clientX + offset;
-        let y = e.clientY + offset;
-
-        // 检查右边界
-        if (e.clientX + tooltipWidth + margin > window.innerWidth) {
-          x = e.clientX - tooltipWidth - offset;
-        }
-
-        // 检查下边界
-        if (e.clientY + tooltipHeight + margin > window.innerHeight) {
-          y = e.clientY - tooltipHeight - offset;
-        }
-
-        setTooltipPos({ x, y });
-      }}
-    >
+    <div className={styles.scrollingBarOuter}>
       <div className={styles.scrollingBarInner}>
         <span>{announcements[currentIndex]}</span>
       </div>
-
-      {tooltipPos &&
-        ReactDOM.createPortal(
-          <div
-            className={styles.statsTooltip}
-            style={{ top: tooltipPos.y, left: tooltipPos.x }}
-          >
-            <table>
-              <tbody>
-                <tr>
-                  <td>📊 今日总单数</td>
-                  <td>{totalCount}</td>
-                </tr>
-                <tr>
-                  <td>商业险总额</td>
-                  <td>¥{totalCommercial.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td>交强险总额</td>
-                  <td>¥{totalCompulsory.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td>👤 我的出单数</td>
-                  <td>{myCount}</td>
-                </tr>
-                <tr>
-                  <td>我的商业险</td>
-                  <td>¥{myCommercial.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td>我的交强险</td>
-                  <td>¥{myCompulsory.toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>,
-          document.body
-        )}
     </div>
   );
 };
