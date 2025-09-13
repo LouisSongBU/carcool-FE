@@ -7,32 +7,60 @@ type SidebarProps = {
   onMenuClick: (menu: string) => void;
 };
 
-const sections = [
+// 定义类型
+type MenuItem = { name: string; roles?: string[] };
+type Section = { title: string; roles?: string[]; items: MenuItem[] };
+
+const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
+
+// 兼容旧逻辑：hierarchyCode === "0" → superAdmin
+const hierarchyCode = userInfo.hierarchyCode || "";
+const isSuperAdmin = hierarchyCode === "0";
+const userRole: string = isSuperAdmin ? "superAdmin" : (userInfo.role || "user");
+
+const canAccess = (obj: { roles?: string[] }): boolean => {
+  return !obj.roles || obj.roles.includes(userRole);
+};
+
+// 带 roles 的 sections 配置
+const sections: Section[] = [
   {
     title: "承保信息",
-    items: ["车险客户", "希望客户"],
+    items: [
+      { name: "车险客户" },
+      { name: "希望客户" },
+    ],
   },
   {
     title: "财务信息",
-    items: ["提成维护", "工资结算"],
+    roles: ["superAdmin"],
+    items: [
+      { name: "提成维护" },
+      { name: "工资结算" },
+    ],
   },
   {
     title: "管理界面",
-    items: ["管理用户"],
+    roles: ["superAdmin"],
+    items: [{ name: "管理用户" }],
   },
   {
     title: "到期提醒",
     items: [
-      "已保客户保险到期",
-      "希望客户保险到期",
-      "已保客户生日提醒",
-      "希望客户生日提醒",
-      "已保客户年检到期",
+      { name: "已保客户保险到期" },
+      { name: "希望客户保险到期" },
+      { name: "已保客户生日提醒" },
+      { name: "希望客户生日提醒" },
+      { name: "已保客户年检到期" },
     ],
   },
   {
     title: "统计数据",
-    items: ["部门统计","排名统计","利润统计"],
+    items: [
+      { name: "部门统计" },
+      { name: "排名统计" },
+      { name: "利润统计", roles: ["superAdmin"] }, // 只给超管
+    ],
   },
 ];
 
@@ -69,12 +97,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {
       }}
     >
       <div className="accordion" id="sidebarAccordion">
-        {sections.map((section, index) => (
+        {sections.filter(canAccess).map((section, index) => (
           <div className="accordion-item border-0 bg-transparent" key={index}>
             {/* 大标题 */}
             <h2 className="accordion-header">
               <button
-                className={`accordion-button bg-transparent text-white d-flex align-items-center${activeIndex === index ? "" : " collapsed"}`}
+                className={`accordion-button bg-transparent text-white d-flex align-items-center${
+                  activeIndex === index ? "" : " collapsed"
+                }`}
                 type="button"
                 aria-expanded={activeIndex === index}
                 aria-controls={`collapse-${index}`}
@@ -95,6 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {
                 <span className="me-auto">{section.title}</span>
               </button>
             </h2>
+
             {/* 子菜单动画 */}
             <AnimatePresence initial={false}>
               {activeIndex === index && (
@@ -107,7 +138,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {
                   style={{ overflow: "hidden" }}
                 >
                   <div className="accordion-body px-3 py-2">
-                    {section.items.map((item, idx) => (
+                    {section.items.filter(canAccess).map((item, idx) => (
                       <button
                         key={idx}
                         className="btn btn-link text-decoration-none text-white w-100 text-start d-flex align-items-center"
@@ -120,7 +151,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {
                           borderRadius: "5px",
                           transition: "all 0.3s ease",
                         }}
-                        onClick={() => onMenuClick(item)}
+                        onClick={() => onMenuClick(item.name)}
                         onMouseOver={(e) => {
                           (e.target as HTMLButtonElement).style.background =
                             "#3c566d";
@@ -132,10 +163,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {
                       >
                         {/* 图标 */}
                         <i
-                          className={`bi ${iconMap[item]} me-2`}
+                          className={`bi ${iconMap[item.name]} me-2`}
                           style={{ fontSize: "18px" }}
                         ></i>
-                        {item}
+                        {item.name}
                       </button>
                     ))}
                   </div>
