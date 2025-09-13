@@ -1,41 +1,76 @@
 import React, { useEffect, useRef, useState } from "react";
 import styles from "./ScrollingInfoBar.module.css";
+import { getTodayOrders } from "../api/scrollingInfoBar";
 
-const announcements = [
-  "公告1：欢迎使用车险代理查询系统。告1：欢迎使用车险代理查询系统。告1：欢迎使用车险代理查询系统。告1：欢迎使用车险代理查询系统。告1：欢迎使用车险代理查询系统。",
-  "公告2：系统今晚10点维护，请提前保存数据。",
-  "公告3：请及时补全客户信息以免理赔受阻，谢谢合作。",
-  "这是超长内容测试，这是超长内容测试，这是超长内容测试，这是超长内容测试，这是超长内容测试。"
-];
+type Order = {
+  salesAgent: string;
+  insuranceCompany: string;
+  commercialPremium: number;
+  compulsoryPremium: number;
+};
 
-const DURATION = 10000; // 每条显示10秒
+const DURATION = 1000;      // 每条展示时间
+const POLL_INTERVAL = 60000; // 轮询间隔
+
+const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
+const currentUser = userInfo.displayName || "";
 
 const ScrollingInfoBar: React.FC = () => {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [announcements, setAnnouncements] = useState<string[]>(["加载中..."]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const timerRef = useRef<number | null>(null);
 
-  // 切换内容
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 拉取订单数据
+  const fetchOrders = async () => {
+    try {
+      const data: Order[] = await getTodayOrders();
+      if (!data || data.length === 0) {
+        setOrders([]);
+        setAnnouncements([
+          "保持积极的心态，每天都是新的开始！",
+          "坚持不懈，总会迎来好消息！",
+          "新的一天，保持好心情！",
+        ]);
+      } else {
+        setOrders(data);
+        const msgs = data.map(
+          (d, idx) =>
+            `${idx + 1}. ${d.salesAgent} ${d.insuranceCompany} 商业险(${d.commercialPremium}) 交强险(${d.compulsoryPremium})`
+        );
+        setAnnouncements(msgs);
+      }
+      setCurrentIndex(0);
+    } catch (err) {
+      console.error("获取出单信息失败:", err);
+      setAnnouncements(["加载失败，请稍后再试"]);
+    }
+  };
+
+  // 初始化 + 定时轮询
   useEffect(() => {
-    if (paused) return; // 暂停时不切换
-    timerRef.current = window.setTimeout(() => {
+    fetchOrders();
+    pollRef.current = setInterval(fetchOrders, POLL_INTERVAL);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  // 自动切换
+  useEffect(() => {
+    if (announcements.length <= 1) return;
+    timerRef.current = setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % announcements.length);
     }, DURATION);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [currentIndex, paused]);
-
-  // 鼠标移入/移出
-  const handleMouseEnter = () => setPaused(true);
-  const handleMouseLeave = () => setPaused(false);
+  }, [currentIndex, announcements]);
 
   return (
-    <div
-      className={styles.scrollingBarOuter}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
+    <div className={styles.scrollingBarOuter}>
       <div className={styles.scrollingBarInner}>
         <span>{announcements[currentIndex]}</span>
       </div>

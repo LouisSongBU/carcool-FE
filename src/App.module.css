@@ -1,55 +1,86 @@
 .pageContainer {
   display: flex;
-  height: 100vh;
+  min-height: 100vh;   /* 保证高度至少撑满屏幕 */
+  width: 100%;
+  overflow-x: auto;    /* 允许横向滚动 */
+  overflow-y: auto;    /* 允许纵向滚动 */
 }
 
+/* 左侧边栏 */
+.sidebar {
+  width: 240px;             /* 固定宽度 */
+  height: 100%;
+  background: #1e293b;
+  color: #fff;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 右侧区域（包裹 topBar + mainContent） */
 .contentArea {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
   background: #f7f9fa;
-}
-
-.topBar {
-  width: 1200px;
-  display: flex;
-  align-items: center;
-  height: 60px;
-  background: #fff;
-  border-radius: 8px 8px 0 0;
-  box-shadow: 0 2px 8px 0 rgba(60,72,88,0.07);
-  margin-top: 0px;
-  border-bottom: 1px solid #ececec;
   overflow: hidden;
 }
 
+/* 顶部栏（固定高度，紧贴 Sidebar） */
+.topBar {
+  height: 60px;
+  width: 100%;              /* 占满右侧区域 */
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid #ececec;
+  flex-shrink: 0;
+  padding: 0 16px;
+  overflow: visible;         /* ✅ 避免 tooltip 被裁剪 */
+  box-shadow: 0 2px 8px rgba(60,72,88,0.07);
+}
+
+/* 主标题（固定宽度） */
 .mainTitle {
-  flex: 0 0 15%;
+  width: 180px;
   font-size: 1.4rem;
   font-weight: bold;
   color: #17496a;
-  padding-left: 28px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: 1px;
+  flex-shrink: 0;
 }
 
+/* 欢迎区（固定宽度） */
 .topBarWelcome {
-  flex: 0 0 25%;
+  width: 300px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 8px;
+  flex-shrink: 0;
+  color: #334155;
 }
 
+/* 信息区（填满剩余空间） */
 .topBarInfo {
-  flex: 0 0 60%;
-  min-width: 0;
+  flex: 1;
   display: flex;
   align-items: center;
   height: 100%;
   padding-right: 20px;
-  max-width: none;
+  overflow: hidden;
+  justify-content: flex-end;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+/* 主内容区 */
+.mainContent {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  background: #f9fafb;
 }

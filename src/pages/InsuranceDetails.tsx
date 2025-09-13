@@ -1366,7 +1366,8 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                     }}
                     onBlur={() => setTimeout(() => setAgentDropdown(false), 120)}
                   />
-                  {agentInput && (
+                  {/* 清除按钮：只有管理员/超管才显示 */}
+                  {!isNormalUser && agentInput && (
                     <button
                       type="button"
                       className={styles.clearBtn}
@@ -1376,7 +1377,9 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                       }}
                       tabIndex={-1}
                       aria-label="清除"
-                    >×</button>
+                    >
+                      ×
+                    </button>
                   )}
                   {agentDropdown && (
                     <ul className={styles.agentDropdown}>
