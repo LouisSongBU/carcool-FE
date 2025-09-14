@@ -32,6 +32,8 @@ export interface PotentialCustomer {
     id: number | null;
     followUpCount: number | null;
     previousSignDate: string | null;
+    firstFollowUpNote?: string | null;
+  secondFollowUpNote?: string | null;
 }
 
 interface FollowUpPotential {
@@ -554,7 +556,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                         receivablePremium: 0,
                         inputDate: getTodayDate(),
                         receivedPremium: 0,
-                        intermediaryInvoiceNo: "",
+                        intermediaryInvoiceNo: 0,
                         policyStartDate: selectedDetail?.policyStartDate ?? getTodayDate(),
                         hierarchyCode: selectedDetail?.hierarchyCode ?? "",
                         insuranceCompany: selectedDetail?.insuranceCompany ?? "",
@@ -562,7 +564,8 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                         isSettlement: "",
                         financeVerification: "",
                         commercialAdjustment: 0,
-                        compulsoryAdjustment: 0
+                        compulsoryAdjustment: 0,
+                        comment: ""
                     });
                     setCreateModalVisible(true);
                 }}

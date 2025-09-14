@@ -128,7 +128,7 @@ const InsuranceCompanyCommissionPage: React.FC = () => {
       </div>
 
       {/* 表格区 */}
-      <div style={{ maxHeight: 500, overflow: "auto" }}>
+      <div style={{ maxHeight: 600, overflow: "auto" }}>
         <Table bordered hover size="sm" className={styles.table}>
           <thead>
             <tr>

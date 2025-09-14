@@ -225,7 +225,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
                           key={u.hierarchyCode}
                           onMouseDown={() => {
                             setAgentInput(u.displayName);
-                            setSelectedAgent(u);
+                            setSelectedAgent({ displayName: u.displayName, hierarchyCode: u.hierarchyCode });
                             setAgentDropdown(false);
                           }}
                         >
