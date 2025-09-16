@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import styles from "../pages/InsuranceDetails.module.css";
 import dayjs from "dayjs";
-import type { InsuranceDetail } from "../pages/InsuranceDetails"; 
+import type { InsuranceDetail } from "../pages/InsuranceDetails";
 
 /** ==========================
  * 工具：今天 yyyy-MM-dd
@@ -108,14 +108,42 @@ export const StrictNumericInput: React.FC<{
   className?: string;
   placeholder?: string;
 }> = ({ value, onChange, decimals = 2, disabled, readOnly, className, placeholder }) => {
-  const text = value === null || value === undefined ? "" : String(value);
+  // 1) 本地维护文本，不立即把 "." / "1." 这类“进行中”的值转成数字
+  const [text, setText] = useState<string>(
+    value === null || value === undefined ? "" : String(value)
+  );
+
+  // 2) 外部 value 变化时再同步（用户输入过程未触发 onChange 时不会打扰本地 text）
+  useEffect(() => {
+    const next = value === null || value === undefined ? "" : String(value);
+    setText(next);
+  }, [value]);
+
+  // 3) 允许 <=decimals 位小数；输入法/粘贴都按同一规则校验
   const re = useMemo(() => new RegExp(`^\\d*(?:\\.\\d{0,${decimals}})?$`), [decimals]);
+
+  const commitIfStableNumber = (v: string) => {
+    // 空串 → null
+    if (v === "") {
+      onChange(null);
+      return;
+    }
+    // 纯 "." 或 以 "." 结尾（如 "1."）都先不回传，等用户继续输入
+    if (v === "." || v.endsWith(".")) return;
+
+    // 合规数字时再回传 number
+    if (re.test(v)) {
+      onChange(Number(v));
+    }
+  };
 
   const handleChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     const v = e.target.value.trim();
     if (v === "" || re.test(v)) {
-      onChange(v === "" ? null : Number(v));
+      setText(v);                // 先更新本地文本，保证界面显示不丢小数点
+      commitIfStableNumber(v);   // 仅在“可落地”的时候通知父组件
     }
+    // 非法输入直接忽略（既不 setText 也不 onChange）
   };
 
   return (
@@ -130,7 +158,12 @@ export const StrictNumericInput: React.FC<{
       }}
       onPaste={(e) => {
         const toPaste = e.clipboardData.getData("text")?.trim() ?? "";
-        if (!(toPaste === "" || re.test(toPaste))) e.preventDefault();
+        if (toPaste === "" || re.test(toPaste)) {
+          setText(toPaste);
+          commitIfStableNumber(toPaste);
+        } else {
+          e.preventDefault();
+        }
       }}
       disabled={disabled}
       readOnly={readOnly}
@@ -138,6 +171,7 @@ export const StrictNumericInput: React.FC<{
     />
   );
 };
+
 
 /** ==========================
  * 业务员选择（供超级管理员使用，带下拉 + 自动带出主管/层级码）
@@ -222,16 +256,19 @@ export const AgentSelectInput: React.FC<{
 };
 
 /** ==========================
- * 1) 计算应收保费
+ * 1) 计算应收保费（避免精度问题，保留两位小数）
  * ========================== */
 export function calcReceivablePremium(data: any): number {
-  return (
-    (Number(data.commercialPremium) || 0) +
-    (Number(data.compulsoryPremium) || 0) +
-    (Number(data.driverAccidentPremium) || 0) +
-    (Number(data.vehicleTax) || 0)
-  );
+  const keys = ["commercialPremium", "compulsoryPremium", "driverAccidentPremium", "vehicleTax"];
+
+  const sum = keys.reduce((acc, key) => {
+    const val = Number(data[key]) || 0;
+    return acc + Math.round(val * 100);  // 放大 100 倍避免浮点误差
+  }, 0);
+
+  return sum / 100;  // 缩回两位小数
 }
+
 
 /** ==========================
  * 2) 初始化表单
@@ -246,7 +283,7 @@ export function initInsuranceForm(
 
   const form: InsuranceDetail = {
     // 基本信息 & 证件
-    id: baseData.id ? String(baseData.id) : "不用填",
+    id: "", // 出单时不让填，留空
     applicantName: baseData.applicantName ?? "",
     applicantIdNumber: baseData.applicantIdNumber ?? "",
 
@@ -371,6 +408,20 @@ export function renderInsuranceInput(
     );
   }
 
+  // 录入日期：锁死为当天（不可修改）
+  if (key === "inputDate") {
+    const today = getTodayDateStr();
+    return (
+      <input
+        type="date"
+        className={`${styles.editInput} form-control`}
+        value={today}
+        disabled
+        readOnly
+      />
+    );
+  }
+
   // 日期/时间
   if (key.endsWith("Date")) {
     return (
@@ -418,7 +469,7 @@ export function renderInsuranceInput(
 
   // 应收保费（只读）
   if (key === "receivablePremium") {
-    return <StrictNumericInput value={value ?? 0} onChange={() => {}} readOnly disabled decimals={2} />;
+    return <StrictNumericInput value={value ?? 0} onChange={() => { }} readOnly disabled decimals={2} />;
   }
 
   // 业务员：超级管理员可搜选，普通用户只读
@@ -485,6 +536,24 @@ export function renderInsuranceInput(
       />
     );
   }
+
+  // 已收保费：只有超级管理员可改；其他角色固定为 0 且不可编辑
+  if (key === "receivedPremium") {
+    if (isSuperAdmin) {
+      return (
+        <StrictNumericInput
+          value={value ?? null}
+          onChange={(num) =>
+            setForm((prev: any) => (prev ? { ...prev, receivedPremium: num ?? 0 } : prev))
+          }
+          decimals={2}
+        />
+      );
+    }
+    // 非超级管理员：锁 0、只读禁用
+    return <StrictNumericInput value={0} onChange={() => { }} readOnly disabled decimals={2} />;
+  }
+
 
   // 其他数字类（保额/保费等），统一严格数字输入（默认两位小数）
   const numericKeys = new Set<string>([

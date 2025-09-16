@@ -94,6 +94,7 @@ const App: React.FC = () => {
 
     if (isLoggedIn) {
       fetch("http://localhost:8080/api/insurance-company")
+      //fetch("http://123.121.15.40:50080/api/insurance-company")
         .then(res => res.json())
         .then(data => setInsuranceCompanies(data));
 

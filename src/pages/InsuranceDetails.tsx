@@ -8,9 +8,7 @@ import {
   , saveInsuranceChangeLogs, updateInsuranceComment
 } from "../api/insuranceDetails.ts";
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
-import { renderInsuranceInput, calcReceivablePremium } from "../utils/insuranceFormUtils";
-
-
+import { renderInsuranceInput, calcReceivablePremium, StrictNumericInput } from "../utils/insuranceFormUtils";
 
 type InsuranceDetailsProps = {
   insuranceCompanies: any[];
@@ -1453,7 +1451,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                             return null;
                           }
                           return (
-                            <tr key={key1}>
+                            <tr key={rowIdx}>
                               <th style={{ whiteSpace: "nowrap", width: "15%" }}>
                                 {insuranceDetailsNameMap[key1] || key1}
                               </th>

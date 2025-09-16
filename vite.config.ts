@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/uploads': 'http://localhost:8080',
+      //'/uploads': 'http://123.121.15.40:50080',
     }
   }
 })
