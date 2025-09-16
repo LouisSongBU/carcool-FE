@@ -183,7 +183,7 @@ const [actualHeight, setActualHeight] = useState(DROPDOWN_MAX_HEIGHT);
         return;
       }
     }
-    const deptId = matchedDept ? matchedDept.id : undefined;
+    const deptId = matchedDept ? matchedDept.id : null;
     const managerId = managerInput === "无主管" || !managerInput
       ? null
       : validManager?.id;
@@ -238,7 +238,7 @@ const [actualHeight, setActualHeight] = useState(DROPDOWN_MAX_HEIGHT);
         return;
       }
     }
-    const deptId = matchedAddDept ? matchedAddDept.id : undefined;
+    const deptId = matchedAddDept ? matchedAddDept.id : null;
     try {
       await addUser({
         username: addForm.username?.trim(),

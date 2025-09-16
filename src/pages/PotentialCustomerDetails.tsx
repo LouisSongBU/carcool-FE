@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from "react";
 import styles from "./PotentialCustomerDetails.module.css";
 import type { InsuranceDetail } from './InsuranceDetails.tsx';
-import { isAdminUser, getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
+import { getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
 import { fetchByRecordDate, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer, addFollowUpPotential, updateFollowUpPotential, fetchFollowUpPotentialList } from '../api/potentialCustomer';
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
+import { addInsuranceDetail } from "../api/insuranceDetails";
+import { initInsuranceForm, renderInsuranceInput, calcReceivablePremium } from "../utils/insuranceFormUtils";
+import { detailFieldOrder as insuranceDetailFieldOrder } from "./InsuranceDetails";
+import { AgentSelectInput } from "../utils/insuranceFormUtils";
+import dayjs from "dayjs";
 
 type PotentialCustomersProps = {
     insuranceCompanies: any[];
@@ -33,7 +38,7 @@ export interface PotentialCustomer {
     followUpCount: number | null;
     previousSignDate: string | null;
     firstFollowUpNote?: string | null;
-  secondFollowUpNote?: string | null;
+    secondFollowUpNote?: string | null;
 }
 
 interface FollowUpPotential {
@@ -103,12 +108,7 @@ const hiddenFieldsForAll = [
     "previousSignDate",
 ];
 
-const hiddenCreateFieldsForUser = [
-    "isSettlement",
-    "financeVerification",
-    "commercialAdjustment",
-    "compulsoryAdjustment",
-];
+
 
 const followUpDateFields = [
     "firstFollowUpDate",
@@ -168,8 +168,6 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         notScheduledOrExpired: false,
     });
 
-    const isAdmin = isAdminUser();
-
     const [followUpDateQuery, setFollowUpDateQuery] = useState("");
     const [selectedFollowUpCount, setSelectedFollowUpCount] = useState<string | number>('');
     const [neverFollowUp, setNeverFollowUp] = useState(false);
@@ -182,6 +180,17 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
 
     const [createModalVisible, setCreateModalVisible] = useState(false);
     const [createForm, setCreateForm] = useState<InsuranceDetail | null>(null);
+
+    const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
+    const role = userInfo.role || "normal";
+    const isSuperAdmin = role === "superAdmin";
+    const isAdmin = role === "admin";
+    const isNormalUser = role === "normal";
+    const currentUserName = userInfo.displayName || "";
+
+    const hiddenCreateFieldsForUser = isSuperAdmin
+        ? [] // 超级管理员不隐藏
+        : ["isSettlement", "financeVerification", "commercialAdjustment", "compulsoryAdjustment"];
 
     const [nextFollowUpDate, setNextFollowUpDate] = useState<string>('');
 
@@ -226,7 +235,10 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             alert("请选择完整记录日期");
             return;
         }
-        fetchByRecordDate(query.recordTimeStart, query.recordTimeEnd)
+        const start = dayjs(query.recordTimeStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
+        const end = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+
+        fetchByRecordDate(start, end)
             .then(res => {
                 setAllList(res.data);
                 setMyList(res.data);
@@ -247,12 +259,18 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             alert("请输入完整记录日期和起保日期");
             return;
         }
+        const recordStart = dayjs(query.recordTimeStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
+        const recordEnd = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+        const policyStart = dayjs(query.policyStartDateStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
+        const policyEnd = dayjs(query.policyStartDateEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+
         fetchComprehensive({
-            recordTimeStart: query.recordTimeStart,
-            recordTimeEnd: query.recordTimeEnd,
-            policyStartDateStart: query.policyStartDateStart,
-            policyStartDateEnd: query.policyStartDateEnd
+            recordTimeStart: recordStart,
+            recordTimeEnd: recordEnd,
+            policyStartDateStart: policyStart,
+            policyStartDateEnd: policyEnd
         })
+
             .then(res => {
                 setAllList(res.data);
                 setMyList(res.data);
@@ -515,63 +533,17 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                 className={`btn btn btn-primary btn-sm`}
                 style={{ minWidth: 85, marginRight: 6 }}
                 onClick={() => {
-                    // 自动提取字段填入新增浮窗
-                    setCreateForm({
-                        id: "不用填",
-                        applicantName: "",
-                        commercialPolicyNumber: "不用填",
-                        applicantIdNumber: "",
-                        compulsoryPolicyNumber: "不用填",
-                        insuredName: "",
-                        signingDate: getTodayDate(),
-                        insuredIdNumber: "",
-                        vehicleDamageCoverage: 0,
-                        registrationOwner: selectedDetail?.registrationOwner ?? "",
-                        vehicleDamagePremium: 0,
-                        registrationOwnerId: selectedDetail?.registrationOwnerId ?? "",
-                        thirdPartyCoverage: 0,
-                        licensePlate: selectedDetail?.licensePlate ?? "",
-                        thirdPartyPremium: 0,
-                        vehicleModel: selectedDetail?.vehicleModel ?? "",
-                        outMedCoverage: 0,
-                        firstRegistrationDate: selectedDetail?.firstRegistrationDate ?? getTodayDate(),
-                        outMedPremium: 0,
-                        engineNumber: selectedDetail?.engineNumber ?? "",
-                        driverCoverage: 0,
-                        vinNumber: selectedDetail?.vinNumber ?? "",
-                        driverPremium: 0,
-                        approvedSeats: "",
-                        passengerCoverage: 0,
-                        approvedLoad: "",
-                        passengerPremium: 0,
-                        deliveryAddress: selectedDetail?.deliveryAddress ?? "",
-                        commercialPremium: 0,
-                        phone: selectedDetail?.phone ?? "",
-                        compulsoryPremium: 0,
-                        mobile: "",
-                        driverAccidentPremium: 0,
-                        salesAgent: selectedDetail?.salesAgent ?? "",
-                        vehicleTax: 0,
-                        salesManager: "",
-                        receivablePremium: 0,
-                        inputDate: getTodayDate(),
-                        receivedPremium: 0,
-                        intermediaryInvoiceNo: 0,
-                        policyStartDate: selectedDetail?.policyStartDate ?? getTodayDate(),
-                        hierarchyCode: selectedDetail?.hierarchyCode ?? "",
-                        insuranceCompany: selectedDetail?.insuranceCompany ?? "",
-                        issuingOffice: "",
-                        isSettlement: "",
-                        financeVerification: "",
-                        commercialAdjustment: 0,
-                        compulsoryAdjustment: 0,
-                        comment: ""
-                    });
+                    if (!selectedDetail) return;
+                    const form = initInsuranceForm(selectedDetail, userInfo, isSuperAdmin, isAdmin);
+                    form.receivablePremium = calcReceivablePremium(form);
+
+                    setCreateForm(form);
                     setCreateModalVisible(true);
                 }}
             >
                 提交出单
             </button>
+
 
             <button
                 className="btn btn-warning btn-sm"
@@ -1123,6 +1095,50 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                     const isDateField = (key: string) => key.endsWith("Date");
                                     const isTimeField = (key: string) => key.endsWith("Time");
                                     const renderInput = (key: string, value: any) => {
+                                        if (key === "salesAgent") {
+                                            if (isSuperAdmin || isAdmin) {
+                                                return (
+                                                    <AgentSelectInput
+                                                        value={value ?? ""}
+                                                        userList={userList}
+                                                        onPick={(u, typed) =>
+                                                            setEditForm(prev => {
+                                                                if (!prev) return prev;
+                                                                return {
+                                                                    ...prev,
+                                                                    salesAgent: u ? u.displayName : typed,
+                                                                    // 希望客户表里只要层级码，不需要主管
+                                                                    hierarchyCode: u?.hierarchyCode ? String(u.hierarchyCode) : ""
+                                                                };
+                                                            })
+                                                        }
+                                                    />
+                                                );
+                                            } else {
+                                                return (
+                                                    <input
+                                                        type="text"
+                                                        className={`${styles.editInput} form-control`}
+                                                        value={currentUserName}
+                                                        disabled
+                                                        readOnly
+                                                    />
+                                                );
+                                            }
+                                        }
+
+                                        // 层级码：锁死，始终只读
+                                        if (key === "hierarchyCode") {
+                                            return (
+                                                <input
+                                                    type="text"
+                                                    className={`${styles.editInput} form-control`}
+                                                    value={value ?? ""}
+                                                    disabled
+                                                    readOnly
+                                                />
+                                            );
+                                        }
                                         // id 不可编辑
                                         if (key === "id") {
                                             return <input type="text" value={value ?? ""} disabled className={styles.editInput} />;
@@ -1345,64 +1361,95 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                         <div className={styles.customNewPolicy}>
                             <h4 style={{ marginBottom: 0 }}>新增保单</h4>
                             <form
-                                onSubmit={e => {
+                                onSubmit={async e => {
                                     e.preventDefault();
-                                    // 保存/提交逻辑
-                                    setCreateModalVisible(false);
+                                    if (!createForm) return;
+
+                                    // ✅ 校验保险公司是否有效
+                                    const today = getTodayDate();
+                                    const validCompanies = insuranceCompanies
+                                        .filter(c => {
+                                            const start = c.validStartDate?.slice(0, 10);
+                                            const end = c.validEndDate?.slice(0, 10);
+                                            return (!start || start <= today) && (!end || end >= today);
+                                        })
+                                        .map(c => c.insuranceCompany);
+
+                                    if (
+                                        !createForm.insuranceCompany ||
+                                        !validCompanies.includes(createForm.insuranceCompany)
+                                    ) {
+                                        alert("请选择有效期内的保险公司！");
+                                        return;
+                                    }
+
+                                    try {
+                                        // ✅ 按 InsuranceDetails.tsx 里的逻辑组装 payload
+                                        const payload: any = {
+                                            insurancedetails: { ...createForm },
+                                            username: userInfo.username || ""   // ⚠️ userInfo 需要你在 props 或上层取
+                                        };
+
+                                        // 去掉不该传的字段（跟 InsuranceDetails.tsx 一样）
+                                        delete payload.insurancedetails.id;
+                                        delete payload.insurancedetails.commercialPolicyNumber;
+                                        delete payload.insurancedetails.compulsoryPolicyNumber;
+
+                                        await addInsuranceDetail(payload);
+
+                                        alert("出单成功！");
+                                        setCreateModalVisible(false);
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert("出单失败，请稍后再试");
+                                    }
                                 }}
                             >
+
+
                                 <table className={`table table-sm ${styles.editTable}`}>
                                     <tbody>
                                         {(() => {
-                                            // 2. 计算当前新增时的隐藏字段
-                                            const visibleCreateFields = getVisibleFields(createForm, isAdmin, hiddenCreateFieldsForUser);
+                                            // 1) 用 InsuranceDetails 的顺序数组拍平
+                                            const orderedKeys = insuranceDetailFieldOrder.flat();
 
-                                            // 4. 两两分组渲染
-                                            return groupEntriesInPairs(visibleCreateFields).map((pair, rowIdx) => {
+                                            // 2) 根据角色隐藏“结算/财审/调整”——你前面已经做了动态 hiddenCreateFieldsForUser，这里继续沿用
+                                            const hidden = hiddenCreateFieldsForUser;
+
+                                            // 3) 只取：createForm 里存在的键 + 不在隐藏列表里的键，且按 orderedKeys 的顺序
+                                            const visibleEntries: [string, any][] = orderedKeys
+                                                .filter((k) => (createForm as any).hasOwnProperty(k) && !hidden.includes(k))
+                                                .map((k) => [k, (createForm as any)[k]] as [string, any]);
+
+                                            // 4) 两两分组再渲染（顺序此时与 InsuranceDetails 完全一致）
+                                            return groupEntriesInPairs(visibleEntries).map((pair) => {
                                                 const [[key1, value1], [key2, value2] = []] = pair;
 
-                                                // 通用输入控件
+                                                const isNormalUser = !(isAdmin || isSuperAdmin);
                                                 const renderInput = (key: string, value: any) => {
-                                                    // id 不可编辑
-                                                    if (key === "id") return <input type="text" value={value} disabled className={`${styles.editInput} form-control`} />;
-                                                    // 日期字段
-                                                    if (key.endsWith("Date")) {
+                                                    // 新增页：保单号自动生成，禁改
+                                                    if (key === "commercialPolicyNumber" || key === "compulsoryPolicyNumber") {
                                                         return (
                                                             <input
-                                                                type="date"
+                                                                type="text"
                                                                 className={`${styles.editInput} form-control`}
-                                                                value={value ?? ""}
-                                                                onChange={e =>
-                                                                    setCreateForm(prev => prev ? { ...prev, [key]: e.target.value } : prev)
-                                                                }
+                                                                value={String(value ?? "")}
+                                                                disabled
+                                                                readOnly
                                                             />
                                                         );
                                                     }
-
-                                                    // 数字类型
-                                                    if (typeof value === "number")
-                                                        return (
-                                                            <input
-                                                                type="number"
-                                                                className={`${styles.editInput} form-control`}
-                                                                value={value}
-                                                                onChange={e =>
-                                                                    setCreateForm(prev => prev ? { ...prev, [key]: Number(e.target.value) } : prev)
-                                                                }
-                                                            />
-                                                        );
-                                                    // 其它用文本框
-                                                    return (
-                                                        <input
-                                                            type="text"
-                                                            className={`${styles.editInput} form-control`}
-                                                            value={value ?? ""}
-                                                            onChange={e =>
-                                                                setCreateForm(prev => prev ? { ...prev, [key]: e.target.value } : prev)
-                                                            }
-                                                        />
+                                                    // 其余字段走通用渲染
+                                                    return renderInsuranceInput(
+                                                        key,
+                                                        value,
+                                                        setCreateForm,
+                                                        isNormalUser,
+                                                        insuranceCompanies,
+                                                        { isSuperAdmin, isAdmin, userList }
                                                     );
                                                 };
+
 
                                                 return (
                                                     <tr key={key1}>
@@ -1422,6 +1469,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                     </tr>
                                                 );
                                             });
+
                                         })()}
                                     </tbody>
                                 </table>

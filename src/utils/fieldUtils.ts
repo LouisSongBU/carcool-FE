@@ -1,10 +1,3 @@
-// 判断用户是否为管理员（你可以按实际的登录逻辑实现，这里示例写死）
-export function isAdminUser(): boolean {
-    // 真实项目可以用用户权限判断
-    //return sessionStorage.getItem("role") === "admin";
-    return false;
-}
-
 /**
 * 过滤掉普通用户不应显示的字段
 */

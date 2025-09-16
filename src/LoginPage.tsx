@@ -21,11 +21,25 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         setLoading(false);
 
         if (data.success) {
-            sessionStorage.setItem("userInfo", JSON.stringify(data.user)); // 保存用户信息
-            // 可以加一个登录时间戳
+            const user = data.user;
+        
+            // 根据 hierarchyCode 生成 role
+            let role = "normal";
+            const code = Number(user.hierarchyCode);
+            if (!isNaN(code)) {
+                if (code < 100) {
+                    role = "superAdmin";
+                } else if (code >= 100 && code <= 199) {
+                    role = "admin";
+                }
+            }
+            user.role = role;
+        
+            // 存储带 role 的 userInfo
+            sessionStorage.setItem("userInfo", JSON.stringify(user));
             sessionStorage.setItem("loginTime", String(Date.now()));
-            window.location.reload(); 
-            onLogin(data.user); // 登录成功
+            window.location.reload();
+            onLogin(user);
         } else {
             alert(data.message || "用户名或密码错误");
         }
