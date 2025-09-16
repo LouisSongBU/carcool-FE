@@ -7,7 +7,7 @@ import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../uti
 import { addInsuranceDetail } from "../api/insuranceDetails";
 import { initInsuranceForm, renderInsuranceInput, calcReceivablePremium } from "../utils/insuranceFormUtils";
 import { detailFieldOrder as insuranceDetailFieldOrder } from "./InsuranceDetails";
-import { AgentSelectInput, StrictNumericInput } from "../utils/insuranceFormUtils";
+import { AgentSelectInput } from "../utils/insuranceFormUtils";
 import dayjs from "dayjs";
 
 type PotentialCustomersProps = {
@@ -151,6 +151,7 @@ const followUpNoteFields = [
 // ...模拟数据和 interface 省略...
 
 const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompanies, userList }) => {
+    console.log("组件加载时的 userInfo:", sessionStorage.getItem("userInfo"));
     // 1. 查询和筛选
     const [query, setQuery] = useState({
         recordTimeStart: "",
@@ -238,7 +239,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         const start = dayjs(query.recordTimeStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
         const end = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
 
-        fetchByRecordDate(start, end)
+        fetchByRecordDate(start, end, isNormalUser ? currentUserName : undefined)
             .then(res => {
                 setAllList(res.data);
                 setMyList(res.data);
@@ -268,7 +269,8 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             recordTimeStart: recordStart,
             recordTimeEnd: recordEnd,
             policyStartDateStart: policyStart,
-            policyStartDateEnd: policyEnd
+            policyStartDateEnd: policyEnd,
+            salesAgent: isNormalUser ? currentUserName : undefined
         })
 
             .then(res => {
@@ -446,8 +448,8 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             insuranceCompany: "",
             note: "",
             note2: "",
-            salesAgent: "",
-            hierarchyCode: "",
+            salesAgent: isNormalUser ? currentUserName : "",
+            hierarchyCode: isNormalUser ? (userInfo.hierarchyCode || "") : "",
             scheduleFollowUpDate: null,
             id: null,
             followUpCount: null,
@@ -534,12 +536,26 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                 style={{ minWidth: 85, marginRight: 6 }}
                 onClick={() => {
                     if (!selectedDetail) return;
-                    const form = initInsuranceForm(selectedDetail, userInfo, isSuperAdmin, isAdmin);
+                  
+                    let detailForSubmit: any = { ...selectedDetail };
+                  
+                    if (isNormalUser && userInfo.manager?.displayName) {
+                      detailForSubmit.salesManager = userInfo.manager.displayName;
+                    }
+                  
+                    if ((isSuperAdmin || isAdmin) && selectedDetail?.salesAgent) {
+                      const matchedAgent = userList.find(u => u.displayName === selectedDetail.salesAgent);
+                      if (matchedAgent?.manager?.displayName) {
+                        detailForSubmit.salesManager = matchedAgent.manager.displayName;
+                      }
+                    }
+                  
+                    const form = initInsuranceForm(detailForSubmit, userInfo, isSuperAdmin, isAdmin);
                     form.receivablePremium = calcReceivablePremium(form);
-
+                  
                     setCreateForm(form);
                     setCreateModalVisible(true);
-                }}
+                  }}                  
             >
                 提交出单
             </button>
@@ -1115,6 +1131,9 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                     />
                                                 );
                                             } else {
+                                                if (editForm?.hierarchyCode !== userInfo.hierarchyCode) {
+                                                    setEditForm(prev => prev ? { ...prev, salesAgent: currentUserName, hierarchyCode: userInfo.hierarchyCode } : prev);
+                                                }
                                                 return (
                                                     <input
                                                         name={fieldName || key}
@@ -1151,6 +1170,20 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                     value={value ?? ""}
                                                     disabled
                                                     className={styles.editInput}
+                                                />
+                                            );
+                                        }
+
+                                        // 记录时间：锁死为只读
+                                        if (key === "recordTime") {
+                                            return (
+                                                <input
+                                                    name={fieldName || key}
+                                                    type="text"
+                                                    className={`${styles.editInput} form-control`}
+                                                    value={value ?? ""}
+                                                    disabled
+                                                    readOnly
                                                 />
                                             );
                                         }
@@ -1266,15 +1299,28 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                         // 数字字段（允许小数）
                                         if (["insuredCount", "followUpCount"].includes(key)) {
                                             return (
-                                                <StrictNumericInput
-                                                    value={value ?? null}
-                                                    onChange={num =>
-                                                        setEditForm(prev => (prev ? { ...prev, [key]: num } : prev))
-                                                    }
-                                                    decimals={2}
-                                                />
+                                              <input
+                                                name={fieldName || key}
+                                                type="text"
+                                                className={`${styles.editInput} form-control`}
+                                                value={value == null ? "" : String(value)}
+                                                onChange={e => {
+                                                  // 全角数字转半角
+                                                  const norm = e.target.value.replace(/[０-９]/g, ch =>
+                                                    String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30)
+                                                  );
+                                          
+                                                  // 只允许整数（可为空）
+                                                  if (norm === "" || /^\d+$/.test(norm)) {
+                                                    setEditForm(prev =>
+                                                      prev ? { ...prev, [key]: norm } : prev
+                                                    );
+                                                  }
+                                                }}
+                                              />
                                             );
-                                        }
+                                          }
+                                          
 
                                         // 默认文本
                                         return (

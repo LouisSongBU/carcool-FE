@@ -27,7 +27,7 @@ export const insuranceDetailsNameMap: Record<string, string> = {
     insuredName: "被保险人",
     signingDate: "签单日期",
     insuredIdNumber: "被保险人证件",
-    vehicleDamageCoverage: "车损保额",
+    vehicleDamageCoverage: "车损保额(万)",
     registrationOwner: "行驶证车主",
     vehicleDamagePremium: "车损保费",
     registrationOwnerId: "车主证件号",

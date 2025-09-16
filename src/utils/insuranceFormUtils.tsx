@@ -15,6 +15,62 @@ function getTodayDateStr() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// 把全角数字/点等统一为半角
+function normalizeNumericText(s: string): string {
+  if (!s) return s;
+  // 全角数字 → 半角数字
+  s = s.replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30));
+  // 全角点/中文句号/中文逗号 → 半角点
+  s = s.replace(/[．。，]/g, ".");
+  return s;
+}
+
+// 公共处理逻辑
+function handleNumericInput(
+  val: string,
+  key: string,
+  setForm: any,
+  premiumKeys: string[],
+  calcReceivablePremium: (form: any) => number
+) {
+  const norm = normalizeNumericText(val);
+
+  if (norm === "") {
+    setForm((prev: any) => {
+      if (!prev) return prev;
+      const updated = { ...prev, [key]: "" };
+      if (premiumKeys.includes(key)) {
+        updated.receivablePremium = calcReceivablePremium(updated);
+      }
+      return updated;
+    });
+    return;
+  }
+
+  if (/^\d+\.$/.test(norm)) {
+    setForm((prev: any) => {
+      if (!prev) return prev;
+      const updated = { ...prev, [key]: norm };
+      if (premiumKeys.includes(key)) {
+        updated.receivablePremium = calcReceivablePremium(updated);
+      }
+      return updated;
+    });
+    return;
+  }
+
+  if (/^\d*\.?\d{0,6}$/.test(norm)) {
+    setForm((prev: any) => {
+      if (!prev) return prev;
+      const updated = { ...prev, [key]: norm };
+      if (premiumKeys.includes(key)) {
+        updated.receivablePremium = calcReceivablePremium(updated);
+      }
+      return updated;
+    });
+  }
+}
+
 /** ==========================
  * 保险公司选择组件
  * ========================== */
@@ -95,83 +151,6 @@ export const InsuranceCompanySelect: React.FC<InsuranceCompanySelectProps> = ({
     </div>
   );
 };
-
-/** ==========================
- * 严格数字输入（只允许整数 / 最多 n 位小数）
- * ========================== */
-export const StrictNumericInput: React.FC<{
-  value: number | null | undefined;
-  onChange: (num: number | null) => void;
-  decimals?: number; // 默认 2
-  disabled?: boolean;
-  readOnly?: boolean;
-  className?: string;
-  placeholder?: string;
-}> = ({ value, onChange, decimals = 2, disabled, readOnly, className, placeholder }) => {
-  // 1) 本地维护文本，不立即把 "." / "1." 这类“进行中”的值转成数字
-  const [text, setText] = useState<string>(
-    value === null || value === undefined ? "" : String(value)
-  );
-
-  // 2) 外部 value 变化时再同步（用户输入过程未触发 onChange 时不会打扰本地 text）
-  useEffect(() => {
-    const next = value === null || value === undefined ? "" : String(value);
-    setText(next);
-  }, [value]);
-
-  // 3) 允许 <=decimals 位小数；输入法/粘贴都按同一规则校验
-  const re = useMemo(() => new RegExp(`^\\d*(?:\\.\\d{0,${decimals}})?$`), [decimals]);
-
-  const commitIfStableNumber = (v: string) => {
-    // 空串 → null
-    if (v === "") {
-      onChange(null);
-      return;
-    }
-    // 纯 "." 或 以 "." 结尾（如 "1."）都先不回传，等用户继续输入
-    if (v === "." || v.endsWith(".")) return;
-
-    // 合规数字时再回传 number
-    if (re.test(v)) {
-      onChange(Number(v));
-    }
-  };
-
-  const handleChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    const v = e.target.value.trim();
-    if (v === "" || re.test(v)) {
-      setText(v);                // 先更新本地文本，保证界面显示不丢小数点
-      commitIfStableNumber(v);   // 仅在“可落地”的时候通知父组件
-    }
-    // 非法输入直接忽略（既不 setText 也不 onChange）
-  };
-
-  return (
-    <input
-      type="text"
-      inputMode={decimals > 0 ? "decimal" : "numeric"}
-      className={`${styles.editInput} form-control ${className ?? ""}`}
-      value={text}
-      onChange={handleChange}
-      onKeyDown={(e) => {
-        if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
-      }}
-      onPaste={(e) => {
-        const toPaste = e.clipboardData.getData("text")?.trim() ?? "";
-        if (toPaste === "" || re.test(toPaste)) {
-          setText(toPaste);
-          commitIfStableNumber(toPaste);
-        } else {
-          e.preventDefault();
-        }
-      }}
-      disabled={disabled}
-      readOnly={readOnly}
-      placeholder={placeholder}
-    />
-  );
-};
-
 
 /** ==========================
  * 业务员选择（供超级管理员使用，带下拉 + 自动带出主管/层级码）
@@ -382,6 +361,14 @@ export function renderInsuranceInput(
   const isAdmin = !!opts?.isAdmin;
   const userList = opts?.userList || [];
 
+  // 四个基础保费字段
+  const premiumKeys = [
+    "commercialPremium",
+    "compulsoryPremium",
+    "driverAccidentPremium",
+    "vehicleTax",
+  ];
+
   // 保险公司
   if (key === "insuranceCompany") {
     return (
@@ -450,27 +437,80 @@ export function renderInsuranceInput(
   }
 
   // 保费联动（四个字段）
-  if (["commercialPremium", "compulsoryPremium", "driverAccidentPremium", "vehicleTax"].includes(key)) {
+  if (premiumKeys.includes(key)) {
     return (
-      <StrictNumericInput
-        value={value ?? null}
-        onChange={(num) =>
-          setForm((prev: any) => {
-            if (!prev) return prev;
-            const next = { ...prev, [key]: num ?? 0 };
-            next.receivablePremium = calcReceivablePremium(next);
-            return next;
-          })
-        }
-        decimals={2}
-      />
+      <input
+  type="text"
+  className={`${styles.editInput} form-control`}
+  style={{ textAlign: "left" }}
+  value={value == null ? "" : String(value)}
+
+  // ⭐ 不再处理 composition / beforeInput，统一在 onChange 做归一化 + 校验 + 联动
+  onChange={(e) => {
+    const norm = normalizeNumericText(e.target.value); // 全角 → 半角
+
+    if (norm === "") {
+      setForm((prev: any) => {
+        if (!prev) return prev;
+        const updated = { ...prev, [key]: "" };
+        updated.receivablePremium = calcReceivablePremium(updated);
+        return updated;
+      });
+      return;
+    }
+
+    if (/^\d+\.$/.test(norm)) {
+      setForm((prev: any) => {
+        if (!prev) return prev;
+        const updated = { ...prev, [key]: norm };
+        updated.receivablePremium = calcReceivablePremium(updated);
+        return updated;
+      });
+      return;
+    }
+
+    if (/^\d*\.?\d{0,6}$/.test(norm)) {
+      setForm((prev: any) => {
+        if (!prev) return prev;
+        const updated = { ...prev, [key]: norm };
+        updated.receivablePremium = calcReceivablePremium(updated);
+        return updated;
+      });
+    }
+  }}
+
+  // 保留失焦收敛："." → ""，"12." → "12"
+  onBlur={(e) => {
+    const norm = normalizeNumericText(e.target.value);
+    if (norm === "." || norm.endsWith(".")) {
+      const base = norm.endsWith(".") ? norm.slice(0, -1) : "";
+      setForm((prev: any) => {
+        if (!prev) return prev;
+        const updated = { ...prev, [key]: base };
+        updated.receivablePremium = calcReceivablePremium(updated);
+        return updated;
+      });
+    }
+  }}
+/>
+
     );
   }
 
   // 应收保费（只读）
   if (key === "receivablePremium") {
-    return <StrictNumericInput value={value ?? 0} onChange={() => { }} readOnly disabled decimals={2} />;
+    return (
+      <input
+        type="text"
+        className={`${styles.editInput} form-control`}
+        style={{ textAlign: "left" }}
+        value={value ?? ""}
+        readOnly
+        disabled
+      />
+    );
   }
+
 
   // 业务员：超级管理员可搜选，普通用户只读
   if (key === "salesAgent") {
@@ -541,38 +581,84 @@ export function renderInsuranceInput(
   if (key === "receivedPremium") {
     if (isSuperAdmin) {
       return (
-        <StrictNumericInput
-          value={value ?? null}
-          onChange={(num) =>
-            setForm((prev: any) => (prev ? { ...prev, receivedPremium: num ?? 0 } : prev))
-          }
-          decimals={2}
+        <input
+          type="text"
+          className={`${styles.editInput} form-control`}
+          style={{ textAlign: "left" }}
+          value={value == null ? "" : String(value)}
+          onChange={(e) => {
+            const norm = normalizeNumericText(e.target.value); // ⭐ 关键：做全角→半角
+            // 允许空、允许 "12." 进行中、最多 6 位小数
+            if (norm === "" || /^\d+\.$/.test(norm) || /^\d*\.?\d{0,6}$/.test(norm)) {
+              setForm((prev: any) => (prev ? { ...prev, receivedPremium: norm } : prev));
+            }
+          }}
+          onBlur={(e) => {
+            const norm = normalizeNumericText(e.target.value); // ⭐ 失焦同样先归一化
+            // "." -> ""；"12." -> "12"（失焦收敛）
+            const fixed = norm === "." ? "" : (norm.endsWith(".") ? norm.slice(0, -1) : norm);
+            if (fixed !== e.target.value) {
+              setForm((prev: any) => (prev ? { ...prev, receivedPremium: fixed } : prev));
+            }
+          }}
         />
       );
     }
-    // 非超级管理员：锁 0、只读禁用
-    return <StrictNumericInput value={0} onChange={() => { }} readOnly disabled decimals={2} />;
-  }
+    // 非超管保持不变
+    return (
+      <input
+        type="text"
+        className={`${styles.editInput} form-control`}
+        style={{ textAlign: "left" }}
+        value={"0"}
+        readOnly
+        disabled
+      />
+    );
+  }  
 
-
-  // 其他数字类（保额/保费等），统一严格数字输入（默认两位小数）
+  // 所有数字类（保额/保费等）
   const numericKeys = new Set<string>([
-    "receivedPremium",
     "vehicleDamageCoverage", "vehicleDamagePremium",
     "thirdPartyCoverage", "thirdPartyPremium",
     "outMedCoverage", "outMedPremium",
     "driverCoverage", "driverPremium",
     "passengerCoverage", "passengerPremium",
-    // 如果“中介票号”是纯数字，则打开下一行：
-    // "intermediaryInvoiceNo",
   ]);
+
   if (numericKeys.has(key)) {
     return (
-      <StrictNumericInput
-        value={value ?? null}
-        onChange={(num) => setForm((prev: any) => (prev ? { ...prev, [key]: num } : prev))}
-        decimals={2}
-      />
+      <input
+  type="text"
+  className={`${styles.editInput} form-control`}
+  style={{ textAlign: "left" }}
+  value={value == null ? "" : String(value)}
+
+  onChange={(e) => {
+    const norm = normalizeNumericText(e.target.value);
+
+    if (norm === "") {
+      setForm((prev: any) => (prev ? { ...prev, [key]: "" } : prev));
+      return;
+    }
+    if (/^\d+\.$/.test(norm)) {
+      setForm((prev: any) => (prev ? { ...prev, [key]: norm } : prev));
+      return;
+    }
+    if (/^\d*\.?\d{0,6}$/.test(norm)) {
+      setForm((prev: any) => (prev ? { ...prev, [key]: norm } : prev));
+    }
+  }}
+
+  onBlur={(e) => {
+    const norm = normalizeNumericText(e.target.value);
+    if (norm === "." || norm.endsWith(".")) {
+      const base = norm.endsWith(".") ? norm.slice(0, -1) : "";
+      setForm((prev: any) => (prev ? { ...prev, [key]: base } : prev));
+    }
+  }}
+/>
+
     );
   }
 
