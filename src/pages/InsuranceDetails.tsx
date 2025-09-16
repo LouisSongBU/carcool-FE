@@ -8,7 +8,7 @@ import {
   , saveInsuranceChangeLogs, updateInsuranceComment
 } from "../api/insuranceDetails.ts";
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
-import { renderInsuranceInput, calcReceivablePremium, StrictNumericInput } from "../utils/insuranceFormUtils";
+import { renderInsuranceInput, calcReceivablePremium } from "../utils/insuranceFormUtils";
 
 type InsuranceDetailsProps = {
   insuranceCompanies: any[];
