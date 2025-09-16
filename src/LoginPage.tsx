@@ -22,19 +22,25 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
         if (data.success) {
             const user = data.user;
-        
+
             // 根据 hierarchyCode 生成 role
             let role = "normal";
-            const code = Number(user.hierarchyCode);
-            if (!isNaN(code)) {
-                if (code < 100) {
-                    role = "superAdmin";
-                } else if (code >= 100 && code <= 199) {
-                    role = "admin";
+            const codeStr = String(user.hierarchyCode || "").trim();
+
+            if (/^\d+$/.test(codeStr)) {
+                // 只对没有前导零的短码做判断
+                if (codeStr.length <= 3) {
+                    const code = Number(codeStr);
+                    if (code < 100) {
+                        role = "superAdmin";
+                    } else if (code >= 100 && code <= 199) {
+                        role = "admin";
+                    }
                 }
             }
+
             user.role = role;
-        
+
             // 存储带 role 的 userInfo
             sessionStorage.setItem("userInfo", JSON.stringify(user));
             sessionStorage.setItem("loginTime", String(Date.now()));
