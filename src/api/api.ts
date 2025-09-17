@@ -1,10 +1,10 @@
+// src/api.ts
 import axios from "axios";
+import config from "../config";
 
-const instance = axios.create({
-  baseURL: "http://localhost:8080/api", // 只写一遍！
-  //baseURL: "http://123.121.15.40:50080/api", // 只写一遍！
+const api = axios.create({
+  baseURL: config.API_BASE_URL,
   timeout: 10000,
-  // 你也可以加headers等
 });
 
-export default instance;
+export default api;

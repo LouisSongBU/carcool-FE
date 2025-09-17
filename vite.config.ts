@@ -1,13 +1,16 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
+    port: 5173, // 默认即可
     proxy: {
-      '/uploads': 'http://localhost:8080',
-      //'/uploads': 'http://123.121.15.40:50080',
-    }
-  }
-})
+      "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+        // 不要写 rewrite，这样 /api 会原样传到后端
+      },
+    },
+  },
+});

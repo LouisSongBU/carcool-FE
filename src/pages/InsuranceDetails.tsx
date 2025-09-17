@@ -120,12 +120,21 @@ const dateFields = new Set([
 ]);
 
 // 要隐藏的字段
-const hiddenFieldsForUser = [
-  "isSettlement",
-  "financeVerification",
-  "commercialAdjustment",
-  "compulsoryAdjustment",
-];
+let hiddenFieldsForUser: string[] = [];
+
+if (isNormalUser) {
+  hiddenFieldsForUser = [
+    "isSettlement",
+    "financeVerification",
+    "commercialAdjustment",
+    "compulsoryAdjustment"
+  ];
+} else if (isAdmin) {
+  hiddenFieldsForUser = [
+    "isSettlement",
+    "financeVerification"
+  ]; // 管理员可见并能改 commercialAdjustment / compulsoryAdjustment
+}
 
 // === 2. 组件主体 ===
 const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies, userList }) => {
@@ -256,9 +265,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     // 特殊处理的字段 ↓
     if (key === "commercialPolicyNumber" || key === "compulsoryPolicyNumber") {
       // 判断是否允许编辑
-      const isQLPolicy = value?.startsWith("QL"); // 出单后
-      const canEditPolicyNumber =
-        isQLPolicy && (isSuperAdmin || isAdmin); // 只有确认出单后且权限足够才能改
+      const canEditPolicyNumber = isSuperAdmin || isAdmin;
     
       return (
         <div className={styles.policyNumberRow}>

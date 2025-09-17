@@ -33,12 +33,11 @@ const sections: Section[] = [
   },
   {
     title: "财务信息",
-    roles: ["superAdmin"],
     items: [
-      { name: "提成维护" },
-      { name: "工资结算" },
+      { name: "提成维护", roles: ["superAdmin"] }, // 只有超管能看
+      { name: "工资结算" },                         // 所有人都能看
     ],
-  },
+  },  
   {
     title: "管理界面",
     roles: ["superAdmin"],

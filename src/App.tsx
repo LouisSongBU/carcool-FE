@@ -10,6 +10,7 @@ import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import { getAllUsers } from './api/UserApi';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import config from "./config";
 
 const pageTitles: Record<string, string> = {
   '车险客户': '车险客户信息',
@@ -93,8 +94,7 @@ const App: React.FC = () => {
     }
 
     if (isLoggedIn) {
-      fetch("http://localhost:8080/api/insurance-company")
-      //fetch("http://123.121.15.40:50080/api/insurance-company")
+      fetch(`${config.API_BASE_URL}/insurance-company`)
         .then(res => res.json())
         .then(data => setInsuranceCompanies(data));
 
