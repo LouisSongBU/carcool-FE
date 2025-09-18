@@ -3,8 +3,8 @@ import type { InsuranceDetail } from "../pages/InsuranceDetails";
 
 // 查询所有
 export function fetchInsuranceDetails(params: Record<string, any>) {
-    return api.get("/insurance-details/list", { params });
-  }
+  return api.get("/insurance-details/list", { params });
+}
 
 // 查询详情
 export function fetchInsuranceDetailById(id: number | string) {
@@ -84,7 +84,7 @@ export function uploadIdCardImage(file: File, insuredIdNumber: string, type: "fa
 export function fetchIdCardImage(insuredIdNumber: string) {
   // 改为 /api/insurance-details/idcard-images
   return api.get(`/insurance-details/idcard-images?insuredIdNumber=${insuredIdNumber}`)
-    .then(res => res.data); 
+    .then(res => res.data);
 }
 
 // 查询日志
@@ -99,3 +99,10 @@ export function saveInsuranceChangeLogs(logList: any[]) {
 // 只更新备注
 export const updateInsuranceComment = (id: string, comment: string) =>
   api.post("/insurance-details/updateComment", { id, comment });
+
+
+export function checkDuplicateLicensePlate(licensePlate: string) {
+  return api.get("/insurance-details/checkDuplicate", {
+    params: { licensePlate }
+  });
+}

@@ -536,26 +536,26 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                 style={{ minWidth: 85, marginRight: 6 }}
                 onClick={() => {
                     if (!selectedDetail) return;
-                  
+
                     let detailForSubmit: any = { ...selectedDetail };
-                  
+
                     if (isNormalUser && userInfo.manager?.displayName) {
-                      detailForSubmit.salesManager = userInfo.manager.displayName;
+                        detailForSubmit.salesManager = userInfo.manager.displayName;
                     }
-                  
+
                     if ((isSuperAdmin || isAdmin) && selectedDetail?.salesAgent) {
-                      const matchedAgent = userList.find(u => u.displayName === selectedDetail.salesAgent);
-                      if (matchedAgent?.manager?.displayName) {
-                        detailForSubmit.salesManager = matchedAgent.manager.displayName;
-                      }
+                        const matchedAgent = userList.find(u => u.displayName === selectedDetail.salesAgent);
+                        if (matchedAgent?.manager?.displayName) {
+                            detailForSubmit.salesManager = matchedAgent.manager.displayName;
+                        }
                     }
-                  
+
                     const form = initInsuranceForm(detailForSubmit, userInfo, isSuperAdmin, isAdmin);
                     form.receivablePremium = calcReceivablePremium(form);
-                  
+
                     setCreateForm(form);
                     setCreateModalVisible(true);
-                  }}                  
+                }}
             >
                 提交出单
             </button>
@@ -1299,28 +1299,28 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                         // 数字字段（允许小数）
                                         if (["insuredCount", "followUpCount"].includes(key)) {
                                             return (
-                                              <input
-                                                name={fieldName || key}
-                                                type="text"
-                                                className={`${styles.editInput} form-control`}
-                                                value={value == null ? "" : String(value)}
-                                                onChange={e => {
-                                                  // 全角数字转半角
-                                                  const norm = e.target.value.replace(/[０-９]/g, ch =>
-                                                    String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30)
-                                                  );
-                                          
-                                                  // 只允许整数（可为空）
-                                                  if (norm === "" || /^\d+$/.test(norm)) {
-                                                    setEditForm(prev =>
-                                                      prev ? { ...prev, [key]: norm } : prev
-                                                    );
-                                                  }
-                                                }}
-                                              />
+                                                <input
+                                                    name={fieldName || key}
+                                                    type="text"
+                                                    className={`${styles.editInput} form-control`}
+                                                    value={value == null ? "" : String(value)}
+                                                    onChange={e => {
+                                                        // 全角数字转半角
+                                                        const norm = e.target.value.replace(/[０-９]/g, ch =>
+                                                            String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30)
+                                                        );
+
+                                                        // 只允许整数（可为空）
+                                                        if (norm === "" || /^\d+$/.test(norm)) {
+                                                            setEditForm(prev =>
+                                                                prev ? { ...prev, [key]: norm } : prev
+                                                            );
+                                                        }
+                                                    }}
+                                                />
                                             );
-                                          }
-                                          
+                                        }
+
 
                                         // 默认文本
                                         return (

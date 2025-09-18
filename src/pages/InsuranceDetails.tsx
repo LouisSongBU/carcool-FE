@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import {
   addInsuranceDetail, fetchInsuranceDetails, updateInsuranceDetail, confirmIssueInsuranceDetail, fetchInsuranceHistory, uploadInsuranceImage,
   fetchInsuranceImages, deleteInsuranceImage, updateInsuranceImageRemark, uploadIdCardImage, fetchIdCardImage, fetchInsuranceChangeLogs
-  , saveInsuranceChangeLogs, updateInsuranceComment
+  , saveInsuranceChangeLogs, updateInsuranceComment, checkDuplicateLicensePlate
 } from "../api/insuranceDetails.ts";
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
 import { renderInsuranceInput, calcReceivablePremium } from "../utils/insuranceFormUtils";
@@ -105,9 +105,10 @@ export const detailFieldOrder: string[][] = [
 
 const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || '{}');
 const hierarchyCode = userInfo.hierarchyCode || "";
-const isSuperAdmin = hierarchyCode === "0";
-const isAdmin = hierarchyCode === "1";
-const isNormalUser = !isSuperAdmin && !isAdmin;
+const role = userInfo.role || "normal";
+const isSuperAdmin = role === "superAdmin";
+const isAdmin = role === "admin";
+const isNormalUser = role === "normal";
 const currentUserName = userInfo.displayName || "";
 const canEditPolicyNumber = isSuperAdmin || isAdmin;
 
@@ -266,7 +267,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     if (key === "commercialPolicyNumber" || key === "compulsoryPolicyNumber") {
       // 判断是否允许编辑
       const canEditPolicyNumber = isSuperAdmin || isAdmin;
-    
+
       return (
         <div className={styles.policyNumberRow}>
           <input
@@ -299,12 +300,12 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
           )}
         </div>
       );
-    }    
-  
+    }
+
     if (key === "salesAgent") {
       // 你原来的业务员选择逻辑（超管下拉 / 普通只读）
     }
-  
+
     if (key === "salesManager" || key === "hierarchyCode") {
       return (
         <input
@@ -316,7 +317,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         />
       );
     }
-  
+
     if (key === "comment") {
       return (
         <textarea
@@ -329,7 +330,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         />
       );
     }
-  
+
     if (key === "intermediaryInvoiceNo") {
       const isFieldEditable = isSuperAdmin;
       return (
@@ -348,7 +349,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         />
       );
     }
-  
+
     if (key === "issuingOffice") {
       const isFieldEditable = isSuperAdmin || isAdmin;
       return (
@@ -365,7 +366,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         />
       );
     }
-  
+
     if (key === "inputDate" || key === "signingDate") {
       const isFieldEditable = isSuperAdmin || (isAdmin && key === "signingDate");
       return (
@@ -382,7 +383,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         />
       );
     }
-  
+
     // 其它字段直接用公共函数 ↓
     return renderInsuranceInput(
       key,
@@ -393,8 +394,8 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       { isSuperAdmin, isAdmin, userList }   // ✅ 补上
     );
   };
-  
-  
+
+
 
   // === 4. 业务逻辑区（派生变量/条件函数等） ===
   // 是否日期字段
@@ -635,13 +636,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       alert("交强保费不为0时，交强保单号不能为空！");
       return;
     }
-    if (
-      (editData.commercialPolicyNumber && (editData.commercialPolicyNumber.startsWith("QL") || editData.commercialPolicyNumber.startsWith("L"))) ||
-      (editData.compulsoryPolicyNumber && (editData.compulsoryPolicyNumber.startsWith("QL") || editData.compulsoryPolicyNumber.startsWith("L")))
-    ) {
-      alert("商业保单号和交强保单号都不能以QL或L开头！");
-      return;
-    }
     if (!editData.commercialPolicyNumber && !editData.compulsoryPolicyNumber) {
       alert("商业保单号和交强保单号不能同时为空！");
       return;
@@ -803,6 +797,17 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   }
 
   const handleConfirmIssue = async (detail: InsuranceDetail) => {
+    // ① 校验车牌号是否重复
+    try {
+      const dupRes = await checkDuplicateLicensePlate(detail.licensePlate);
+      if (dupRes.data === true) {
+        alert("该车牌号已存在于近1年的保单中，不能重复出单！请修改");
+        return;
+      }
+    } catch (err: any) {
+      alert("校验车牌号失败：" + (err.message || "未知错误"));
+      return;
+    }
     const updated = await confirmIssueInsuranceDetail(detail);
     if (updated.commercialPolicyNumber !== detail.commercialPolicyNumber) {
       const log = {
@@ -1601,11 +1606,18 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                       <div className={styles.imageGrid}>
                         {/* 人像面 */}
                         <div className={styles.imageCard}>
-                          <img
-                            src={idCardImages.faceUrl || "/uploads/insured_idcards/idcard_face_example.png"}
-                            alt="人像面"
-                            className={styles.insuranceImg}
-                          />
+                          <a
+                            href={idCardImages.faceUrl || "/uploads/insured_idcards/idcard_face_example.png"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <img
+                              src={idCardImages.faceUrl || "/uploads/insured_idcards/idcard_face_example.png"}
+                              alt="人像面"
+                              className={styles.insuranceImg}
+                              style={{ cursor: "pointer" }}
+                            />
+                          </a>
                           <div className={styles.cardActionRow} style={{ justifyContent: "center" }}>
                             <span
                               style={{
@@ -1651,16 +1663,22 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                               </span>
                             )}
                           </div>
-
-
                         </div>
+
                         {/* 国徽面 */}
                         <div className={styles.imageCard}>
-                          <img
-                            src={idCardImages.backUrl || "/uploads/insured_idcards/idcard_back_example.png"}
-                            alt="国徽面"
-                            className={styles.insuranceImg}
-                          />
+                          <a
+                            href={idCardImages.backUrl || "/uploads/insured_idcards/idcard_back_example.png"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <img
+                              src={idCardImages.backUrl || "/uploads/insured_idcards/idcard_back_example.png"}
+                              alt="国徽面"
+                              className={styles.insuranceImg}
+                              style={{ cursor: "pointer" }}
+                            />
+                          </a>
                           <div className={styles.cardActionRow} style={{ justifyContent: "center" }}>
                             <span
                               style={{
@@ -1680,17 +1698,17 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                               <input
                                 type="file"
                                 accept="image/*"
-                                disabled={idCardUploading.face}
+                                disabled={idCardUploading.back}
                                 onChange={e => {
                                   const file = e.target.files?.[0];
-                                  if (file) handleUploadIdCardImage(file, "face");
+                                  if (file) handleUploadIdCardImage(file, "back");
                                 }}
                                 style={{ display: "none" }}
                               />
                             </label>
-                            {idCardImages.faceUrl && (
+                            {idCardImages.backUrl && (
                               <a
-                                href={idCardImages.faceUrl}
+                                href={idCardImages.backUrl}
                                 download
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -1700,13 +1718,12 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                                 下载
                               </a>
                             )}
-                            {idCardUploading.face && (
+                            {idCardUploading.back && (
                               <span className={styles.uploadingTip} style={{ marginLeft: 10 }}>
                                 上传中...
                               </span>
                             )}
                           </div>
-
                         </div>
                       </div>
 
@@ -1745,11 +1762,18 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                               ×
                             </button>
                             {/* 图片 */}
-                            <img
-                              src={img.url}
-                              alt="保险图片"
-                              className={styles.insuranceImg}
-                            />
+                            <a
+                              href={img.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <img
+                                src={img.url}
+                                alt="保险图片"
+                                className={styles.insuranceImg}
+                                style={{ cursor: "pointer" }}
+                              />
+                            </a>
                             {/* 操作区 */}
                             {editingRemarkId === img.id ? (
                               <div className={styles.cardActionRow}>
