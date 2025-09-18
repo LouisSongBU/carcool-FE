@@ -82,3 +82,8 @@ export async function fetchFollowUpPotentialList(potentialCustomerId: number) {
   return api.get(`/potential-customers/follow_up_potential/list`, { params: { potentialCustomerId } });
 }
 
+export function fetchMineWithInsured(salesAgent: string) {
+  return api.get('/potential-customers/mine-with-insured', {
+    params: { salesAgent }
+  });
+}

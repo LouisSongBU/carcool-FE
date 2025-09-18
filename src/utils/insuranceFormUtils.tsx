@@ -419,6 +419,41 @@ export function renderInsuranceInput(
         onChange={(e) =>
           setForm((prev) => (prev ? { ...prev, [key]: e.target.value } : prev))
         }
+        onPaste={(e) => {
+          e.preventDefault();
+          const text = e.clipboardData.getData("text").trim();
+          let norm = text.replace(/[./\s]/g, "-"); // 把 . / 空格 都替换成 -
+
+          // 处理纯8位数字 YYYYMMDD
+          if (/^\d{8}$/.test(norm)) {
+            norm = norm.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
+          }
+
+          let parsed: string | null = null;
+
+          // 支持 YYYY-MM-DD
+          if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(norm)) {
+            const d = new Date(norm);
+            if (!isNaN(d.getTime())) {
+              parsed = d.toISOString().slice(0, 10);
+            }
+          }
+
+          // 支持 DD-MM-YYYY
+          if (!parsed && /^\d{1,2}-\d{1,2}-\d{4}$/.test(norm)) {
+            const [day, month, year] = norm.split("-");
+            const d = new Date(`${year}-${month}-${day}`);
+            if (!isNaN(d.getTime())) {
+              parsed = d.toISOString().slice(0, 10);
+            }
+          }
+
+          if (parsed) {
+            setForm((prev) => (prev ? { ...prev, [key]: parsed } : prev));
+          } else {
+            alert("日期格式应为 YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD / YYYYMMDD / DD-MM-YYYY");
+          }
+        }}
       />
     );
   }
@@ -440,59 +475,59 @@ export function renderInsuranceInput(
   if (premiumKeys.includes(key)) {
     return (
       <input
-  type="text"
-  className={`${styles.editInput} form-control`}
-  style={{ textAlign: "left" }}
-  value={value == null ? "" : String(value)}
+        type="text"
+        className={`${styles.editInput} form-control`}
+        style={{ textAlign: "left" }}
+        value={value == null ? "" : String(value)}
 
-  // ⭐ 不再处理 composition / beforeInput，统一在 onChange 做归一化 + 校验 + 联动
-  onChange={(e) => {
-    const norm = normalizeNumericText(e.target.value); // 全角 → 半角
+        // ⭐ 不再处理 composition / beforeInput，统一在 onChange 做归一化 + 校验 + 联动
+        onChange={(e) => {
+          const norm = normalizeNumericText(e.target.value); // 全角 → 半角
 
-    if (norm === "") {
-      setForm((prev: any) => {
-        if (!prev) return prev;
-        const updated = { ...prev, [key]: "" };
-        updated.receivablePremium = calcReceivablePremium(updated);
-        return updated;
-      });
-      return;
-    }
+          if (norm === "") {
+            setForm((prev: any) => {
+              if (!prev) return prev;
+              const updated = { ...prev, [key]: "" };
+              updated.receivablePremium = calcReceivablePremium(updated);
+              return updated;
+            });
+            return;
+          }
 
-    if (/^\d+\.$/.test(norm)) {
-      setForm((prev: any) => {
-        if (!prev) return prev;
-        const updated = { ...prev, [key]: norm };
-        updated.receivablePremium = calcReceivablePremium(updated);
-        return updated;
-      });
-      return;
-    }
+          if (/^\d+\.$/.test(norm)) {
+            setForm((prev: any) => {
+              if (!prev) return prev;
+              const updated = { ...prev, [key]: norm };
+              updated.receivablePremium = calcReceivablePremium(updated);
+              return updated;
+            });
+            return;
+          }
 
-    if (/^\d*\.?\d{0,6}$/.test(norm)) {
-      setForm((prev: any) => {
-        if (!prev) return prev;
-        const updated = { ...prev, [key]: norm };
-        updated.receivablePremium = calcReceivablePremium(updated);
-        return updated;
-      });
-    }
-  }}
+          if (/^\d*\.?\d{0,6}$/.test(norm)) {
+            setForm((prev: any) => {
+              if (!prev) return prev;
+              const updated = { ...prev, [key]: norm };
+              updated.receivablePremium = calcReceivablePremium(updated);
+              return updated;
+            });
+          }
+        }}
 
-  // 保留失焦收敛："." → ""，"12." → "12"
-  onBlur={(e) => {
-    const norm = normalizeNumericText(e.target.value);
-    if (norm === "." || norm.endsWith(".")) {
-      const base = norm.endsWith(".") ? norm.slice(0, -1) : "";
-      setForm((prev: any) => {
-        if (!prev) return prev;
-        const updated = { ...prev, [key]: base };
-        updated.receivablePremium = calcReceivablePremium(updated);
-        return updated;
-      });
-    }
-  }}
-/>
+        // 保留失焦收敛："." → ""，"12." → "12"
+        onBlur={(e) => {
+          const norm = normalizeNumericText(e.target.value);
+          if (norm === "." || norm.endsWith(".")) {
+            const base = norm.endsWith(".") ? norm.slice(0, -1) : "";
+            setForm((prev: any) => {
+              if (!prev) return prev;
+              const updated = { ...prev, [key]: base };
+              updated.receivablePremium = calcReceivablePremium(updated);
+              return updated;
+            });
+          }
+        }}
+      />
 
     );
   }
@@ -615,7 +650,7 @@ export function renderInsuranceInput(
         disabled
       />
     );
-  }  
+  }
 
   // 所有数字类（保额/保费等）
   const numericKeys = new Set<string>([
@@ -629,35 +664,35 @@ export function renderInsuranceInput(
   if (numericKeys.has(key)) {
     return (
       <input
-  type="text"
-  className={`${styles.editInput} form-control`}
-  style={{ textAlign: "left" }}
-  value={value == null ? "" : String(value)}
+        type="text"
+        className={`${styles.editInput} form-control`}
+        style={{ textAlign: "left" }}
+        value={value == null ? "" : String(value)}
 
-  onChange={(e) => {
-    const norm = normalizeNumericText(e.target.value);
+        onChange={(e) => {
+          const norm = normalizeNumericText(e.target.value);
 
-    if (norm === "") {
-      setForm((prev: any) => (prev ? { ...prev, [key]: "" } : prev));
-      return;
-    }
-    if (/^\d+\.$/.test(norm)) {
-      setForm((prev: any) => (prev ? { ...prev, [key]: norm } : prev));
-      return;
-    }
-    if (/^\d*\.?\d{0,6}$/.test(norm)) {
-      setForm((prev: any) => (prev ? { ...prev, [key]: norm } : prev));
-    }
-  }}
+          if (norm === "") {
+            setForm((prev: any) => (prev ? { ...prev, [key]: "" } : prev));
+            return;
+          }
+          if (/^\d+\.$/.test(norm)) {
+            setForm((prev: any) => (prev ? { ...prev, [key]: norm } : prev));
+            return;
+          }
+          if (/^\d*\.?\d{0,6}$/.test(norm)) {
+            setForm((prev: any) => (prev ? { ...prev, [key]: norm } : prev));
+          }
+        }}
 
-  onBlur={(e) => {
-    const norm = normalizeNumericText(e.target.value);
-    if (norm === "." || norm.endsWith(".")) {
-      const base = norm.endsWith(".") ? norm.slice(0, -1) : "";
-      setForm((prev: any) => (prev ? { ...prev, [key]: base } : prev));
-    }
-  }}
-/>
+        onBlur={(e) => {
+          const norm = normalizeNumericText(e.target.value);
+          if (norm === "." || norm.endsWith(".")) {
+            const base = norm.endsWith(".") ? norm.slice(0, -1) : "";
+            setForm((prev: any) => (prev ? { ...prev, [key]: base } : prev));
+          }
+        }}
+      />
 
     );
   }

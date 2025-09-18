@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import styles from "./PotentialCustomerDetails.module.css";
 import type { InsuranceDetail } from './InsuranceDetails.tsx';
 import { getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
-import { fetchByRecordDate, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer, addFollowUpPotential, updateFollowUpPotential, fetchFollowUpPotentialList } from '../api/potentialCustomer';
+import { fetchByRecordDate, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer, addFollowUpPotential, updateFollowUpPotential, fetchFollowUpPotentialList, fetchMineWithInsured } from '../api/potentialCustomer';
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
 import { addInsuranceDetail } from "../api/insuranceDetails";
 import { initInsuranceForm, renderInsuranceInput, calcReceivablePremium } from "../utils/insuranceFormUtils";
@@ -221,6 +221,27 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
 
     // 3. 查询逻辑
 
+    // ① 页面初始化：进入页面时自动查询希望客户列表
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            try {
+                const res = await fetchMineWithInsured(currentUserName);
+                const sorted = (res.data || [])
+                    .sort((a, b) => (b.insuredCount ?? 0) - (a.insuredCount ?? 0)); // 倒序
+
+                setAllList(sorted);
+                setMyList(sorted);
+                setShowList(true);
+            } catch (err: any) {
+                alert("自动加载失败: " + (err.message || "未知错误"));
+            }
+        };
+
+        fetchInitialData();
+    }, [currentUserName]);
+
+
+    // ② 详情页：当选中客户发生变化时，查询该客户的回访记录
     useEffect(() => {
         if (selectedDetail?.id) {
             fetchFollowUpPotentialList(selectedDetail.id).then(res => {
@@ -230,6 +251,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             setFollowUpList([]);
         }
     }, [selectedDetail?.id]);
+
 
     const handleRecordDateSearch = () => {
         if (!query.recordTimeStart || !query.recordTimeEnd) {
@@ -241,8 +263,9 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
 
         fetchByRecordDate(start, end, isNormalUser ? currentUserName : undefined)
             .then(res => {
-                setAllList(res.data);
-                setMyList(res.data);
+                const sorted = (res.data || []).sort((a, b) => (b.insuredCount ?? 0) - (a.insuredCount ?? 0));
+                setAllList(sorted);
+                setMyList(sorted);
                 setShowList(true);
             })
             .catch(err => {
@@ -274,8 +297,9 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         })
 
             .then(res => {
-                setAllList(res.data);
-                setMyList(res.data);
+                const sorted = (res.data || []).sort((a, b) => (b.insuredCount ?? 0) - (a.insuredCount ?? 0));
+                setAllList(sorted);
+                setMyList(sorted);
                 setShowList(true);
             })
             .catch(err => {
@@ -965,13 +989,15 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                 <td colSpan={3} className={styles.followUpEmpty}>暂无回访信息</td>
                                             </tr>
                                         ) : (
-                                            followUpList.map(item => (
-                                                <tr key={item.index}>
-                                                    <td>{item.index}</td>
-                                                    <td style={{ whiteSpace: "pre-line", textAlign: "left" }}>{item.content}</td>
-                                                    <td>{item.date}</td>
-                                                </tr>
-                                            ))
+                                            [...followUpList]   // 先复制，避免直接修改 state
+                                                .sort((a, b) => b.index - a.index)  // 按 index 倒序
+                                                .map(item => (
+                                                    <tr key={item.index}>
+                                                        <td>{item.index}</td>
+                                                        <td style={{ whiteSpace: "pre-line", textAlign: "left" }}>{item.content}</td>
+                                                        <td>{item.date}</td>
+                                                    </tr>
+                                                ))
                                         )}
                                     </tbody>
                                 </table>
@@ -1053,13 +1079,8 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                     // 1. 必填字段（字段名和中文名都与你的fieldNameMap严格一致）
                                     const requiredFields = [
                                         { key: "licensePlate", label: "车牌号" },
-                                        { key: "vehicleModel", label: "厂牌型号" },
-                                        { key: "policyStartDate", label: "起保日期" },
                                         { key: "registrationOwner", label: "车主" },
                                         { key: "phone", label: "电话" },
-                                        { key: "firstRegistrationDate", label: "初登日期" },
-                                        { key: "vinNumber", label: "车架号" },
-                                        { key: "engineNumber", label: "发动机号" },
                                         { key: "scheduleFollowUpDate", label: "下次回访时间" },
                                     ];
 
@@ -1268,6 +1289,44 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                     type="date"
                                                     className={`${styles.editInput} form-control`}
                                                     value={value ?? ""}
+                                                    onPaste={(e) => {
+                                                        e.preventDefault();
+                                                        const text = e.clipboardData.getData("text").trim();
+
+                                                        // 统一分隔符：把 / . 空格 全换成 -
+                                                        let norm = text.replace(/[./\s]/g, "-");
+
+                                                        // 如果是纯 8 位数字 → 转 YYYY-MM-DD
+                                                        if (/^\d{8}$/.test(norm)) {
+                                                            norm = norm.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
+                                                        }
+
+                                                        let parsed: string | null = null;
+
+                                                        // 情况1：YYYY-M-D / YYYY-MM-DD
+                                                        if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(norm)) {
+                                                            const [y, m, d] = norm.split("-");
+                                                            const date = new Date(Number(y), Number(m) - 1, Number(d));
+                                                            if (!isNaN(date.getTime())) {
+                                                                parsed = date.toISOString().slice(0, 10);
+                                                            }
+                                                        }
+
+                                                        // 情况2：D-M-YYYY / DD-MM-YYYY
+                                                        if (!parsed && /^\d{1,2}-\d{1,2}-\d{4}$/.test(norm)) {
+                                                            const [d, m, y] = norm.split("-");
+                                                            const date = new Date(Number(y), Number(m) - 1, Number(d));
+                                                            if (!isNaN(date.getTime())) {
+                                                                parsed = date.toISOString().slice(0, 10);
+                                                            }
+                                                        }
+
+                                                        if (parsed) {
+                                                            setEditForm((prev) => (prev ? { ...prev, [key]: parsed } : prev));
+                                                        } else {
+                                                            alert("日期格式应为 YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD / YYYYMMDD / DD-MM-YYYY");
+                                                        }
+                                                    }}
                                                     onChange={e =>
                                                         setEditForm(prev =>
                                                             prev ? { ...prev, [key]: e.target.value } : prev
