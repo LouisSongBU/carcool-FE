@@ -1940,7 +1940,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                         <div style={{ width: '25%', display: 'flex', alignItems: 'center' }}>
                           车主
                           <span className={styles.printLine}>
-                            {selectedDetail.applicantName}
+                            {selectedDetail.registrationOwner}
                           </span>
                         </div>
                         <div style={{ width: '50%', display: 'flex', alignItems: 'center' }}>

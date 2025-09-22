@@ -102,9 +102,8 @@
   
   .queryResultTable {
     width: 100%;
-    border-radius: 8px;
-    border-collapse: separate;
-    border-spacing: 0;
+    table-layout: fixed;      /* 加这个 */
+    border-collapse: collapse; /* 建议从 separate 改成 collapse */
     font-size: 12px;
     background: #f7fff9;
     margin-top: 10px;
@@ -473,4 +472,12 @@
 .followUpTableWrapper::-webkit-scrollbar-thumb {
   background: #ccead4;
   border-radius: 8px;
+}
+.dragLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: red;
+  z-index: 10;
 }
