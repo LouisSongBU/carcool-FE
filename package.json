@@ -23,6 +23,8 @@
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^18.3.1",
+    "react-resizable": "^3.0.5",
+    "react-rnd": "^10.5.2",
     "react-to-print": "^3.1.0",
     "react-toastify": "^11.0.5"
   },

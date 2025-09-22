@@ -87,3 +87,13 @@ export function fetchMineWithInsured(salesAgent: string) {
     params: { salesAgent }
   });
 }
+
+// 按下次预约回访日期查询
+export function fetchByFollowUpDate(date: string, salesAgent: string) {
+  return api.get('/potential-customers/queryByFollowUpDate', {
+    params: {
+      scheduleFollowUpDate: date,
+      salesAgent
+    }
+  });
+}

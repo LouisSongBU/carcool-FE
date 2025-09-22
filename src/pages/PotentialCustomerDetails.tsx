@@ -2,7 +2,10 @@ import React, { useState, useEffect } from "react";
 import styles from "./PotentialCustomerDetails.module.css";
 import type { InsuranceDetail } from './InsuranceDetails.tsx';
 import { getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
-import { fetchByRecordDate, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer, addFollowUpPotential, updateFollowUpPotential, fetchFollowUpPotentialList, fetchMineWithInsured } from '../api/potentialCustomer';
+import {
+    fetchByRecordDate, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer, addFollowUpPotential, updateFollowUpPotential,
+    fetchFollowUpPotentialList, fetchMineWithInsured, fetchByFollowUpDate
+} from '../api/potentialCustomer';
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
 import { addInsuranceDetail } from "../api/insuranceDetails";
 import { initInsuranceForm, renderInsuranceInput, calcReceivablePremium } from "../utils/insuranceFormUtils";
@@ -151,11 +154,10 @@ const followUpNoteFields = [
 // ...模拟数据和 interface 省略...
 
 const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompanies, userList }) => {
-    console.log("组件加载时的 userInfo:", sessionStorage.getItem("userInfo"));
     // 1. 查询和筛选
     const [query, setQuery] = useState({
-        recordTimeStart: "",
-        recordTimeEnd: "",
+        recordTimeStart: getTodayDate(),
+        recordTimeEnd: getTodayDate(),
         policyStartDateStart: "",
         policyStartDateEnd: "",
     });
@@ -361,16 +363,24 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         }));
 
     // 5. 下次回访日期查询
-    const handleFollowUpDateQuery = () => {
-        if (!followUpDateQuery) return;
-        setMyList(
-            allList.filter(
-                item =>
-                    item.scheduleFollowUpDate && String(item.scheduleFollowUpDate).slice(0, 10) === followUpDateQuery
-            )
-        );
-        setShowList(true);
+    const handleFollowUpDateQuery = async () => {
+        if (!followUpDateQuery) {
+            alert("请选择下次预约回访日期");
+            return;
+        }
+        try {
+            const res = await fetchByFollowUpDate(followUpDateQuery, currentUserName);
+            const sorted = (res.data || []).sort(
+                (a, b) => (b.insuredCount ?? 0) - (a.insuredCount ?? 0)
+            );
+            setAllList(sorted);
+            setMyList(sorted);
+            setShowList(true);
+        } catch (err: any) {
+            alert("预约查询失败: " + (err.message || "未知错误"));
+        }
     };
+
 
 
     // 1. 回访次数选择变化时触发筛选
@@ -577,6 +587,11 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                     const form = initInsuranceForm(detailForSubmit, userInfo, isSuperAdmin, isAdmin);
                     form.receivablePremium = calcReceivablePremium(form);
 
+                    form.applicantName = detailForSubmit.registrationOwner || "";
+                    form.applicantIdNumber = detailForSubmit.registrationOwnerId || "";
+                    form.insuredName = detailForSubmit.registrationOwner || "";
+                    form.insuredIdNumber = detailForSubmit.registrationOwnerId || "";
+
                     setCreateForm(form);
                     setCreateModalVisible(true);
                 }}
@@ -690,6 +705,25 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                     综合查询
                                 </button>
                             </div>
+
+                            {/* 新增：下次预约回访查询 */}
+                            <div className={styles.queryRow} style={{ marginTop: 8 }}>
+                                <label className={styles.queryLabel}>下次预约回访日期</label>
+                                <input
+                                    type="date"
+                                    value={followUpDateQuery}
+                                    onChange={e => setFollowUpDateQuery(e.target.value)}
+                                    className={`form-control form-control-sm ${styles.queryInput}`}
+                                    style={{ width: 120 }}
+                                />
+                                <button
+                                    className={`btn btn-outline-success btn-sm ${styles.queryBtn}`}
+                                    onClick={handleFollowUpDateQuery}
+                                    style={{ width: 80 }}
+                                >
+                                    预约查询
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -755,21 +789,6 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                 />
                                 未预约或过期
                             </label>
-                        </div>
-                        {/* 下次预约筛选 */}
-                        <div className={styles.filterRow}>
-                            <span style={{ fontSize: 12 }}>下次预约回访日期</span>
-                            <input
-                                type="date"
-                                value={followUpDateQuery}
-                                onChange={e => setFollowUpDateQuery(e.target.value)}
-                                className={`form-control form-control-sm ${styles.filterInput}`}
-                                style={{ width: 120 }}
-                            />
-                            <button
-                                className={`btn btn-outline-success btn-sm ${styles.filterBtn}`}
-                                onClick={handleFollowUpDateQuery}
-                            >预约查询</button>
                         </div>
                         <div className={styles.filterRow} style={{ gap: 5 }}>
                             <select
@@ -883,7 +902,11 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                 key={item.licensePlate + idx}
                                                 style={{ cursor: "pointer" }}
                                                 onClick={() => setSelectedDetail(item)}
-                                                className={selectedDetail?.licensePlate === item.licensePlate ? styles.selectedRow : ""}
+                                                className={
+                                                    selectedDetail?.licensePlate === item.licensePlate
+                                                        ? styles.selectedRow
+                                                        : ""
+                                                }
                                             >
                                                 <td>{idx + 1}</td>
                                                 <td>{item.insuredCount}</td>

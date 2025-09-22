@@ -8,7 +8,8 @@ import {
   , saveInsuranceChangeLogs, updateInsuranceComment, checkDuplicateLicensePlate
 } from "../api/insuranceDetails.ts";
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
-import { renderInsuranceInput, calcReceivablePremium } from "../utils/insuranceFormUtils";
+import { renderInsuranceInput, calcReceivablePremium, DateInputWithCopy } from "../utils/insuranceFormUtils";
+import { Rnd } from "react-rnd";
 
 type InsuranceDetailsProps = {
   insuranceCompanies: any[];
@@ -112,6 +113,7 @@ const isNormalUser = role === "normal";
 const currentUserName = userInfo.displayName || "";
 const canEditPolicyNumber = isSuperAdmin || isAdmin;
 
+
 // === 1. 常量配置区 ===
 const dateFields = new Set([
   "signingDate",
@@ -157,6 +159,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   const [filterField, setFilterField] = useState("");
   const [filterOperator, setFilterOperator] = useState("like");
   const [filterValue, setFilterValue] = useState("");
+  const [floatingImageUrl, setFloatingImageUrl] = useState<string | null>(null);
 
   const [filters, setFilters] = useState<{ [key: string]: boolean }>({
     issued: false,
@@ -796,39 +799,48 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  const handleConfirmIssue = async (detail: InsuranceDetail) => {
+  const handleConfirmIssue = async (detail: InsuranceDetail): Promise<boolean> => {
     // ① 校验车牌号是否重复
     try {
       const dupRes = await checkDuplicateLicensePlate(detail.licensePlate);
       if (dupRes.data === true) {
         alert("该车牌号已存在于近1年的保单中，不能重复出单！请修改");
-        return;
+        return false;
       }
     } catch (err: any) {
       alert("校验车牌号失败：" + (err.message || "未知错误"));
-      return;
+      return false;
     }
-    const updated = await confirmIssueInsuranceDetail(detail);
-    if (updated.commercialPolicyNumber !== detail.commercialPolicyNumber) {
-      const log = {
-        detailId: detail.id,
-        fieldName: "商业保单号",
-        oldValue: detail.commercialPolicyNumber,
-        newValue: updated.commercialPolicyNumber,
-        updateUser: currentUserName,
-        updateTime: getNowDateTime()
-      };
-      await saveInsuranceChangeLogs([log]);
+  
+    try {
+      const updated = await confirmIssueInsuranceDetail(detail);
+  
+      if (updated.commercialPolicyNumber !== detail.commercialPolicyNumber) {
+        const log = {
+          detailId: detail.id,
+          fieldName: "商业保单号",
+          oldValue: detail.commercialPolicyNumber,
+          newValue: updated.commercialPolicyNumber,
+          updateUser: currentUserName,
+          updateTime: getNowDateTime()
+        };
+        await saveInsuranceChangeLogs([log]);
+      }
+  
+      setMyList(list => list.map(item =>
+        item.id === updated.id ? updated : item
+      ));
+      setSearchResult(list => list.map(item =>
+        item.id === updated.id ? updated : item
+      ));
+      setSelectedDetail(updated);
+  
+      return true; // ✅ 成功
+    } catch (err: any) {
+      alert("出单接口失败：" + (err.message || "未知错误"));
+      return false;
     }
-    setMyList(list => list.map(item =>
-      item.id === updated.id ? updated : item
-    ));
-    setSearchResult(list => list.map(item =>
-      item.id === updated.id ? updated : item
-    ));
-    setSelectedDetail(updated);
   };
-
 
   const handleRenewQuery = async () => {
     if (!selectedDetail) return;
@@ -1533,15 +1545,14 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                         onClick={async () => {
                           if (!selectedDetail) return;
                           setConfirming(true);
-                          try {
-                            await handleConfirmIssue(selectedDetail);
+                          const ok = await handleConfirmIssue(selectedDetail);
+                          setConfirming(false);
+                          if (ok) {
                             setShowConfirmModal(false);
                             alert("出单操作已完成！");
-                          } catch (e: any) {
-                            alert("出单操作失败: " + (e?.message || e));
                           }
-                          setConfirming(false);
                         }}
+                        
                       >
                         确认
                       </button>
@@ -1606,18 +1617,16 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                       <div className={styles.imageGrid}>
                         {/* 人像面 */}
                         <div className={styles.imageCard}>
-                          <a
-                            href={idCardImages.faceUrl || "/uploads/insured_idcards/idcard_face_example.png"}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <img
-                              src={idCardImages.faceUrl || "/uploads/insured_idcards/idcard_face_example.png"}
-                              alt="人像面"
-                              className={styles.insuranceImg}
-                              style={{ cursor: "pointer" }}
-                            />
-                          </a>
+                          <img
+                            src={idCardImages.faceUrl || "/uploads/insured_idcards/idcard_face_example.png"}
+                            alt="人像面"
+                            className={styles.insuranceImg}
+                            style={{ cursor: "pointer" }}
+                            onClick={() =>
+                              setFloatingImageUrl(idCardImages.faceUrl || "/uploads/insured_idcards/idcard_face_example.png")
+                            }
+                          />
+
                           <div className={styles.cardActionRow} style={{ justifyContent: "center" }}>
                             <span
                               style={{
@@ -1667,18 +1676,17 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
                         {/* 国徽面 */}
                         <div className={styles.imageCard}>
-                          <a
-                            href={idCardImages.backUrl || "/uploads/insured_idcards/idcard_back_example.png"}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <img
-                              src={idCardImages.backUrl || "/uploads/insured_idcards/idcard_back_example.png"}
-                              alt="国徽面"
-                              className={styles.insuranceImg}
-                              style={{ cursor: "pointer" }}
-                            />
-                          </a>
+                          <img
+                            src={idCardImages.backUrl || "/uploads/insured_idcards/idcard_back_example.png"}
+                            alt="国徽面"
+                            className={styles.insuranceImg}
+                            style={{ cursor: "pointer" }}
+                            onClick={() =>
+                              setFloatingImageUrl(
+                                idCardImages.backUrl || "/uploads/insured_idcards/idcard_back_example.png"
+                              )
+                            }
+                          />
                           <div className={styles.cardActionRow} style={{ justifyContent: "center" }}>
                             <span
                               style={{
@@ -1762,18 +1770,13 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                               ×
                             </button>
                             {/* 图片 */}
-                            <a
-                              href={img.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <img
-                                src={img.url}
-                                alt="保险图片"
-                                className={styles.insuranceImg}
-                                style={{ cursor: "pointer" }}
-                              />
-                            </a>
+                            <img
+                              src={img.url}
+                              alt="保险图片"
+                              className={styles.insuranceImg}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => setFloatingImageUrl(img.url)} // 点击时设置浮动窗口
+                            />
                             {/* 操作区 */}
                             {editingRemarkId === img.id ? (
                               <div className={styles.cardActionRow}>
@@ -1957,40 +1960,44 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                             {selectedDetail.commercialPolicyNumber}
                           </span>
                         </div>
-                        <div style={{ width: '23%', display: 'flex', alignItems: 'center' }}>
+                        <div style={{ width: '45%', display: 'flex', alignItems: 'center' }}>
                           车型
                           <span className={styles.printLine}>
                             {selectedDetail.vehicleModel}
                           </span>
                         </div>
-                        <div style={{ width: '21%', display: 'flex', alignItems: 'center' }}>
+                        <div style={{ width: '20%', display: 'flex', alignItems: 'center' }}>
                           车牌号码
                           <span className={styles.printLine}>
                             {selectedDetail.licensePlate}
                           </span>
                         </div>
-                        <div style={{ width: '21%', display: 'flex', alignItems: 'center' }}>
-                          起保日期
-                          <span>
-                            {typeof selectedDetail.policyStartDate === "string"
-                              ? selectedDetail.policyStartDate.slice(0, 10)
-                              : ""}
-                          </span>
-                        </div>
+
                       </div>
                       {/* 第三行 */}
                       <div className={styles.printRow}>
-                        <div style={{ width: '100%', display: 'flex', alignItems: 'center' }}>投保险别
+                        <div style={{ width: '80%', display: 'flex', alignItems: 'left' }}>投保险别
                           <span className={styles.printCoverage}>
                             {[
                               Number(selectedDetail.vehicleDamageCoverage) > 0 && '车损险',
-                              Number(selectedDetail.thirdPartyCoverage) > 0 && '三者险',
+                              Number(selectedDetail.thirdPartyCoverage) > 0 &&
+                              `三者险(${selectedDetail.thirdPartyCoverage}万)`,
                               Number(selectedDetail.outMedCoverage) > 0 && '医保外',
                               Number(selectedDetail.driverCoverage) > 0 && '司机险',
-                              Number(selectedDetail.passengerCoverage) > 0 && '乘客险'
+                              Number(selectedDetail.passengerCoverage) > 0 && '乘客险',
                             ]
                               .filter(Boolean)
-                              .map((name, idx) => <span key={idx}>{name}</span>)}
+                              .map((name, idx) => (
+                                <span key={idx} style={{ marginRight: 8 }}>{name}</span>
+                              ))}
+                          </span>
+                        </div>
+                        <div style={{ width: '20%', display: 'flex', alignItems: 'center' }}>
+                          起保日期
+                          <span className={styles.printLine}>
+                            {typeof selectedDetail.policyStartDate === "string"
+                              ? selectedDetail.policyStartDate.slice(0, 10)
+                              : ""}
                           </span>
                         </div>
                       </div>
@@ -2026,7 +2033,15 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                         <div style={{ width: '33.33%', display: 'flex', alignItems: 'center' }}>
                           总计金额
                           <span className={styles.printLine}>
-                            ￥{selectedDetail.commercialPremium + selectedDetail.compulsoryPremium + selectedDetail.vehicleTax + selectedDetail.driverAccidentPremium ? selectedDetail.commercialPremium + selectedDetail.compulsoryPremium + selectedDetail.vehicleTax + selectedDetail.driverAccidentPremium : '--'}
+                            {(() => {
+                              const total =
+                                Number(selectedDetail.commercialPremium || 0) +
+                                Number(selectedDetail.compulsoryPremium || 0) +
+                                Number(selectedDetail.vehicleTax || 0) +
+                                Number(selectedDetail.driverAccidentPremium || 0);
+
+                              return total > 0 ? `￥${total.toFixed(2)}` : '--';
+                            })()}
                           </span>
                         </div>
                         <div style={{ width: '60%', display: 'flex', alignItems: 'center' }}>
@@ -2128,6 +2143,68 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                   </div>
                 </div>
               )}
+
+              {floatingImageUrl && (
+                <Rnd
+                  default={{ x: 120, y: 120, width: 480, height: 360 }}
+                  bounds="window"
+                  dragHandleClassName="drag-handle"   // 只允许拖动标题栏
+                  cancel="img, .no-drag"               // 在图片/标记 no-drag 的区域不触发拖动
+                  style={{
+                    border: "1px solid #ccc",
+                    background: "#fff",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                    zIndex: 9999,
+                    borderRadius: 8,
+                    overflow: "hidden",
+                  }}
+                >
+                  {/* 标题栏：作为拖拽手柄 */}
+                  <div
+                    className="drag-handle"
+                    style={{
+                      background: "#2d4ca4",
+                      color: "#fff",
+                      padding: "6px 10px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      cursor: "move",
+                    }}
+                  >
+                    <span>图片预览</span>
+                    <button
+                      onClick={() => setFloatingImageUrl(null)}
+                      style={{
+                        border: "none",
+                        background: "transparent",
+                        color: "#fff",
+                        fontSize: 16,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {/* 图片区域：不触发拖拽 */}
+                  <div style={{ width: "100%", height: "100%", background: "#000" }}>
+                    <img
+                      src={floatingImageUrl || ""}
+                      alt="预览"
+                      className="no-drag"
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: "100%",
+                        objectFit: "contain",
+                        display: "block",
+                        margin: "auto",
+                      }}
+                    />
+                  </div>
+                </Rnd>
+              )}
+
             </div>
           </div>
         </div>

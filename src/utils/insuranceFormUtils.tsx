@@ -397,14 +397,16 @@ export function renderInsuranceInput(
 
   // 录入日期：锁死为当天（不可修改）
   if (key === "inputDate") {
-    const today = getTodayDateStr();
+    const val = value || getTodayDateStr();
+    const isSuperAdmin = !!opts?.isSuperAdmin;
+
     return (
-      <input
-        type="date"
-        className={`${styles.editInput} form-control`}
-        value={today}
-        disabled
-        readOnly
+      <DateInputWithCopy
+        value={val}
+        readOnly={!isSuperAdmin} // 不是超管就锁死
+        onChange={(newVal) =>
+          setForm((prev) => (prev ? { ...prev, inputDate: newVal } : prev))
+        }
       />
     );
   }
@@ -412,40 +414,31 @@ export function renderInsuranceInput(
   // 日期/时间
   if (key.endsWith("Date")) {
     return (
-      <input
-        type="date"
-        className={`${styles.editInput} form-control`}
-        value={value ? String(value).slice(0, 10) : ""}
-        onChange={(e) =>
-          setForm((prev) => (prev ? { ...prev, [key]: e.target.value } : prev))
+      <DateInputWithCopy
+        value={value || ""}
+        onChange={(val) =>
+          setForm((prev) => (prev ? { ...prev, [key]: val } : prev))
         }
         onPaste={(e) => {
           e.preventDefault();
           const text = e.clipboardData.getData("text").trim();
-          let norm = text.replace(/[./\s]/g, "-"); // 把 . / 空格 都替换成 -
+          let norm = text.replace(/[./\s]/g, "-");
 
-          // 处理纯8位数字 YYYYMMDD
           if (/^\d{8}$/.test(norm)) {
             norm = norm.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
           }
 
           let parsed: string | null = null;
 
-          // 支持 YYYY-MM-DD
           if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(norm)) {
             const d = new Date(norm);
-            if (!isNaN(d.getTime())) {
-              parsed = d.toISOString().slice(0, 10);
-            }
+            if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
           }
 
-          // 支持 DD-MM-YYYY
           if (!parsed && /^\d{1,2}-\d{1,2}-\d{4}$/.test(norm)) {
             const [day, month, year] = norm.split("-");
             const d = new Date(`${year}-${month}-${day}`);
-            if (!isNaN(d.getTime())) {
-              parsed = d.toISOString().slice(0, 10);
-            }
+            if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
           }
 
           if (parsed) {
@@ -457,6 +450,7 @@ export function renderInsuranceInput(
       />
     );
   }
+
   if (key.endsWith("Time")) {
     return (
       <input
@@ -709,3 +703,50 @@ export function renderInsuranceInput(
     />
   );
 }
+
+export const DateInputWithCopy: React.FC<{
+  value: string;
+  onChange?: (val: string) => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLInputElement>) => void;
+  readOnly?: boolean;   // ⭐ 新增
+}> = ({ value, onChange, onPaste, readOnly = false }) => {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = async () => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(String(value).slice(0, 10));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert("复制失败");
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <input
+        type="date"
+        className={`${styles.editInput} form-control`}
+        value={value ? String(value).slice(0, 10) : ""}
+        onChange={(e) => !readOnly && onChange && onChange(e.target.value)}
+        onPaste={onPaste}
+        readOnly={readOnly}
+      />
+      <button
+        type="button"
+        onClick={handleCopy}
+        style={{
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          fontSize: 16,
+          color: copied ? "#24bc46" : "#666",
+        }}
+        title="复制日期"
+      >
+        {copied ? "✅" : "📋"}
+      </button>
+    </div>
+  );
+};
