@@ -336,6 +336,7 @@ export function initInsuranceForm(
 
     // 备注
     comment: baseData.comment ?? "",
+    extraFee: baseData.extraFee ?? ""
   };
 
   form.receivablePremium = calcReceivablePremium(form);
@@ -401,55 +402,58 @@ export function renderInsuranceInput(
     const isSuperAdmin = !!opts?.isSuperAdmin;
 
     return (
-      <DateInputWithCopy
-        value={val}
-        readOnly={!isSuperAdmin} // 不是超管就锁死
-        onChange={(newVal) =>
-          setForm((prev) => (prev ? { ...prev, inputDate: newVal } : prev))
+      <input
+        type="date"
+        className={`${styles.editInput} form-control`}
+        value={val ? String(val).slice(0, 10) : ""}
+        onChange={(e) =>
+          isSuperAdmin &&
+          setForm((prev) => (prev ? { ...prev, inputDate: e.target.value } : prev))
         }
+        readOnly={!isSuperAdmin}
+        disabled={!isSuperAdmin}
       />
     );
   }
 
-  // 日期/时间
-  if (key.endsWith("Date")) {
-    return (
-      <DateInputWithCopy
-        value={value || ""}
-        onChange={(val) =>
-          setForm((prev) => (prev ? { ...prev, [key]: val } : prev))
+
+  // 日期/时间  
+if (key.endsWith("Date")) {
+  return (
+    <input
+      type="date"
+      className={`${styles.editInput} form-control`}
+      value={value ? String(value).slice(0, 10) : ""}
+      onChange={(e) =>
+        setForm((prev) => (prev ? { ...prev, [key]: e.target.value } : prev))
+      }
+      onPaste={(e) => {
+        e.preventDefault();
+        const text = e.clipboardData.getData("text").trim();
+        let norm = text.replace(/[./\s]/g, "-");
+        if (/^\d{8}$/.test(norm)) {
+          norm = norm.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
         }
-        onPaste={(e) => {
-          e.preventDefault();
-          const text = e.clipboardData.getData("text").trim();
-          let norm = text.replace(/[./\s]/g, "-");
+        let parsed: string | null = null;
+        if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(norm)) {
+          const d = new Date(norm);
+          if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
+        }
+        if (!parsed && /^\d{1,2}-\d{1,2}-\d{4}$/.test(norm)) {
+          const [day, month, year] = norm.split("-");
+          const d = new Date(`${year}-${month}-${day}`);
+          if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
+        }
+        if (parsed) {
+          setForm((prev) => (prev ? { ...prev, [key]: parsed } : prev));
+        } else {
+          alert("日期格式应为 YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD / YYYYMMDD / DD-MM-YYYY");
+        }
+      }}
+    />
+  );
+}
 
-          if (/^\d{8}$/.test(norm)) {
-            norm = norm.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
-          }
-
-          let parsed: string | null = null;
-
-          if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(norm)) {
-            const d = new Date(norm);
-            if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
-          }
-
-          if (!parsed && /^\d{1,2}-\d{1,2}-\d{4}$/.test(norm)) {
-            const [day, month, year] = norm.split("-");
-            const d = new Date(`${year}-${month}-${day}`);
-            if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
-          }
-
-          if (parsed) {
-            setForm((prev) => (prev ? { ...prev, [key]: parsed } : prev));
-          } else {
-            alert("日期格式应为 YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD / YYYYMMDD / DD-MM-YYYY");
-          }
-        }}
-      />
-    );
-  }
 
   if (key.endsWith("Time")) {
     return (
@@ -711,7 +715,7 @@ export const DateInputWithCopy: React.FC<{
   readOnly?: boolean;   // ⭐ 新增
 }> = ({ value, onChange, onPaste, readOnly = false }) => {
   const [copied, setCopied] = useState(false);
-  
+
   const handleCopy = async () => {
     if (!value) return;
     try {

@@ -42,6 +42,8 @@ export interface PotentialCustomer {
     previousSignDate: string | null;
     firstFollowUpNote?: string | null;
     secondFollowUpNote?: string | null;
+    insuredName?: string | null;
+insuredIdNumber?: string | null;
 }
 
 interface FollowUpPotential {
@@ -60,7 +62,7 @@ const fieldNameMap: Record<string, string> = {
     phone: "电话",
     firstRegistrationDate: "初登日期",
     deliveryAddress: "地址",
-    registrationOwnerId: "车主身份证",
+    registrationOwnerId: "车主证件号",
     vinNumber: "车架号",
     engineNumber: "发动机号",
     recordTime: "记录时间",
@@ -69,16 +71,19 @@ const fieldNameMap: Record<string, string> = {
     salesAgent: "业务员",
     hierarchyCode: "层级码",
     scheduleFollowUpDate: "下次回访时间",
+    insuredName: "被保险人",
+    insuredIdNumber: "被保险人证件号",
 }
 
 const detailFieldOrder = [
-    "insuredCount", "registrationOwnerId",
+    "insuredCount", "vehicleModel",
     "licensePlate", "vinNumber",
-    "vehicleModel", "engineNumber",
-    "policyStartDate", "recordTime",
-    "registrationOwner", "insuranceCompany",
-    "phone", "salesAgent",
-    "firstRegistrationDate", "hierarchyCode",
+    "policyStartDate", "engineNumber",
+    "registrationOwner", "firstRegistrationDate",
+    "registrationOwnerId", "insuranceCompany",
+    "insuredName","recordTime",
+    "insuredIdNumber","salesAgent",
+    "phone","hierarchyCode",
     "deliveryAddress", "scheduleFollowUpDate",
     "note"
 ];
@@ -205,6 +210,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     const [allList, setAllList] = useState<PotentialCustomer[]>([]);
     const [myList, setMyList] = useState<PotentialCustomer[]>([]);
     const [selectedDetail, setSelectedDetail] = useState<PotentialCustomer | null>(null);
+    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [showList, setShowList] = useState(false);
 
     const [followUpList, setFollowUpList] = useState<FollowUpPotential[]>([]);
@@ -222,51 +228,51 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     const todayFollowUp = followUpList.find(f => f.date === today);
 
     // === 在组件里新增这几个 state 和函数 ===
-const [colWidths, setColWidths] = useState<number[]>([50, 100, 120, 150, 120, 100]);
-const [dragging, setDragging] = useState<{ col: number; startX: number; startWidth: number } | null>(null);
-const [dragLineX, setDragLineX] = useState<number | null>(null);
+    const [colWidths, setColWidths] = useState<number[]>([50, 10, 120, 150, 120, 100]);
+    const [dragging, setDragging] = useState<{ col: number; startX: number; startWidth: number } | null>(null);
+    const [dragLineX, setDragLineX] = useState<number | null>(null);
 
-const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
-  setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
-  setDragLineX(e.clientX);
-  e.preventDefault();
-};
+    const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
+        setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
+        setDragLineX(e.clientX);
+        e.preventDefault();
+    };
 
-const handleMouseMove = (e: MouseEvent) => {
-  if (!dragging) return;
-  const container = document.querySelector(`.${styles.queryResultTable}`)?.parentElement;
-if (container) {
-  const rect = container.getBoundingClientRect();
-  setDragLineX(e.clientX - rect.left + container.scrollLeft);
-}
+    const handleMouseMove = (e: MouseEvent) => {
+        if (!dragging) return;
+        const container = document.querySelector(`.${styles.queryResultTable}`)?.parentElement;
+        if (container) {
+            const rect = container.getBoundingClientRect();
+            setDragLineX(e.clientX - rect.left + container.scrollLeft);
+        }
 
-};
+    };
 
-const handleMouseUp = (e: MouseEvent) => {
-  if (!dragging) return;
-  const delta = e.clientX - dragging.startX;
-  setColWidths((prev) => {
-    const next = [...prev];
-    next[dragging.col] = Math.max(50, dragging.startWidth + delta);
-    return next;
-  });
-  setDragging(null);
-  setDragLineX(null);
-};
+    const handleMouseUp = (e: MouseEvent) => {
+        if (!dragging) return;
+        const delta = e.clientX - dragging.startX;
+        setColWidths((prev) => {
+            const next = [...prev];
+            next[dragging.col] = Math.max(50, dragging.startWidth + delta);
+            return next;
+        });
+        setDragging(null);
+        setDragLineX(null);
+    };
 
-useEffect(() => {
-  if (dragging) {
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-  } else {
-    window.removeEventListener("mousemove", handleMouseMove);
-    window.removeEventListener("mouseup", handleMouseUp);
-  }
-  return () => {
-    window.removeEventListener("mousemove", handleMouseMove);
-    window.removeEventListener("mouseup", handleMouseUp);
-  };
-}, [dragging]);
+    useEffect(() => {
+        if (dragging) {
+            window.addEventListener("mousemove", handleMouseMove);
+            window.addEventListener("mouseup", handleMouseUp);
+        } else {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, [dragging]);
 
     // 3. 查询逻辑
 
@@ -303,42 +309,66 @@ useEffect(() => {
 
     useEffect(() => {
         if (myList.length > 0) {
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
-          if (!ctx) return;
-      
-          ctx.font = "12px Arial"; // 要跟表格里字体保持一致
-      
-          const titles = ["#", "成功投保", "车牌号", "厂牌型号", "起保日期", "车主"];
-      
-          const widths = titles.map((t, colIdx) => {
-            // 1. 标题宽度
-            let maxWidth = ctx.measureText(t).width + 20;
-      
-            // 2. 遍历数据
-            myList.forEach((row, rowIdx) => {
-              let text = "";
-              switch (colIdx) {
-                case 0: text = String(rowIdx + 1); break;
-                case 1: text = String(row.insuredCount ?? ""); break;
-                case 2: text = row.licensePlate ?? ""; break;
-                case 3: text = row.vehicleModel ?? ""; break;
-                case 4: text = row.policyStartDate?.slice(0, 10) ?? ""; break;
-                case 5: text = row.registrationOwner ?? ""; break;
-              }
-              const w = ctx.measureText(text).width + 20; // 适当 padding
-              if (w > maxWidth) maxWidth = w;
-            });
-      
-            // 限制最大最小值
-            return Math.min(Math.max(maxWidth, 10), 300);
-          });
-      
-          setColWidths(widths);
-        }
-      }, [myList]);
-      
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
 
+            ctx.font = "12px Arial"; // 要跟表格里字体保持一致
+
+            const titles = ["#", "成功", "车牌号", "厂牌型号", "起保日期", "车主"];
+
+            const widths = titles.map((t, colIdx) => {
+                // 1. 标题宽度
+                let maxWidth = ctx.measureText(t).width + 20;
+
+                // 2. 遍历数据
+                myList.forEach((row, rowIdx) => {
+                    let text = "";
+                    switch (colIdx) {
+                        case 0: text = String(rowIdx + 1); break;
+                        case 1: text = String(row.insuredCount ?? ""); break;
+                        case 2: text = row.licensePlate ?? ""; break;
+                        case 3: text = row.vehicleModel ?? ""; break;
+                        case 4: text = row.policyStartDate?.slice(0, 10) ?? ""; break;
+                        case 5: text = row.registrationOwner ?? ""; break;
+                    }
+                    const w = ctx.measureText(text).width + 20; // 适当 padding
+                    if (w > maxWidth) maxWidth = w;
+                });
+
+                // 限制最大最小值
+                return Math.min(Math.max(maxWidth, 10), 300);
+            });
+
+            setColWidths(widths);
+        }
+    }, [myList]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+          if (selectedIndex === null) return;
+      
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            if (selectedIndex > 0) {
+              const newIndex = selectedIndex - 1;
+              setSelectedIndex(newIndex);
+              setSelectedDetail(myList[newIndex]);
+            }
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (selectedIndex < myList.length - 1) {
+              const newIndex = selectedIndex + 1;
+              setSelectedIndex(newIndex);
+              setSelectedDetail(myList[newIndex]);
+            }
+          }
+        };
+      
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+      }, [selectedIndex, myList]);
+      
 
     const handleRecordDateSearch = () => {
         if (!query.recordTimeStart || !query.recordTimeEnd) {
@@ -569,10 +599,12 @@ useEffect(() => {
             note2: "",
             salesAgent: isNormalUser ? currentUserName : "",
             hierarchyCode: isNormalUser ? (userInfo.hierarchyCode || "") : "",
-            scheduleFollowUpDate: null,
+            scheduleFollowUpDate: dayjs().add(1, "day").format("YYYY-MM-DD"),
             id: null,
             followUpCount: null,
             previousSignDate: null,
+            insuredName: "",
+    insuredIdNumber: "",
         }
     }
 
@@ -674,8 +706,6 @@ useEffect(() => {
 
                     form.applicantName = detailForSubmit.registrationOwner || "";
                     form.applicantIdNumber = detailForSubmit.registrationOwnerId || "";
-                    form.insuredName = detailForSubmit.registrationOwner || "";
-                    form.insuredIdNumber = detailForSubmit.registrationOwnerId || "";
 
                     setCreateForm(form);
                     setCreateModalVisible(true);
@@ -963,73 +993,76 @@ useEffect(() => {
 
 
                     {/* 查询结果列表 */}
-{showList && (
-  myList.length === 0 ? (
-    <div style={{ padding: "28px 0", textAlign: "center", color: "#bbb" }}>
-      暂无查询结果
-    </div>
-  ) : (
-    <div style={{ maxHeight: 350, overflowY: "auto", position: "relative" }}>
-      {/* 拖动辅助线 */}
-      {dragLineX !== null && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: dragLineX,
-            width: 2,
-            height: "100%",
-            background: "red",
-            zIndex: 10,
-          }}
-        />
-      )}
-      <table className={styles.queryResultTable}>
-        <thead>
-          <tr>
-            {["#", "成功投保", "车牌号", "厂牌型号", "起保日期", "车主"].map((title, idx) => (
-              <th key={idx} style={{ width: colWidths[idx], position: "relative" }}>
-                {title}
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 5,
-                    cursor: "col-resize",
-                  }}
-                  onMouseDown={(e) => handleMouseDown(e, idx)}
-                />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {myList.map((item, idx) => (
-            <tr
-              key={item.licensePlate + idx}
-              style={{ cursor: "pointer" }}
-              onClick={() => setSelectedDetail(item)}
-              className={
-                selectedDetail?.licensePlate === item.licensePlate
-                  ? styles.selectedRow
-                  : ""
-              }
-            >
-              <td>{idx + 1}</td>
-              <td>{item.insuredCount}</td>
-              <td>{item.licensePlate}</td>
-              <td>{item.vehicleModel}</td>
-              <td>{item.policyStartDate ? String(item.policyStartDate).slice(0, 10) : ""}</td>
-              <td>{item.registrationOwner}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-)}
+                    {showList && (
+                        myList.length === 0 ? (
+                            <div style={{ padding: "28px 0", textAlign: "center", color: "#bbb" }}>
+                                暂无查询结果
+                            </div>
+                        ) : (
+                            <div style={{ maxHeight: 350, overflowY: "auto", position: "relative" }}>
+                                {/* 拖动辅助线 */}
+                                {dragLineX !== null && (
+                                    <div
+                                        style={{
+                                            position: "absolute",
+                                            top: 0,
+                                            left: dragLineX,
+                                            width: 2,
+                                            height: "100%",
+                                            background: "red",
+                                            zIndex: 10,
+                                        }}
+                                    />
+                                )}
+                                <table className={styles.queryResultTable}>
+                                    <thead>
+                                        <tr>
+                                            {["#", "成功", "车牌号", "车主", "起保日期", "厂牌型号"].map((title, idx) => (
+                                                <th key={idx} style={{ width: colWidths[idx], position: "relative" }}>
+                                                    {title}
+                                                    <div
+                                                        style={{
+                                                            position: "absolute",
+                                                            right: 0,
+                                                            top: 0,
+                                                            bottom: 0,
+                                                            width: 5,
+                                                            cursor: "col-resize",
+                                                        }}
+                                                        onMouseDown={(e) => handleMouseDown(e, idx)}
+                                                    />
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {myList.map((item, idx) => (
+                                            <tr
+                                            key={item.licensePlate + idx}
+                                            style={{ cursor: "pointer" }}
+                                            onClick={() => {
+                                              setSelectedDetail(item);   // 设置详情
+                                              setSelectedIndex(idx);     // 保存当前索引
+                                            }}
+                                            className={
+                                              selectedDetail?.id === item.id
+                                                ? styles.selectedRow
+                                                : ""
+                                            }
+                                          >
+                                                <td>{idx + 1}</td>
+                                                <td>{item.insuredCount}</td>
+                                                <td>{item.licensePlate}</td>
+                                                <td>{item.registrationOwner}</td>
+                                                <td>{item.policyStartDate ? String(item.policyStartDate).slice(0, 10) : ""}</td>
+                                                <td>{item.vehicleModel}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )
+                    )}
 
                 </div>
 

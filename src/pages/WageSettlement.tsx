@@ -56,12 +56,67 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
   const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || '{}');
   const currentUserName = userInfo.displayName || ""; // 当前用户显示名
   const currentHierarchyCode = userInfo.hierarchyCode || ""; // 当前用户层级码
-  const isSuperAdmin = currentHierarchyCode === "0";
+  const role = userInfo.role || "normal";
+  const isSuperAdmin = role === "superAdmin";
 
   const [agentInput, setAgentInput] = useState(""); // 输入框内容
   const [selectedAgent, setSelectedAgent] = useState<{ displayName: string; hierarchyCode: string } | null>(null); // 已选业务员
   const [agentDropdown, setAgentDropdown] = useState(false);
 
+  // === 在组件里新增这几个 state 和函数 ===
+  const [colWidths, setColWidths] = useState<number[]>([80, 180, 80, 100, 100, 100, 50, 50, 50, 50, 50, 50, 50, 80, 80]);
+  const [dragging, setDragging] = useState<{ col: number; startX: number; startWidth: number } | null>(null);
+  const [dragLineX, setDragLineX] = useState<number | null>(null);
+
+  const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
+    e.preventDefault();
+    setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
+  
+    // ✅ 用 .detailsArea 作为参考系，并考虑横向滚动
+    const container = (e.currentTarget as HTMLElement).closest(`.${styles.detailsArea}`) as HTMLElement | null;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      setDragLineX(e.clientX - rect.left + container.scrollLeft);
+    } else {
+      setDragLineX(e.clientX);
+    }
+  };
+  
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!dragging) return;
+    // ✅ 不要再用 queryResultTable；统一用 .detailsArea
+    const container = document.querySelector(`.${styles.detailsArea}`) as HTMLElement | null;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      setDragLineX(e.clientX - rect.left + container.scrollLeft);
+    }
+  };
+  
+  const handleMouseUp = (e: MouseEvent) => {
+    if (!dragging) return;
+    const delta = e.clientX - dragging.startX;
+    setColWidths(prev => {
+      const next = [...prev];
+      next[dragging.col] = Math.max(56, dragging.startWidth + delta); // 最小 56px ≈ 4 个字
+      return next;
+    });
+    setDragging(null);
+    setDragLineX(null);
+  };
+
+  useEffect(() => {
+    if (dragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    } else {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragging]);
 
   // 明细表数据过滤
   const filteredDetails = activeHierarchy
@@ -377,37 +432,46 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
             bordered
             hover
             className={styles.table}
-            style={{ fontSize: "13px", background: "#fff", borderRadius: "0 0 10px 10px" }}
+            style={{ fontSize: "13px", background: "#fff", borderRadius: "0 0 10px 10px", tableLayout: "fixed" }}
           >
+            {/* ★ 用 colgroup 让 15 列的宽度真正受控 */}
+            <colgroup>
+              {colWidths.map((w, i) => (
+                <col key={i} style={{ width: w }} />
+              ))}
+            </colgroup>
+
             <thead>
               <tr>
-                <th>业务员</th>
-                <th>商业保单号</th>
-                <th>车牌号码</th>
-                <th>被保险人</th>
-                <th>签单日期</th>
-                <th>保险公司</th>
-                <th>商业保费</th>
-                <th>商业提成</th>
-                <th>交强保费</th>
-                <th>交强提成</th>
-                <th>应收保费</th>
-                <th>已收保费</th>
-                <th>提成金额</th>
-                <th>实际提成</th>
-                <th>支付</th>
+                {[
+                  "业务员", "商业保单号", "车牌号码", "被保险人", "签单日期", "保险公司",
+                  "商业保费", "商业提成", "交强保费", "交强提成",
+                  "应收保费", "已收保费", "提成金额", "实际提成", "支付"
+                ].map((title, idx) => (
+                  <th key={idx}>
+                    <div className={styles.thInner}>
+                      <span>{title}</span>
+                      <span
+                        className={styles.colResizeHandle}
+                        onMouseDown={(e) => handleMouseDown(e, idx)}
+                        title="拖动调整列宽"
+                      />
+                    </div>
+                  </th>
+                ))}
               </tr>
             </thead>
+
             <tbody>
               {filteredDetails.length > 0 ? (
                 filteredDetails.map(row => (
                   <tr key={row.id}>
-                    <td>{row.salesAgent}</td>
-                    <td>{row.commercialPolicyNumber}</td>
-                    <td>{row.licensePlate}</td>
-                    <td>{row.insuredName}</td>
-                    <td>{row.signingDate}</td>
-                    <td>{row.insuranceCompany}</td>
+                    <td><span className={styles.cellText}>{row.salesAgent}</span></td>
+                    <td><span className={styles.cellText}>{row.commercialPolicyNumber}</span></td>
+                    <td><span className={styles.cellText}>{row.licensePlate}</span></td>
+                    <td><span className={styles.cellText}>{row.insuredName}</span></td>
+                    <td><span className={styles.cellText}>{row.signingDate}</span></td>
+                    <td><span className={styles.cellText}>{row.insuranceCompany}</span></td>
                     <td>{row.commercialPremium}</td>
                     <td>{row.commercialCommission}</td>
                     <td>{row.compulsoryPremium}</td>
@@ -424,7 +488,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
                           <Button
                             size="sm"
                             variant="info"
-                            style={{ padding: "0px 1px", fontSize: "13px" }}
+                            style={{ padding: "0px 6px", fontSize: "13px" }}
                             onClick={() => handleConfirmPay([row])}
                           >
                             待支付
@@ -443,10 +507,12 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
               )}
             </tbody>
           </Table>
+
+          {/* 拖拽中的垂直参考线 */}
+          {dragLineX !== null && <div className={styles.dragLine} style={{ left: dragLineX }} />}
         </div>
+
       </div>
-
-
     </div>
   );
 };

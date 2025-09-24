@@ -1,11 +1,11 @@
 .queryFormCard {
-  background: #f8f9fb;
+  background: #f0f4fb;
   border-radius: 12px;
   box-shadow: 0 4px 14px rgba(50, 90, 200, 0.08);
   border: 1px solid #e4ecfa;
   padding: 14px 20px 10px 20px;
   margin-bottom: 0px;
-  border: 1.5px solid #d1e4fc;
+  border: 1.5px solid #b3d0f7;
 }
 
 .queryForm {
@@ -22,31 +22,32 @@
 }
 
 .queryLabel {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   margin-bottom: 0;
   min-width: 60px;
   white-space: nowrap;
+  font-weight: bold;
 }
 
 .queryInput {
   width: 100%;
   min-width: 20px;
-  font-size: 12px;
-  padding: 1px 2px;
+  font-size: 14px;
+  padding: 0px 0px;
   border-radius: 6px;
   border: 1px solid #d0dff5;
   background: #fff;
+  font-weight: bold;
 }
 
 .filterBox {
-  background: #f7faff;
+  background: #eef5ff;
   border-radius: 10px;
   box-shadow: 0 2px 14px rgba(90, 140, 210, 0.10);
   padding: 12px 16px;
   margin-top: 3px;
-  border: 1.5px solid #d1e2f2;
-
+  border: 1.5px solid #b0cdef;
 }
 
 .filterRow {
@@ -58,14 +59,17 @@
 
 .filterSelect {
   width: 150px;
+  font-weight: bold;
 }
 
 .filterOperator {
   width: 80px;
+  font-weight: bold;
 }
 
 .filterInput {
   width: 180px;
+  font-weight: bold;
 }
 
 .filterBtn {
@@ -82,6 +86,8 @@
   /* 小字体 */
   background: #fafdff;
   margin-top: 5px;
+  table-layout: fixed;      /* 加这个 */
+    border-collapse: collapse; /* 建议从 separate 改成 collapse */
 }
 
 .queryResultTable th,
@@ -89,18 +95,19 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-  padding: 5px 7px;
-  font-size: 12px;
+  padding: 2px 2px;
+  font-size: 14px;
   text-align: center;
   border-bottom: 1px solid #eef3fc;
   vertical-align: middle;
+  font-weight: bold;
 }
 
 .queryResultTable th {
-  background: linear-gradient(90deg, #eaf1fd 0%, #f3f7fa 100%);
-  color: #2457a7;
+  background: linear-gradient(90deg, #dce9fb 0%, #ecf3f9 100%);
+  color: #1e4f9a; /* 标题文字更深的蓝 */
   font-weight: bold;
-  border-bottom: 2px solid #c7e2fa;
+  border-bottom: 2px solid #9fc8f0;
 }
 
 .queryResultTable td {
@@ -363,9 +370,9 @@
 .customModal {
   background-color: #fff;
   border-radius: 8px;
-  padding: 20px;
+  padding: 0px;
   width: 80%;
-  height: 720px;
+  height: 95%;
   overflow-y: auto;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   animation: fadeInModal 0.3s ease-in-out;
@@ -410,6 +417,12 @@
   padding: 0px 5px !important;
   font-size: 15px !important;
   line-height: 1.2 !important;
+  width: 100%;
+}
+
+.commentCell textarea {
+  min-height: 50px;   /* 备注更高一些，按需改 */
+  resize: vertical;   /* 允许用户纵向拖动 */
 }
 
 .printOverlay {
@@ -925,4 +938,3 @@
   border-color: #bfa004;
   color: #866300;
 }
-

@@ -57,6 +57,8 @@
   border-radius: 8px;
   background: #fff7f2; /* 或浅灰，提升层次感 */
   border: 2px solid #eee; /* 可以更浅，和下面分隔线呼应 */
+  table-layout: fixed;      /* 加这个 */
+  border-collapse: collapse; /* 建议从 separate 改成 collapse */
 }
 
 .table {
@@ -66,7 +68,7 @@
   margin-bottom: 0;
   font-size: 14px;
   margin-top: 0;
-  min-width: max-content;
+  min-width: 0;
 }
 .table th {
   background: #ffd2cf;
@@ -79,6 +81,11 @@
   background: #fff7f5;
   padding: 1px 2px;
   white-space: nowrap;
+}
+.table th, .table td {
+  white-space: nowrap;        /* 你已有 */
+  overflow: hidden;           /* ★ 新增 */
+  text-overflow: ellipsis;    /* ★ 新增 */
 }
 
 .operateBtn {
@@ -129,4 +136,48 @@
 }
 .agentDropdown li:hover {
   background: #fff4e5;
+}
+
+/* th 内部容器：文字 + 右侧拖拽柄 */
+.thInner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 右侧拖拽柄：细竖线，便于抓取 */
+.colResizeHandle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+  /* 可加一条淡色分隔线作为视觉提示 */
+}
+
+/* 拖拽时的垂直参考线 */
+.dragLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 2px dashed rgba(0,0,0,0.25);
+  pointer-events: none;
+}
+
+/* 默认显示约 4 个汉字，超出省略；拉宽列后自然露出更多 */
+.truncate4 {
+  display: inline-block;
+  max-width: 4em;       /* 约 4 个字宽 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 细节：确保 detailsArea 是相对定位，dragLine 才能绝对定位 */
+.detailsArea {
+  position: relative; /* 你已有 overflow-x: auto，这里补上 position */
 }

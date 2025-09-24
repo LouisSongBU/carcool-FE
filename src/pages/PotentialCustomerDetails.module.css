@@ -21,20 +21,22 @@
   }
   
   .queryLabel {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
     min-width: 60px;
     white-space: nowrap;
+    font-weight: bold;
   }
   
   .queryInput {
     width: 150px;
     min-width: 20px;
-    font-size: 12px;
-    padding: 1px 2px;
+    font-size: 14px;
+    padding: 0px 0px;
     border-radius: 6px;
     border: 1px solid #ccead4;
     background: #fff;
+    font-weight: bold;
   }
   
   .queryBtn {
@@ -58,6 +60,7 @@
     align-items: center;
     gap: 14px;
     margin-bottom: 1px;
+    font-weight: bold;
   }
   
   .filterInput {
@@ -67,17 +70,21 @@
     border: 1px solid #ccead4;
     background: #fff;
     padding: 1px 2px;
+    font-weight: bold;
   }
 
   .filterSelect {
     border: 1px solid #ccead4;
     border-radius: 6px;
-    padding: 3px 8px;
-    font-size: 12px;
+    padding: 1px 8px;
+    font-size: 14px;
     color: #229e5f;
     background: #fff;
     outline: none;
+    font-weight: bold;
   }
+
+  
   
   .filterBtn {
     min-width: 52px;
@@ -114,11 +121,12 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
-    padding: 5px 7px;
-    font-size: 12px;
+    padding: 2px 2px;
+    font-size: 14px;
     text-align: center;
     border-bottom: 1px solid #dbf3e2;
     vertical-align: middle;
+    font-weight: bold;
   }
   
   .queryResultTable th {
@@ -284,9 +292,9 @@
   .customNewPolicy {
     background-color: #fff;
     border-radius: 8px;
-    padding: 20px;
+    padding: 0px;
     width: 80%;
-    height: 700px;
+    height: 95%;
     overflow-y: auto;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
     animation: fadeInModal 0.3s ease-in-out;

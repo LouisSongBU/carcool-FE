@@ -67,7 +67,8 @@ export const insuranceDetailsNameMap: Record<string, string> = {
     financeVerification: "财务验证",
     commercialAdjustment: "商业加减点",
     compulsoryAdjustment: "交强加减点",
-    comment:"备注"
+    comment:"备注",
+    extraFee:"加费",
     
 };
 
