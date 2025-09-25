@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import styles from "./InsuranceDetails.module.css";
 import { insuranceDetailsNameMap, insuranceDetailFieldTypeMap } from "../utils/fieldUtils";
 import { useEffect } from "react";
+import { useRef } from "react";
 import {
   addInsuranceDetail, fetchInsuranceDetails, updateInsuranceDetail, confirmIssueInsuranceDetail, fetchInsuranceHistory, uploadInsuranceImage,
   fetchInsuranceImages, deleteInsuranceImage, updateInsuranceImageRemark, uploadIdCardImage, fetchIdCardImage, fetchInsuranceChangeLogs
@@ -273,6 +274,8 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   // 记录图片原始尺寸（onLoad 时获取）
   const [imgNatural, setImgNatural] = useState<{ w: number; h: number } | null>(null);
 
+  const listScrollRef = useRef<HTMLDivElement | HTMLTableSectionElement | null>(null);
+
 
   const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
     setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
@@ -417,6 +420,33 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     }
   }, [floatingImageUrl]);
 
+  useEffect(() => {
+    if (selectedIndex == null) return;
+    scrollRowIntoView(selectedIndex, styles.queryResultTable);
+  }, [selectedIndex]);  
+
+  function getScrollParent(node: HTMLElement | null): HTMLElement {
+    let p: HTMLElement | null = node?.parentElement ?? null;
+    while (p) {
+      const oy = getComputedStyle(p).overflowY;
+      if (oy === 'auto' || oy === 'scroll') return p;
+      p = p.parentElement;
+    }
+    return (document.scrollingElement || document.documentElement) as HTMLElement;
+  }
+  
+  function scrollRowIntoView(index: number, tableClass: string) {
+    const row = document.querySelector(`.${tableClass} tr[data-index="${index}"]`) as HTMLElement | null;
+    if (!row) return;
+    const container = getScrollParent(row);
+    const containerRect = container.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const thead = container.querySelector('thead') as HTMLElement | null;
+    const headerH = thead ? thead.offsetHeight : 0;
+    const targetTop = rowRect.top - containerRect.top + container.scrollTop - headerH;
+    container.scrollTo({ top: Math.max(targetTop, 0), behavior: 'auto' }); // 想平滑用 'smooth'
+  }
+  
   const renderInput = (key: string, value: any) => {
     // —— 统一的权限判定（可编辑=超管/管理员；普通用户大多只读）——
     const canEdit = isSuperAdmin || isAdmin;
@@ -1644,7 +1674,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                 暂无查询结果
               </div>
             ) : (
-              <div style={{ maxHeight: 350, overflowY: "auto", position: "relative" }}>
+              <div style={{ position: "relative" }}>
                 {/* 拖动辅助线 */}
                 {dragLineX !== null && (
                   <div
@@ -1659,50 +1689,50 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                     }}
                   />
                 )}
-                <table className={styles.queryResultTable}>
-                  <thead>
-                    <tr>
-                      {["#", "被保险人", "身份证号码", "车牌号"].map((title, idx) => (
-                        <th key={idx} style={{ width: colWidths[idx], position: "relative" }}>
-                          {title}
-                          <div
-                            style={{
-                              position: "absolute",
-                              right: 0,
-                              top: 0,
-                              bottom: 0,
-                              width: 5,
-                              cursor: "col-resize",
-                            }}
-                            onMouseDown={(e) => handleMouseDown(e, idx)}
-                          />
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {myList.map((item, idx) => (
-                      <tr
-                        key={item.licensePlate + idx}
-                        style={{ cursor: "pointer" }}
-                        onClick={() => {
-                          setSelectedDetail(item);   // 设置详情
-                          setSelectedIndex(idx);     // 保存当前索引
-                        }}
-                        className={
-                          selectedDetail?.id === item.id
-                            ? styles.selectedRow
-                            : ""
-                        }
-                      >
-                        <td>{idx + 1}</td>
-                        <td>{item.insuredName}</td>
-                        <td>{item.insuredIdNumber}</td>
-                        <td>{item.licensePlate}</td>
+                <div className={styles.queryResultWrap} ref={listScrollRef} style={{ maxHeight: 360, overflowY: 'auto' }}>
+                  <table className={styles.queryResultTable}>
+                    <thead>
+                      <tr>
+                        {["#", "被保险人", "身份证号码", "车牌号"].map((title, idx) => (
+                          <th key={idx} style={{ width: colWidths[idx], position: "relative" }}>
+                            {title}
+                            <div
+                              style={{
+                                position: "absolute",
+                                right: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: 5,
+                                cursor: "col-resize",
+                              }}
+                              onMouseDown={(e) => handleMouseDown(e, idx)}
+                            />
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {myList.map((item, idx) => (
+                        <tr
+                          key={item.licensePlate + idx}
+                          data-index={idx}                              // ★ 标记索引，供滚动定位
+                          style={{ cursor: "pointer" }}
+                          onClick={() => {
+                            setSelectedDetail(item);                    // 设置详情
+                            setSelectedIndex(idx);                      // 保存当前索引
+                          }}
+                          className={selectedDetail?.id === item.id ? styles.selectedRow : ""}
+                        >
+                          <td>{idx + 1}</td>
+                          <td>{item.insuredName}</td>
+                          <td>{item.insuredIdNumber}</td>
+                          <td>{item.licensePlate}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
               </div>
             )
           )}
