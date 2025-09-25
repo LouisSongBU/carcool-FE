@@ -631,11 +631,37 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   // 是否日期字段
   const isDateField = dateFields.has(filterField);
 
+  // 安全 startsWith
+  const starts = (v: any, prefix: string) =>
+    typeof v === "string" && v.length > 0 && v.startsWith(prefix);
+
+  // 取“优先保单号”：商业优先，其次交强；都无则空串
+  const preferredPN = (it: any): string =>
+    (typeof it?.commercialPolicyNumber === "string" && it.commercialPolicyNumber) ||
+    (typeof it?.compulsoryPolicyNumber === "string" && it.compulsoryPolicyNumber) ||
+    "";
+
+  // 三态判断：未出单 / 已出单 / 都不属于
+  const isNotIssued = (it: any) => starts(preferredPN(it), "QL");     // QL*
+  const isNone = (it: any) => {                                  // L* 或 两者都空
+    const pn = preferredPN(it);
+    if (!pn) return true;
+    return pn.startsWith("L");
+  };
+  const isIssued = (it: any) => {                                  // 其它前缀
+    const pn = preferredPN(it);
+    if (!pn) return false;
+    if (pn.startsWith("QL")) return false;
+    if (pn.startsWith("L")) return false;
+    return true;
+  };
+
+  // 判断“优先保单号”是否以指定前缀开头
+  const preferredStarts = (it: any, prefix: string) => starts(preferredPN(it), prefix);
+
   const filterConditions = {
-    notIssued: (item: any) =>
-      item.commercialPolicyNumber.startsWith("QL"),
-    issued: (item: any) =>
-      !(item.commercialPolicyNumber.startsWith("QL") || item.commercialPolicyNumber.startsWith("L")),
+    notIssued: (item: any) => isNotIssued(item), // QL*
+    issued: (item: any) => isIssued(item),    // 非 QL* 且 非 L* 且 非空
     received: (item: any) => (item.receivedPremium ?? 0) > 0,
     notReceived: (item: any) => (item.receivedPremium ?? 0) == 0,
   };
@@ -841,12 +867,8 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       setMyList(filteredList);
 
       setHighlightedFilters({
-        issued: filteredList.some(
-          (item) => !item.commercialPolicyNumber.startsWith("QL")
-        ),
-        received: filteredList.some(
-          (item) => item.receivedPremium > 0
-        ),
+        issued: filteredList.some((it) => isIssued(it)),
+        received: filteredList.some((it) => (it.receivedPremium ?? 0) > 0),
       });
 
       return updatedFilters;
@@ -1324,12 +1346,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         className={styles.btn}
         type="button"
         onClick={handleImage}
-        disabled={!!selectedDetail?.commercialPolicyNumber?.startsWith("L")}
-        style={
-          selectedDetail?.commercialPolicyNumber?.startsWith("L")
-            ? { background: "#bbb", color: "#fff", cursor: "not-allowed", border: "1px solid #ccc" }
-            : {}
-        }
       >
         图片
       </button>
