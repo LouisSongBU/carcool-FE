@@ -43,7 +43,7 @@ export interface PotentialCustomer {
     firstFollowUpNote?: string | null;
     secondFollowUpNote?: string | null;
     insuredName?: string | null;
-insuredIdNumber?: string | null;
+    insuredIdNumber?: string | null;
 }
 
 interface FollowUpPotential {
@@ -81,9 +81,9 @@ const detailFieldOrder = [
     "policyStartDate", "engineNumber",
     "registrationOwner", "firstRegistrationDate",
     "registrationOwnerId", "insuranceCompany",
-    "insuredName","recordTime",
-    "insuredIdNumber","salesAgent",
-    "phone","hierarchyCode",
+    "insuredName", "recordTime",
+    "insuredIdNumber", "salesAgent",
+    "phone", "hierarchyCode",
     "deliveryAddress", "scheduleFollowUpDate",
     "note"
 ];
@@ -346,29 +346,29 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-          if (selectedIndex === null) return;
-      
-          if (e.key === "ArrowUp") {
-            e.preventDefault();
-            if (selectedIndex > 0) {
-              const newIndex = selectedIndex - 1;
-              setSelectedIndex(newIndex);
-              setSelectedDetail(myList[newIndex]);
+            if (selectedIndex === null) return;
+
+            if (e.key === "ArrowUp") {
+                e.preventDefault();
+                if (selectedIndex > 0) {
+                    const newIndex = selectedIndex - 1;
+                    setSelectedIndex(newIndex);
+                    setSelectedDetail(myList[newIndex]);
+                }
+            } else if (e.key === "ArrowDown") {
+                e.preventDefault();
+                if (selectedIndex < myList.length - 1) {
+                    const newIndex = selectedIndex + 1;
+                    setSelectedIndex(newIndex);
+                    setSelectedDetail(myList[newIndex]);
+                }
             }
-          } else if (e.key === "ArrowDown") {
-            e.preventDefault();
-            if (selectedIndex < myList.length - 1) {
-              const newIndex = selectedIndex + 1;
-              setSelectedIndex(newIndex);
-              setSelectedDetail(myList[newIndex]);
-            }
-          }
         };
-      
+
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-      }, [selectedIndex, myList]);
-      
+    }, [selectedIndex, myList]);
+
 
     const handleRecordDateSearch = () => {
         if (!query.recordTimeStart || !query.recordTimeEnd) {
@@ -604,7 +604,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             followUpCount: null,
             previousSignDate: null,
             insuredName: "",
-    insuredIdNumber: "",
+            insuredIdNumber: "",
         }
     }
 
@@ -704,8 +704,22 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                     const form = initInsuranceForm(detailForSubmit, userInfo, isSuperAdmin, isAdmin);
                     form.receivablePremium = calcReceivablePremium(form);
 
-                    form.applicantName = detailForSubmit.registrationOwner || "";
-                    form.applicantIdNumber = detailForSubmit.registrationOwnerId || "";
+                    // ★ 投保人/被保险人 字段自动回填（规则：被保险人优先 → 车主兜底）
+                    const pick = (first?: any, fallback?: any) => {
+                        const a = (first ?? "").toString().trim();
+                        if (a) return a;
+                        const b = (fallback ?? "").toString().trim();
+                        return b || "";
+                    };
+
+                    // 被保险人及其证件号（为空则回落到车主）
+                    form.insuredName = pick(detailForSubmit.insuredName, detailForSubmit.registrationOwner);
+                    form.insuredIdNumber = pick(detailForSubmit.insuredIdNumber, detailForSubmit.registrationOwnerId);
+
+                    // 投保人及其证件号（被保险人优先，为空则回落到车主）
+                    form.applicantName = pick(detailForSubmit.insuredName, detailForSubmit.registrationOwner);
+                    form.applicantIdNumber = pick(detailForSubmit.insuredIdNumber, detailForSubmit.registrationOwnerId);
+
 
                     setCreateForm(form);
                     setCreateModalVisible(true);
@@ -1038,18 +1052,18 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                     <tbody>
                                         {myList.map((item, idx) => (
                                             <tr
-                                            key={item.licensePlate + idx}
-                                            style={{ cursor: "pointer" }}
-                                            onClick={() => {
-                                              setSelectedDetail(item);   // 设置详情
-                                              setSelectedIndex(idx);     // 保存当前索引
-                                            }}
-                                            className={
-                                              selectedDetail?.id === item.id
-                                                ? styles.selectedRow
-                                                : ""
-                                            }
-                                          >
+                                                key={item.licensePlate + idx}
+                                                style={{ cursor: "pointer" }}
+                                                onClick={() => {
+                                                    setSelectedDetail(item);   // 设置详情
+                                                    setSelectedIndex(idx);     // 保存当前索引
+                                                }}
+                                                className={
+                                                    selectedDetail?.id === item.id
+                                                        ? styles.selectedRow
+                                                        : ""
+                                                }
+                                            >
                                                 <td>{idx + 1}</td>
                                                 <td>{item.insuredCount}</td>
                                                 <td>{item.licensePlate}</td>
@@ -1247,6 +1261,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                         { key: "registrationOwner", label: "车主" },
                                         { key: "phone", label: "电话" },
                                         { key: "scheduleFollowUpDate", label: "下次回访时间" },
+                                        { key: "policyStartDate", label: "起保日期" },
                                     ];
 
                                     // 2. 检查哪些字段为空
