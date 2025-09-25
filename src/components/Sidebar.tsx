@@ -87,11 +87,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {
     <div
       className="d-flex flex-column vh-100"
       style={{
-        width: "280px",
+        width: "160px",
         background: "#2c3e50",
         color: "white",
         boxShadow: "2px 0 8px rgba(0, 0, 0, 0.3)",
-        padding: "15px",
+        padding: "5px",
         borderRight: "2px solid #34495e",
       }}
     >
@@ -136,7 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {
                   transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
                   style={{ overflow: "hidden" }}
                 >
-                  <div className="accordion-body px-3 py-2">
+                  <div className="accordion-body px-1 py-2">
                     {section.items.filter(canAccess).map((item, idx) => (
                       <button
                         key={idx}
