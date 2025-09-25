@@ -938,3 +938,20 @@
   border-color: #bfa004;
   color: #866300;
 }
+
+.floatingStage {
+  position: fixed;      /* 脱离原布局/父容器 */
+  inset: 0;             /* 覆盖全屏 */
+  z-index: 2000;        /* 比图片管理弹窗更高一层 */
+  /* 不要写 flex 居中！ */
+}
+
+.floatingMask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.23);
+}
+
+.rndRoot {
+  position: absolute !important; /* 让 Rnd 按 x/y 定位到屏幕，而不是被居中 */
+}

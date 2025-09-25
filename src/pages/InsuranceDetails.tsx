@@ -250,6 +250,13 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   const [dragging, setDragging] = useState<{ col: number; startX: number; startWidth: number } | null>(null);
   const [dragLineX, setDragLineX] = useState<number | null>(null);
 
+  // 图片预览窗：受控位置与尺寸
+  const [imgWin, setImgWin] = useState({ x: 120, y: 120, width: 480, height: 360 });
+  const [isMaximized, setIsMaximized] = useState(false);
+  // 记录图片原始尺寸（onLoad 时获取）
+  const [imgNatural, setImgNatural] = useState<{ w: number; h: number } | null>(null);
+
+
   const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
     setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
     setDragLineX(e.clientX);
@@ -380,6 +387,17 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     }
   }, [selectedDetail]);
 
+  useEffect(() => {
+    if (floatingImageUrl) {
+      setIsMaximized(false);
+      setImgWin({
+        x: 0,
+        y: 0,
+        width: 480,   // 给个默认宽高
+        height: 360
+      });
+    }
+  }, [floatingImageUrl]);
 
   const renderInput = (key: string, value: any) => {
     // —— 统一的权限判定（可编辑=超管/管理员；普通用户大多只读）——
@@ -916,11 +934,11 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       return;
     }
     // ★ 新增：做 车牌+发动机号+车架号 的重复校验（近330天）
-  const dup = await checkDupByPlateEngineVin(editData);
-  if (dup) {
-    alert("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能新增！");
-    return;
-  }
+    const dup = await checkDupByPlateEngineVin(editData);
+    if (dup) {
+      alert("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能新增！");
+      return;
+    }
     try {
       // 拷贝一份数据，然后清除这三个字段
       const submitData = { insurancedetails: { ...editData }, username: userInfo.username || "" } as any;
@@ -963,61 +981,50 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   }
 
   // 公共：检查 近330天 内是否存在相同 车牌+发动机号+车架号 的记录
-const checkDupByPlateEngineVin = async (detail: Pick<InsuranceDetail, "licensePlate" | "engineNumber" | "vinNumber">): Promise<boolean> => {
-  const licensePlate = (detail.licensePlate || "").trim();
-  const engineNumber  = (detail.engineNumber  || "").trim();
-  const vinNumber     = (detail.vinNumber     || "").trim();
+  const checkDupByPlateEngineVin = async (detail: Pick<InsuranceDetail, "licensePlate" | "engineNumber" | "vinNumber">): Promise<boolean> => {
+    const licensePlate = (detail.licensePlate || "").trim();
+    const engineNumber = (detail.engineNumber || "").trim();
+    const vinNumber = (detail.vinNumber || "").trim();
 
-  if (!licensePlate) {
-    // 新增时你要求可空，但要做唯一性就至少得有车牌；这里仅做提示，不拦
-    // 也可选择直接 return false 跳过校验
-    return false;
-  }
-  try {
-    const res = await checkDuplicateLicensePlate(licensePlate, engineNumber, vinNumber);
-    return !!res?.data; // true=存在重复
-  } catch (err: any) {
-    alert("校验重复失败：" + (err?.message || "未知错误"));
-    // 出错时稳妥起见认为有风险，返回 true 来阻止写入；如需放行，改为 return false
-    return true;
-  }
-};
+    if (!licensePlate) {
+      // 新增时你要求可空，但要做唯一性就至少得有车牌；这里仅做提示，不拦
+      // 也可选择直接 return false 跳过校验
+      return false;
+    }
+    try {
+      const res = await checkDuplicateLicensePlate(licensePlate, engineNumber, vinNumber);
+      return !!res?.data; // true=存在重复
+    } catch (err: any) {
+      alert("校验重复失败：" + (err?.message || "未知错误"));
+      // 出错时稳妥起见认为有风险，返回 true 来阻止写入；如需放行，改为 return false
+      return true;
+    }
+  };
 
 
   const handleConfirmIssue = async (detail: InsuranceDetail): Promise<boolean> => {
-     // ① 必填字段校验
-  const requiredFields: (keyof InsuranceDetail)[] = [
-    "applicantName",
-    "applicantIdNumber",
-    "insuredName",
-    "insuredIdNumber",
-    "registrationOwner",
-    "registrationOwnerId",
-    "licensePlate",
-    "vehicleModel",
-    "firstRegistrationDate",
-    "engineNumber",
-    "vinNumber",
-    "approvedSeats",
-    "phone"
-  ];
+    // ① 必填字段校验
+    const requiredFields: (keyof InsuranceDetail)[] = [
+      "applicantName",
+      "applicantIdNumber",
+      "insuredName",
+      "insuredIdNumber",
+      "registrationOwner",
+      "registrationOwnerId",
+      "licensePlate",
+      "vehicleModel",
+      "firstRegistrationDate",
+      "engineNumber",
+      "vinNumber",
+      "approvedSeats",
+      "phone"
+    ];
 
-  for (const field of requiredFields) {
-    if (!detail[field] || String(detail[field]).trim() === "") {
-      alert(`字段「${insuranceDetailsNameMap[field] || field}」不能为空！`);
-      return false;
-    }
-  }
-    // ① 校验车牌号是否重复
-    try {
-      const dup = await checkDupByPlateEngineVin(detail);
-      if (dup === true) {
-        alert("该车牌号已存在于近1年的保单中，不能重复出单！请修改");
+    for (const field of requiredFields) {
+      if (!detail[field] || String(detail[field]).trim() === "") {
+        alert(`字段「${insuranceDetailsNameMap[field] || field}」不能为空！`);
         return false;
       }
-    } catch (err: any) {
-      alert("校验车牌号失败：" + (err.message || "未知错误"));
-      return false;
     }
 
     try {
@@ -2380,64 +2387,94 @@ const checkDupByPlateEngineVin = async (detail: Pick<InsuranceDetail, "licensePl
               )}
 
               {floatingImageUrl && (
-                <Rnd
-                  default={{ x: 120, y: 120, width: 480, height: 360 }}
-                  bounds="window"
-                  dragHandleClassName="drag-handle"   // 只允许拖动标题栏
-                  cancel="img, .no-drag"               // 在图片/标记 no-drag 的区域不触发拖动
-                  style={{
-                    border: "1px solid #ccc",
-                    background: "#fff",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-                    zIndex: 9999,
-                    borderRadius: 8,
-                    overflow: "hidden",
-                  }}
-                >
-                  {/* 标题栏：作为拖拽手柄 */}
-                  <div
-                    className="drag-handle"
+                <div className={styles.floatingStage}>
+                  {/* 自己的遮罩：不会居中子元素 */}
+                  <div className={styles.floatingMask} onClick={() => setFloatingImageUrl(null)} />
+
+                  <Rnd
+                    className={styles.rndRoot}
+                    bounds="window"
+                    position={{ x: imgWin.x, y: imgWin.y }}
+                    size={{ width: imgWin.width, height: imgWin.height }}
+                    onDragStop={(_e, d) => setImgWin(w => ({ ...w, x: d.x, y: d.y }))}
+                    onResizeStop={(_e, _dir, ref, _delta, pos) => {
+                      setImgWin({ x: pos.x, y: pos.y, width: ref.offsetWidth, height: ref.offsetHeight });
+                      setIsMaximized(false);
+                    }}
+                    dragHandleClassName="drag-handle"
+                    cancel="img, .no-drag"
                     style={{
-                      background: "#2d4ca4",
-                      color: "#fff",
-                      padding: "6px 10px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      cursor: "move",
+                      border: "1px solid #ccc",
+                      background: "#fff",
+                      borderRadius: 8,
+                      overflow: "hidden",
+                      zIndex: 2001,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.2)"
                     }}
                   >
-                    <span>图片预览</span>
-                    <button
-                      onClick={() => setFloatingImageUrl(null)}
-                      style={{
-                        border: "none",
-                        background: "transparent",
-                        color: "#fff",
-                        fontSize: 16,
-                        cursor: "pointer",
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
+                    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%" }}>
+                      <div
+                        className="drag-handle"
+                        style={{
+                          flex: "0 0 36px",
+                          background: "#2d4ca4",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "6px 10px",
+                          cursor: "move"
+                        }}
+                      >
+                        <span>图片预览</span>
+                        <div className="no-drag" style={{ display: "flex", gap: 8 }}>
+                          <button
+                            onClick={() => {
+                              setImgWin({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight });
+                              setIsMaximized(true);
+                            }}
+                            title="最大化"
+                            style={{ border: "none", background: "transparent", color: "#fff", fontSize: 14, cursor: "pointer" }}
+                          >⬜</button>
+                          
+                          <button
+                            onClick={() => {
+                              let w = 800, h = 600;
+                              if (imgNatural) {
+                                w = imgNatural.w; h = imgNatural.h;
+                                const scale = Math.min(window.innerWidth / w, window.innerHeight / h, 1);
+                                w = Math.max(360, Math.floor(w * scale));
+                                h = Math.max(240, Math.floor(h * scale));
+                              }
+                              setImgWin({ x: 0, y: 0, width: w, height: h });
+                              setIsMaximized(false);
+                            }}
+                            title="实际大小"
+                            style={{ border: "none", background: "transparent", color: "#fff", fontSize: 14, cursor: "pointer" }}
+                          >↔</button>
+                          <button
+                            onClick={() => setFloatingImageUrl(null)}
+                            title="关闭"
+                            style={{ border: "none", background: "transparent", color: "#fff", fontSize: 16, cursor: "pointer" }}
+                          >×</button>
+                        </div>
+                      </div>
 
-                  {/* 图片区域：不触发拖拽 */}
-                  <div style={{ width: "100%", height: "100%", background: "#000" }}>
-                    <img
-                      src={floatingImageUrl || ""}
-                      alt="预览"
-                      className="no-drag"
-                      style={{
-                        maxWidth: "100%",
-                        maxHeight: "100%",
-                        objectFit: "contain",
-                        display: "block",
-                        margin: "auto",
-                      }}
-                    />
-                  </div>
-                </Rnd>
+                      <div style={{ flex: "1 1 auto", minHeight: 0 }}>
+                        <img
+                          src={floatingImageUrl || ""}
+                          alt="预览"
+                          className="no-drag"
+                          onLoad={(e) => {
+                            const el = e.currentTarget;
+                            setImgNatural({ w: el.naturalWidth, h: el.naturalHeight });
+                          }}
+                          style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "left top", display: "block" }}
+                        />
+                      </div>
+                    </div>
+                  </Rnd>
+                </div>
               )}
 
             </div>
