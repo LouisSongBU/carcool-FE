@@ -446,27 +446,42 @@ export function renderInsuranceInput(
         }
         onPaste={(e) => {
           e.preventDefault();
-          const text = e.clipboardData.getData("text").trim();
-          let norm = text.replace(/[./\s]/g, "-");
-          if (/^\d{8}$/.test(norm)) {
-            norm = norm.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
+          const raw = (e.clipboardData?.getData("text") || "").trim();
+          if (!raw) return;
+        
+          // 统一分隔符为 "-"
+          let s = raw.replace(/[./\s]+/g, "-");
+        
+          // 纯8位数字：YYYYMMDD -> YYYY-MM-DD
+          if (/^\d{8}$/.test(s)) {
+            s = s.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
           }
-          let parsed: string | null = null;
-          if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(norm)) {
-            const d = new Date(norm);
-            if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
+        
+          let Y: string | undefined, M: string | undefined, D: string | undefined;
+        
+          // 1) YYYY-M-D
+          let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+          if (m) {
+            Y = m[1]; M = m[2]; D = m[3];
+          } else {
+            // 2) DD-M-YYYY
+            m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+            if (m) { Y = m[3]; M = m[2]; D = m[1]; }
           }
-          if (!parsed && /^\d{1,2}-\d{1,2}-\d{4}$/.test(norm)) {
-            const [day, month, year] = norm.split("-");
-            const d = new Date(`${year}-${month}-${day}`);
-            if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
-          }
-          if (parsed) {
-            setForm((prev) => (prev ? { ...prev, [key]: parsed } : prev));
+        
+          const pad2 = (n: any) => String(Number(n)).padStart(2, "0");
+          const inRange = (y: any, m: any, d: any) => {
+            const mm = Number(m), dd = Number(d);
+            return mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31;
+          };
+        
+          if (Y && M && D && inRange(Y, M, D)) {
+            const parsed = `${Y}-${pad2(M)}-${pad2(D)}`;
+            setForm(prev => (prev ? { ...prev, [key]: parsed } : prev)); // 直接存 YYYY-MM-DD 纯字符串
           } else {
             alert("日期格式应为 YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD / YYYYMMDD / DD-MM-YYYY");
           }
-        }}
+        }}        
       />
     );
   }
