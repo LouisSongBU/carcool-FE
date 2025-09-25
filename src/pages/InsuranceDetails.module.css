@@ -313,8 +313,9 @@
 .customTable td {
   width: 37%;
   /* 字段值占用表格的剩余空间 */
-  overflow: hidden;
+  overflow: visible;
   text-overflow: ellipsis;
+  position: relative;
   /* 超长内容显示省略号 */
 }
 
@@ -411,6 +412,8 @@
   background: #f5faff;
   color: #377ad6; 
 }
+
+.editTable td { overflow: visible; }
 
 .editInput {
   height: 18px !important;

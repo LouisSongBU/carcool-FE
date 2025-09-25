@@ -8,7 +8,7 @@ import {
   , saveInsuranceChangeLogs, updateInsuranceComment, checkDuplicateLicensePlate, deleteInsuranceDetail
 } from "../api/insuranceDetails.ts";
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
-import { renderInsuranceInput, calcReceivablePremium } from "../utils/insuranceFormUtils";
+import { renderInsuranceInput, calcReceivablePremium, InsuranceCompanySelect, AgentSelectInput } from "../utils/insuranceFormUtils";
 import { Rnd } from "react-rnd";
 
 type InsuranceDetailsProps = {
@@ -136,6 +136,23 @@ if (isNormalUser) {
     "isSettlement",
     "financeVerification"
   ]; // 管理员可见并能改 commercialAdjustment / compulsoryAdjustment
+}
+
+// ★ 新增：把人员字段统一清洗成字符串，避免 [object Object]
+function normalizePersonFields<T extends { salesManager?: any; hierarchyCode?: any }>(data: T): T {
+  const mgr = data.salesManager;
+  const mgrName =
+    typeof mgr === "string"
+      ? mgr
+      : (mgr?.displayName || mgr?.name || mgr?.username || mgr?.realName || "");
+
+  const code = data.hierarchyCode;
+  const codeStr =
+    typeof code === "string" || typeof code === "number"
+      ? String(code)
+      : (code?.code || code?.value || "");
+
+  return { ...data, salesManager: mgrName || "", hierarchyCode: codeStr || "" };
 }
 
 // === 2. 组件主体 ===
@@ -380,12 +397,13 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
   useEffect(() => {
     if (selectedDetail) {
-      // 用浅拷贝即可；如果你有嵌套对象再考虑深拷贝
-      setEditData({ ...selectedDetail });
+      // ★ 新增：进入编辑态前统一把人员字段转成字符串
+      setEditData(normalizePersonFields({ ...selectedDetail }));
     } else {
       setEditData(null);
     }
   }, [selectedDetail]);
+
 
   useEffect(() => {
     if (floatingImageUrl) {
@@ -442,24 +460,65 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       );
     }
 
-    // 2) 业务员：普通用户固定为自己，只读；管理员/超管可输入并从 userList 选择（示范用最简单输入框）
+    // 2) 业务员：管理员/超管可下拉选择；普通用户固定为自己只读
     if (key === "salesAgent") {
-      const isFieldEditable = isSuperAdmin || isAdmin;
+      if (isNormalUser) {
+        const displayName = (userInfo?.displayName ?? currentUserName ?? "") as string;
+        return (
+          <input
+            type="text"
+            className={`${styles.editInput} form-control`}
+            value={value ?? displayName}
+            readOnly
+            disabled
+          />
+        );
+      }
+
+      // 管理员/超管：可从 userList 下拉选择；选中后自动回填主管/层级码
       return (
-        <input
-          type="text"
-          className={`${styles.editInput} form-control`}
-          value={value ?? (isNormalUser ? currentUserName : "")}
-          disabled={!isFieldEditable && isNormalUser} // 普通用户固定自己，不允许改
-          readOnly={!isFieldEditable && isNormalUser}
-          onChange={(e) => {
-            if (isFieldEditable) {
-              const v = e.target.value;
-              safeUpdate(prev => ({ ...prev, salesAgent: v }));
+        <AgentSelectInput
+          value={value ?? ""}
+          userList={userList}
+          onPick={(picked, typed) => {
+            if (picked) {
+              const mgrRaw = (picked as any).manager ?? "";
+              const mgrName =
+                typeof mgrRaw === "string"
+                  ? mgrRaw
+                  : (mgrRaw?.displayName || mgrRaw?.name || mgrRaw?.username || "");
+
+              const codeRaw = (picked as any).hierarchyCode ?? "";
+              const codeStr =
+                typeof codeRaw === "string" || typeof codeRaw === "number"
+                  ? String(codeRaw)
+                  : (codeRaw?.code || codeRaw?.value || "");
+
+              safeUpdate(prev => ({
+                ...prev,
+                salesAgent: picked.displayName,
+                salesManager: mgrName || prev.salesManager || "",
+                hierarchyCode: codeStr || prev.hierarchyCode || "",
+              }));
+            } else {
+              // 允许手输（若组件配置允许）：仅先写入 salesAgent，保存时会强校验
+              safeUpdate(prev => ({ ...prev, salesAgent: typed }));
             }
           }}
-          placeholder={isFieldEditable ? "输入并选择业务员" : ""}
-          list="agent-list"
+        />
+
+      );
+    }
+
+    // 2.5) 保险公司：使用可输入即下拉的 InsuranceCompanySelect
+    if (key === "insuranceCompany") {
+      return (
+        <InsuranceCompanySelect
+          companies={insuranceCompanies}
+          value={value ?? ""}
+          onChange={(val: string) => {
+            safeUpdate(prev => ({ ...prev, insuranceCompany: val }));
+          }}
         />
       );
     }
@@ -566,8 +625,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       { isSuperAdmin, isAdmin, userList }
     );
   };
-
-
 
 
   // === 4. 业务逻辑区（派生变量/条件函数等） ===
@@ -801,6 +858,32 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     if (!editData) return;
     const dataToSave = normalizeEditData(editData);
 
+    // ★ 新增：业务员必须从下拉列表中选择，且主管/层级码一并回填为字符串
+    const pickedAgent = userList.find(u => u.displayName === dataToSave.salesAgent);
+    if (!pickedAgent) {
+      alert("请选择下拉列表中的业务员！");
+      return;
+    }
+    const mgrRaw = (pickedAgent as any).manager ?? "";
+    const mgrName =
+      typeof mgrRaw === "string"
+        ? mgrRaw
+        : (mgrRaw?.displayName || mgrRaw?.name || mgrRaw?.username || "");
+
+    const codeRaw = (pickedAgent as any).hierarchyCode ?? "";
+    const codeStr =
+      typeof codeRaw === "string" || typeof codeRaw === "number"
+        ? String(codeRaw)
+        : (codeRaw?.code || codeRaw?.value || "");
+
+    // 回填经清洗后的值
+    dataToSave.salesAgent = pickedAgent.displayName;
+    dataToSave.salesManager = mgrName || "";
+    dataToSave.hierarchyCode = codeStr || "";
+
+    // ★ 兜底：再整体跑一次统一清洗，防止其它路径也塞进了对象
+    const finalDataToSave = normalizePersonFields(dataToSave);
+
     // 1. 校验商业保费必须有保单号
     if ((editData.commercialPremium != null && Number(editData.commercialPremium) !== 0)
       && (!editData.commercialPolicyNumber || editData.commercialPolicyNumber === "")) {
@@ -825,7 +908,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       return;
     }
     try {
-      const updateRes = await updateInsuranceDetail(editData);
+      const updateRes = await updateInsuranceDetail(finalDataToSave);
       const updated = updateRes.data; // 假设后端返回最新对象
 
       // 1. 列表移除旧项，把最新的插到第一位
@@ -933,6 +1016,32 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       alert("请选择下拉列表中的保险公司！");
       return;
     }
+    // ★ 新增：新增时也强校验业务员，并回填主管/层级码为字符串
+    const pickedAgent = userList.find(u => u.displayName === editData.salesAgent);
+    if (!pickedAgent) {
+      alert("请选择下拉列表中的业务员！");
+      return;
+    }
+    const mgrRaw = (pickedAgent as any).manager ?? "";
+    const mgrName =
+      typeof mgrRaw === "string"
+        ? mgrRaw
+        : (mgrRaw?.displayName || mgrRaw?.name || mgrRaw?.username || "");
+
+    const codeRaw = (pickedAgent as any).hierarchyCode ?? "";
+    const codeStr =
+      typeof codeRaw === "string" || typeof codeRaw === "number"
+        ? String(codeRaw)
+        : (codeRaw?.code || codeRaw?.value || "");
+
+    // 直接把 editData 修正（你后面会拷贝它）
+    editData.salesAgent = pickedAgent.displayName;
+    editData.salesManager = mgrName || "";
+    editData.hierarchyCode = codeStr || "";
+
+    // ★ 兜底：统一清洗一次
+    const finalEditData = normalizePersonFields(editData);
+
     // ★ 新增：做 车牌+发动机号+车架号 的重复校验（近330天）
     const dup = await checkDupByPlateEngineVin(editData);
     if (dup) {
@@ -941,7 +1050,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     }
     try {
       // 拷贝一份数据，然后清除这三个字段
-      const submitData = { insurancedetails: { ...editData }, username: userInfo.username || "" } as any;
+      const submitData = { insurancedetails: { ...finalEditData }, username: userInfo.username || "" } as any;
       if (!isSuperAdmin) {
         submitData.insurancedetails.salesAgent = currentUserName;
       }
@@ -2436,7 +2545,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                             title="最大化"
                             style={{ border: "none", background: "transparent", color: "#fff", fontSize: 14, cursor: "pointer" }}
                           >⬜</button>
-                          
+
                           <button
                             onClick={() => {
                               let w = 800, h = 600;

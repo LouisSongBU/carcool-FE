@@ -112,7 +112,7 @@ export const InsuranceCompanySelect: React.FC<InsuranceCompanySelectProps> = ({
   );
 
   return (
-    <div style={{ position: "relative", width: 220 }}>
+    <div style={{ position: "relative", width: 270 }}>
       <input
         type="text"
         className={`${styles.editInput} form-control`}
@@ -121,12 +121,29 @@ export const InsuranceCompanySelect: React.FC<InsuranceCompanySelectProps> = ({
         autoComplete="off"
         onFocus={() => setDropdownOpen(true)}
         onChange={(e) => {
-          setInput(e.target.value);
-          onChange("");
-          setDropdownOpen(!!e.target.value);
+          const val = e.target.value;
+          setInput(val);                   // 仅更新本地输入
+          setDropdownOpen(!!val);
         }}
         onBlur={() => setTimeout(() => setDropdownOpen(false), 120)}
       />
+
+      {input && (
+        <button
+          type="button"
+          className={styles.clearBtn}
+          onMouseDown={(e) => e.preventDefault()} // 防止 blur 关掉下拉
+          onClick={() => {
+            setInput("");
+            onChange("");                   // 只有点清除时，才同步把外部值清空
+            setDropdownOpen(false);
+          }}
+          tabIndex={-1}
+        >
+          ×
+        </button>
+      )}
+
       {dropdownOpen && (
         <ul className={`${styles.agentDropdown} dropdown-menu show`} style={{ width: "100%" }}>
           {matched.length === 0 ? (
@@ -418,41 +435,41 @@ export function renderInsuranceInput(
 
 
   // 日期/时间  
-if (key.endsWith("Date")) {
-  return (
-    <input
-      type="date"
-      className={`${styles.editInput} form-control`}
-      value={value ? String(value).slice(0, 10) : ""}
-      onChange={(e) =>
-        setForm((prev) => (prev ? { ...prev, [key]: e.target.value } : prev))
-      }
-      onPaste={(e) => {
-        e.preventDefault();
-        const text = e.clipboardData.getData("text").trim();
-        let norm = text.replace(/[./\s]/g, "-");
-        if (/^\d{8}$/.test(norm)) {
-          norm = norm.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
+  if (key.endsWith("Date")) {
+    return (
+      <input
+        type="date"
+        className={`${styles.editInput} form-control`}
+        value={value ? String(value).slice(0, 10) : ""}
+        onChange={(e) =>
+          setForm((prev) => (prev ? { ...prev, [key]: e.target.value } : prev))
         }
-        let parsed: string | null = null;
-        if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(norm)) {
-          const d = new Date(norm);
-          if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
-        }
-        if (!parsed && /^\d{1,2}-\d{1,2}-\d{4}$/.test(norm)) {
-          const [day, month, year] = norm.split("-");
-          const d = new Date(`${year}-${month}-${day}`);
-          if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
-        }
-        if (parsed) {
-          setForm((prev) => (prev ? { ...prev, [key]: parsed } : prev));
-        } else {
-          alert("日期格式应为 YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD / YYYYMMDD / DD-MM-YYYY");
-        }
-      }}
-    />
-  );
-}
+        onPaste={(e) => {
+          e.preventDefault();
+          const text = e.clipboardData.getData("text").trim();
+          let norm = text.replace(/[./\s]/g, "-");
+          if (/^\d{8}$/.test(norm)) {
+            norm = norm.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
+          }
+          let parsed: string | null = null;
+          if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(norm)) {
+            const d = new Date(norm);
+            if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
+          }
+          if (!parsed && /^\d{1,2}-\d{1,2}-\d{4}$/.test(norm)) {
+            const [day, month, year] = norm.split("-");
+            const d = new Date(`${year}-${month}-${day}`);
+            if (!isNaN(d.getTime())) parsed = d.toISOString().slice(0, 10);
+          }
+          if (parsed) {
+            setForm((prev) => (prev ? { ...prev, [key]: parsed } : prev));
+          } else {
+            alert("日期格式应为 YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD / YYYYMMDD / DD-MM-YYYY");
+          }
+        }}
+      />
+    );
+  }
 
 
   if (key.endsWith("Time")) {
