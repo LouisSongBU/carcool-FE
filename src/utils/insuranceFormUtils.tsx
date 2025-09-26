@@ -112,7 +112,7 @@ export const InsuranceCompanySelect: React.FC<InsuranceCompanySelectProps> = ({
   );
 
   return (
-    <div style={{ position: "relative", width: 270 }}>
+    <div style={{ position: "relative", width: "100%" }}>
       <input
         type="text"
         className={`${styles.editInput} form-control`}
@@ -127,22 +127,6 @@ export const InsuranceCompanySelect: React.FC<InsuranceCompanySelectProps> = ({
         }}
         onBlur={() => setTimeout(() => setDropdownOpen(false), 120)}
       />
-
-      {input && (
-        <button
-          type="button"
-          className={styles.clearBtn}
-          onMouseDown={(e) => e.preventDefault()} // 防止 blur 关掉下拉
-          onClick={() => {
-            setInput("");
-            onChange("");                   // 只有点清除时，才同步把外部值清空
-            setDropdownOpen(false);
-          }}
-          tabIndex={-1}
-        >
-          ×
-        </button>
-      )}
 
       {dropdownOpen && (
         <ul className={`${styles.agentDropdown} dropdown-menu show`} style={{ width: "100%" }}>
@@ -196,7 +180,7 @@ export const AgentSelectInput: React.FC<{
   }, [text, userList]);
 
   return (
-    <div style={{ position: "relative", width: 220 }}>
+    <div style={{ position: "relative", width: "100%" }}>
       <input
         type="text"
         className={`${styles.editInput} form-control`}
@@ -212,20 +196,6 @@ export const AgentSelectInput: React.FC<{
         }}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
       />
-      {text && (
-        <button
-          type="button"
-          className={styles.clearBtn}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            setText("");
-            onPick(null, "");
-          }}
-          tabIndex={-1}
-        >
-          ×
-        </button>
-      )}
       {open && (
         <ul className={styles.agentDropdown} style={{ zIndex: 20 }}>
           {matched.length === 0 ? (

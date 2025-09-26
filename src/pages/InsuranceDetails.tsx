@@ -476,16 +476,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
               }
             }}
           />
-          {canEditPolicyNumber && (
-            <button
-              type="button"
-              className={styles.clearBtn}
-              onClick={() => safeUpdate(prev => ({ ...prev, [key]: null }))}
-              tabIndex={-1}
-            >
-              清空
-            </button>
-          )}
         </div>
       );
     }
@@ -811,7 +801,9 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         signingDateEnd,
         policyStartDateStart,
         policyStartDateEnd,
+        // 兼容老字段，但后端优先用 policyNumber：
         commercialPolicyNumber,
+        policyNumber: commercialPolicyNumber?.trim() || "",
         mobileOrPhone,
         salesAgent
       });
@@ -1474,7 +1466,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                   value={query.commercialPolicyNumber}
                   onChange={handleInputChange}
                   className={`form-control form-control-sm ${styles.queryInput}`}
-                  placeholder="请输入保单号码"
+                  placeholder="请输入商业/交强保单号码"
                 />
               </div>
               <div className={styles.queryRow}>

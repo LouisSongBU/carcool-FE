@@ -1473,10 +1473,10 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                         e.preventDefault();
                                                         const text = e.clipboardData.getData("text").trim();
 
-                                                        // 统一分隔符：把 / . 空格 全换成 -
+                                                        // 统一分隔符
                                                         let norm = text.replace(/[./\s]/g, "-");
 
-                                                        // 如果是纯 8 位数字 → 转 YYYY-MM-DD
+                                                        // 纯8位数字 -> YYYY-MM-DD
                                                         if (/^\d{8}$/.test(norm)) {
                                                             norm = norm.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
                                                         }
@@ -1485,19 +1485,34 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
 
                                                         // 情况1：YYYY-M-D / YYYY-MM-DD
                                                         if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(norm)) {
-                                                            const [y, m, d] = norm.split("-");
-                                                            const date = new Date(Number(y), Number(m) - 1, Number(d));
-                                                            if (!isNaN(date.getTime())) {
-                                                                parsed = date.toISOString().slice(0, 10);
+                                                            let [y, m, d] = norm.split("-");
+                                                            const yy = String(y).padStart(4, "0");
+                                                            const mm = String(Number(m)).padStart(2, "0");
+                                                            const dd = String(Number(d)).padStart(2, "0");
+
+                                                            // 校验日期合法性
+                                                            const tmp = new Date(Number(yy), Number(mm) - 1, Number(dd));
+                                                            if (!isNaN(tmp.getTime()) &&
+                                                                tmp.getFullYear() === Number(yy) &&
+                                                                tmp.getMonth() === Number(mm) - 1 &&
+                                                                tmp.getDate() === Number(dd)) {
+                                                                parsed = `${yy}-${mm}-${dd}`; // ★ 保持本地字符串，不走 UTC
                                                             }
                                                         }
 
                                                         // 情况2：D-M-YYYY / DD-MM-YYYY
                                                         if (!parsed && /^\d{1,2}-\d{1,2}-\d{4}$/.test(norm)) {
-                                                            const [d, m, y] = norm.split("-");
-                                                            const date = new Date(Number(y), Number(m) - 1, Number(d));
-                                                            if (!isNaN(date.getTime())) {
-                                                                parsed = date.toISOString().slice(0, 10);
+                                                            let [d, m, y] = norm.split("-");
+                                                            const yy = String(y).padStart(4, "0");
+                                                            const mm = String(Number(m)).padStart(2, "0");
+                                                            const dd = String(Number(d)).padStart(2, "0");
+
+                                                            const tmp = new Date(Number(yy), Number(mm) - 1, Number(dd));
+                                                            if (!isNaN(tmp.getTime()) &&
+                                                                tmp.getFullYear() === Number(yy) &&
+                                                                tmp.getMonth() === Number(mm) - 1 &&
+                                                                tmp.getDate() === Number(dd)) {
+                                                                parsed = `${yy}-${mm}-${dd}`; // ★ 同上
                                                             }
                                                         }
 
@@ -1507,6 +1522,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                             alert("日期格式应为 YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD / YYYYMMDD / DD-MM-YYYY");
                                                         }
                                                     }}
+
                                                     onChange={e =>
                                                         setEditForm(prev =>
                                                             prev ? { ...prev, [key]: e.target.value } : prev

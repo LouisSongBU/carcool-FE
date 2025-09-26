@@ -909,7 +909,7 @@
 }
 
 .policyNumberInput {
-  width: calc(100% - 56px); /* 给按钮留足空间 */
+  width: 100%; /* 给按钮留足空间 */
   min-width: 80px;
   height: 18px !important;
   padding: 0px 5px !important;
