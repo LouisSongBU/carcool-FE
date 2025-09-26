@@ -2,9 +2,9 @@ import api from "./api";
 import type { InsuranceDetail } from "../pages/InsuranceDetails";
 
 // 查询所有
-export function fetchInsuranceDetails(params: Record<string, any>) {
-  return api.get("/insurance-details/list", { params });
-}
+  export function fetchInsuranceDetails(params: Record<string, any>) {
+    return api.get("/insurance-details/list", { params });
+  }
 
 // 查询详情
 export function fetchInsuranceDetailById(id: number | string) {

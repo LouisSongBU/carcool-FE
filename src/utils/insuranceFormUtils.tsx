@@ -163,6 +163,9 @@ type SimpleUser = {
   hierarchyCode?: string | number | null;
 };
 
+const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
+const currentUserName = userInfo?.displayName || "";
+
 export const AgentSelectInput: React.FC<{
   value: string | undefined;
   userList: SimpleUser[];
@@ -369,6 +372,18 @@ export function renderInsuranceInput(
       />
     );
   }
+
+if (key === "financeVerification") {
+  return (
+    <input
+      type="text"
+      className={`${styles.editInput} form-control`}
+      value={value ?? ""}
+      readOnly
+      disabled
+    />
+  );
+}
 
   // 新增页：保单号默认只读展示（自动生成）
   if (key === "commercialPolicyNumber" || key === "compulsoryPolicyNumber") {
@@ -625,7 +640,16 @@ export function renderInsuranceInput(
             const norm = normalizeNumericText(e.target.value); // ⭐ 关键：做全角→半角
             // 允许空、允许 "12." 进行中、最多 6 位小数
             if (norm === "" || /^\d+\.$/.test(norm) || /^\d*\.?\d{0,6}$/.test(norm)) {
-              setForm((prev: any) => (prev ? { ...prev, receivedPremium: norm } : prev));
+              setForm((prev: any) => {
+                if (!prev) return prev;
+                const updated = { ...prev, receivedPremium: norm };
+                // ★ 联动：只要修改已收保费，就把财务验证人写成当前用户
+                if (prev.receivedPremium !== norm) {
+                  updated.financeVerification = currentUserName;
+                }
+                // 若你此处也需要联动其它汇总，可继续处理……
+                return updated;
+              });
             }
           }}
           onBlur={(e) => {

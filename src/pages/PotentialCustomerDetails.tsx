@@ -1702,7 +1702,27 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                     e.preventDefault();
                                     if (!createForm) return;
 
-                                    // ✅ 校验保险公司是否有效
+                                    // —— 工具：纯日期加天（不受本地时区/DST影响）——
+                                    const addDaysPlain = (dateStr: string, days: number): string => {
+                                        const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                                        if (!m) return "";
+                                        const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+                                        const dt = new Date(Date.UTC(y, mo - 1, d, 0, 0, 0));
+                                        dt.setUTCDate(dt.getUTCDate() + days);
+                                        const yy = dt.getUTCFullYear();
+                                        const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+                                        const dd = String(dt.getUTCDate()).padStart(2, "0");
+                                        return `${yy}-${mm}-${dd}`;
+                                    };
+
+                                    // 0) 起保日期必填校验（严格 YYYY-MM-DD）
+                                    const startDate = String(createForm.policyStartDate || "").slice(0, 10);
+                                    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+                                        alert("起保日期为必填项，且格式必须是 YYYY-MM-DD");
+                                        return;
+                                    }
+
+                                    // 1) 校验保险公司有效期（保留你现有逻辑）
                                     const today = getTodayDate();
                                     const validCompanies = insuranceCompanies
                                         .filter(c => {
@@ -1712,27 +1732,46 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                         })
                                         .map(c => c.insuranceCompany);
 
-                                    if (
-                                        !createForm.insuranceCompany ||
-                                        !validCompanies.includes(createForm.insuranceCompany)
-                                    ) {
+                                    if (!createForm.insuranceCompany || !validCompanies.includes(createForm.insuranceCompany)) {
                                         alert("请选择有效期内的保险公司！");
                                         return;
                                     }
 
                                     try {
-                                        // ✅ 按 InsuranceDetails.tsx 里的逻辑组装 payload
+                                        // 2) 按你原来的方式组装 payload 并去掉不该传的字段
+                                        const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
                                         const payload: any = {
                                             insurancedetails: { ...createForm },
-                                            username: userInfo.username || ""   // ⚠️ userInfo 需要你在 props 或上层取
+                                            username: userInfo.username || ""
                                         };
-
-                                        // 去掉不该传的字段（跟 InsuranceDetails.tsx 一样）
                                         delete payload.insurancedetails.id;
                                         delete payload.insurancedetails.commercialPolicyNumber;
                                         delete payload.insurancedetails.compulsoryPolicyNumber;
 
+                                        // 3) 先新增保单
                                         await addInsuranceDetail(payload);
+
+                                        // 4) 成功后，更新当前希望客户：成功投保=-1、下次回访=起保+335天
+                                        if (selectedDetail?.id != null) {
+                                            const updatedCustomer = {
+                                                ...selectedDetail,
+                                                insuredCount: -1 as number,
+                                                scheduleFollowUpDate: addDaysPlain(startDate, 335),
+                                            };
+                                            try {
+                                                const res2 = await updatePotentialCustomer(updatedCustomer);
+                                                const saved = res2.data ?? updatedCustomer;
+
+                                                // 同步 UI
+                                                setSelectedDetail(saved);
+                                                setMyList(list => list.map(i => i.id === saved.id ? saved : i));
+                                                setAllList(list => list.map(i => i.id === saved.id ? saved : i));
+                                            } catch (err: any) {
+                                                // 根据需要：这里不阻断已出单成功的流程，但提示一下
+                                                console.error(err);
+                                                alert("保单已保存，但同步更新希望客户（成功投保/下次回访）失败，请稍后在希望客户页手动修改。");
+                                            }
+                                        }
 
                                         alert("出单成功！");
                                         setCreateModalVisible(false);

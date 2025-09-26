@@ -423,7 +423,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   useEffect(() => {
     if (selectedIndex == null) return;
     scrollRowIntoView(selectedIndex, styles.queryResultTable);
-  }, [selectedIndex]);  
+  }, [selectedIndex]);
 
   function getScrollParent(node: HTMLElement | null): HTMLElement {
     let p: HTMLElement | null = node?.parentElement ?? null;
@@ -434,7 +434,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     }
     return (document.scrollingElement || document.documentElement) as HTMLElement;
   }
-  
+
   function scrollRowIntoView(index: number, tableClass: string) {
     const row = document.querySelector(`.${tableClass} tr[data-index="${index}"]`) as HTMLElement | null;
     if (!row) return;
@@ -446,7 +446,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     const targetTop = rowRect.top - containerRect.top + container.scrollTop - headerH;
     container.scrollTo({ top: Math.max(targetTop, 0), behavior: 'auto' }); // 想平滑用 'smooth'
   }
-  
+
   const renderInput = (key: string, value: any) => {
     // —— 统一的权限判定（可编辑=超管/管理员；普通用户大多只读）——
     const canEdit = isSuperAdmin || isAdmin;
@@ -948,8 +948,26 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     // 校验保险公司
     const validCompanies = insuranceCompanies.map(c => c.insuranceCompany);
     if (!editData.insuranceCompany || !validCompanies.includes(editData.insuranceCompany)) {
-      alert("请选择下拉列表中的保险公司！");
+      alert("请选择下拉列表中的保险公司！");  
       return;
+    }
+    // === 保存前校验：已收保费 ≤ 应收保费 + 1 ===
+    {
+      const receivable = Number(editData?.receivablePremium ?? 0) || 0;
+      const received = Number(editData?.receivedPremium ?? 0) || 0;
+      const maxAllowed = receivable + 1;
+
+      if (received > maxAllowed) {
+        alert(`已收保费不能大于应收保费 + 1。应收：${receivable}，最大允许：${maxAllowed}。`);
+        return;
+      }
+    }
+    // ★ 保存前兜底：若关键字段有变更，强制写入当前操作者
+    if (
+      (selectedDetail?.receivedPremium !== editData?.receivedPremium) ||
+      (selectedDetail?.isSettlement !== editData?.isSettlement)
+    ) {
+      (finalDataToSave as any).financeVerification = currentUserName;
     }
     try {
       const updateRes = await updateInsuranceDetail(finalDataToSave);
@@ -996,51 +1014,85 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       // 记录 commercialPolicyNumber 的变动
       const isPolicyNumberChanged = (oldPolicy !== newPolicy);
 
-      // 情况1、新增
-      if (isNew && isPolicyNumberChanged) {
-        logs.push({
-          detailId: oldData?.id,
-          fieldName: "商业保单号",
-          oldValue: oldPolicy,
-          newValue: newPolicy,
-          updateUser: currentUserName,
-          updateTime: getNowDateTime(),
-        });
-      }
-      // 情况2，L变QL
-      else if (isLtoQL && isPolicyNumberChanged) {
-        logs.push({
-          detailId: oldData?.id,
-          fieldName: "商业保单号",
-          oldValue: oldPolicy,
-          newValue: newPolicy,
-          updateUser: currentUserName,
-          updateTime: getNowDateTime(),
-        });
-      }
-      // 情况3，当前L且不是L变QL，不记录任何日志
-      else if (isPureL) {
-        // 什么都不做
-      }
-      // 情况4，其他情况，对8字段分别做变动对比
-      else {
-        logFields.forEach(field => {
-          if (field === "commercialPolicyNumber") return; // 只比较其他7个字段
-          const oldValue = (oldData as any)?.[field];
-          const newValue = (newData as any)[field];
-          if (oldValue !== newValue) {
+      {
+        // —— 公共工具 —— //
+        const oldComm = String((oldData as any)?.commercialPolicyNumber || "");
+        const newComm = String((newData as any)?.commercialPolicyNumber || "");
+        const oldComp = String((oldData as any)?.compulsoryPolicyNumber || "");
+        const newComp = String((newData as any)?.compulsoryPolicyNumber || "");
+
+        const isL = (s: string) => typeof s === "string" && s.startsWith("L");
+        const isQL = (s: string) => typeof s === "string" && s.startsWith("QL");
+
+        const oldFV = (oldData as any)?.financeVerification ?? "";
+        const newFV = (newData as any)?.financeVerification ?? "";
+
+        let financeLogPushed = false; // 避免交强+商业都走 L→L 时重复记“财务验证”
+
+        // 处理单个保单号的变更：除 L→L 外都记日志；L→L 不记号，但补“财务验证”（只补一次）
+        const handlePolicyChange = (label: "商业保单号" | "交强保单号", oldNum: string, newNum: string) => {
+          const changed = oldNum !== newNum;
+          const oldIsL = isL(oldNum);
+          const newIsL = isL(newNum);
+          const isLtoQL = oldIsL && isQL(newNum);
+          const isPureL = newIsL && !isLtoQL; // 当前是 L 且不是 L→QL
+
+          if (changed && !(oldIsL && newIsL)) {
+            // ✅ 不是 L→L：记录该保单号的变更
             logs.push({
               detailId: oldData?.id,
-              fieldName: insuranceDetailsNameMap[field] || field,
-              oldValue: oldValue ?? "",
-              newValue: newValue ?? "",
+              fieldName: label,
+              oldValue: oldNum,
+              newValue: newNum,
               updateUser: currentUserName,
               updateTime: getNowDateTime(),
             });
+          } else if (isPureL) {
+            // L→L：不记保单号，但补“财务验证”（仅补一次）
+            if (!financeLogPushed && oldFV !== newFV) {
+              logs.push({
+                detailId: oldData?.id,
+                fieldName: "财务验证",
+                oldValue: oldFV,
+                newValue: newFV,
+                updateUser: currentUserName,
+                updateTime: getNowDateTime(),
+              });
+              financeLogPushed = true;
+            }
           }
-        });
-      }
 
+          return { isPureL };
+        };
+
+        // —— 先处理两种保单号 —— //
+        const { isPureL: isPureLComm } = handlePolicyChange("商业保单号", oldComm, newComm);
+        const { isPureL: isPureLComp } = handlePolicyChange("交强保单号", oldComp, newComp);
+
+        // 若任一为“纯 L 场景”，按原约定：不跑通用字段对比
+        const skipGeneralDiff = isPureLComm || isPureLComp;
+
+        // —— 其他字段差异：保持你原有写法（跳过两个保单号字段） —— //
+        if (!skipGeneralDiff) {
+          logFields.forEach(field => {
+            if (field === "commercialPolicyNumber" || field === "compulsoryPolicyNumber") return;
+
+            const oldValue = (oldData as any)?.[field];
+            const newValue = (newData as any)?.[field];
+
+            if (oldValue !== newValue) {
+              logs.push({
+                detailId: oldData?.id,
+                fieldName: insuranceDetailsNameMap[field] || field,
+                oldValue: oldValue ?? "",
+                newValue: newValue ?? "",
+                updateUser: currentUserName,
+                updateTime: getNowDateTime(),
+              });
+            }
+          });
+        }
+      }
 
       if (logs.length > 0) {
         await saveInsuranceChangeLogs(logs);
