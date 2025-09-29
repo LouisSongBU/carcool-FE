@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Button, Form, Table, Modal, Row, Col } from "react-bootstrap";
 import styles from './InsuranceCompanyCommission.module.css';
 import { getCompanyList, addCompany, updateCompany, deleteCompany } from "../api/InsuranceCompanyCommission.ts";
+import { exportCsv, type CsvColumn } from "../utils/exportCsv";
 
 type InsuranceCompany = {
   id?: number;
@@ -29,6 +30,16 @@ const emptyForm: InsuranceCompany = {
   validEndDate: "",
 };
 
+const exportColumns: CsvColumn<InsuranceCompany>[] = [
+  { title: "保险公司", key: "insuranceCompany" },
+  { title: "商业佣金", key: "commercialCommission" },
+  { title: "交强佣金", key: "compulsoryCommission" },
+  { title: "商业手续费", key: "commercialServiceFee" },
+  { title: "交强手续费", key: "compulsoryServiceFee" },
+  { title: "有效期起", key: "validStartDate" },
+  { title: "有效期止", key: "validEndDate" },
+];
+
 const InsuranceCompanyCommissionPage: React.FC = () => {
   const [list, setList] = useState<InsuranceCompany[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,6 +56,18 @@ const InsuranceCompanyCommissionPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadCSV = () => {
+    if (!list || list.length === 0) {
+      alert("当前没有可导出的数据哦～");
+      return;
+    }
+    exportCsv<InsuranceCompany>(list, exportColumns, {
+      filename: "保险公司提成.csv",
+      newline: "\r\n", // Excel 兼容性更好；不需要可去掉
+      // arrayJoiner: "、", // 若某列是数组且要自定义拼接符
+    });
   };
 
   useEffect(() => {
@@ -122,6 +145,14 @@ const InsuranceCompanyCommissionPage: React.FC = () => {
             </Button>
             <Button variant="success" size="sm" onClick={() => openModal()} className={styles.operateBtn}>
               新增
+            </Button>
+            <Button
+              variant="info"
+              size="sm"
+              onClick={handleDownloadCSV}
+              className={styles.operateBtn}
+            >
+              导出 CSV
             </Button>
           </Col>
         </Form>

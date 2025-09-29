@@ -62,8 +62,8 @@
   font-size: 1.25rem;
   font-weight: bold;
   color: #E66122;
-  margin-left: 24px;    /* 与按钮拉开距离 */
-  letter-spacing: 2px;
+  margin-left: 4px;    /* 与按钮拉开距离 */
+  letter-spacing: 1px;
   vertical-align: middle;
   user-select: text;
 }
