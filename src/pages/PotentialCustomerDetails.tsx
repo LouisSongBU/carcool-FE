@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styles from "./PotentialCustomerDetails.module.css";
 import type { InsuranceDetail } from './InsuranceDetails.tsx';
+import { checkDupByPlateEngineVin } from "./InsuranceDetails.tsx";
 import { getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
 import {
     fetchByRecordDate, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer, addFollowUpPotential, updateFollowUpPotential,
@@ -1738,7 +1739,19 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                     }
 
                                     try {
-                                        // 2) 按你原来的方式组装 payload 并去掉不该传的字段
+                                        // 2) 三项查重（近330天）：车牌 + 车架号(VIN) + 发动机号
+                                        // 这里复用与保险详情相同的预检逻辑
+                                        const dup = await checkDupByPlateEngineVin({
+                                            licensePlate: createForm.licensePlate,
+                                            vinNumber: createForm.vinNumber,
+                                            engineNumber: createForm.engineNumber,
+                                        });
+                                        if (dup) {
+                                            alert("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能新增！");
+                                            return;
+                                        }
+
+                                        // 3) 按你原来的方式组装 payload 并去掉不该传的字段
                                         const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
                                         const payload: any = {
                                             insurancedetails: { ...createForm },
@@ -1748,10 +1761,10 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                         delete payload.insurancedetails.commercialPolicyNumber;
                                         delete payload.insurancedetails.compulsoryPolicyNumber;
 
-                                        // 3) 先新增保单
-                                        await addInsuranceDetail(payload);
+                                        // 4) 新增保单
+                                        await addInsuranceDetail(payload); // 你原先就在这里直接保存:contentReference[oaicite:0]{index=0}
 
-                                        // 4) 成功后，更新当前希望客户：成功投保=-1、下次回访=起保+335天
+                                        // 5) 成功后，更新当前希望客户：成功投保=-1、下次回访=起保+335天
                                         if (selectedDetail?.id != null) {
                                             const updatedCustomer = {
                                                 ...selectedDetail,
@@ -1767,7 +1780,6 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                 setMyList(list => list.map(i => i.id === saved.id ? saved : i));
                                                 setAllList(list => list.map(i => i.id === saved.id ? saved : i));
                                             } catch (err: any) {
-                                                // 根据需要：这里不阻断已出单成功的流程，但提示一下
                                                 console.error(err);
                                                 alert("保单已保存，但同步更新希望客户（成功投保/下次回访）失败，请稍后在希望客户页手动修改。");
                                             }
@@ -1781,7 +1793,6 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                     }
                                 }}
                             >
-
 
                                 <table className={`table table-sm ${styles.editTable}`}>
                                     <tbody>
