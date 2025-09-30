@@ -10,7 +10,7 @@ import {
 } from "../api/insuranceDetails.ts";
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
 import { renderInsuranceInput, calcReceivablePremium, InsuranceCompanySelect, AgentSelectInput } from "../utils/insuranceFormUtils";
-import { exportCsv, CsvColumn } from "../utils/exportCsv";
+import { exportXlsx, XlsxColumn } from "../utils/exportXlsx";
 
 type InsuranceDetailsProps = {
   insuranceCompanies: any[];
@@ -1271,7 +1271,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     const uniqKeys = Array.from(new Set(keys));
 
     // 3) 构造列定义（中文表头 & 简单格式化）
-    const columns: CsvColumn<InsuranceDetail>[] = [
+    const columns: XlsxColumn<InsuranceDetail>[] = [
       { title: "#", value: (_row, i) => i + 1 },
       ...uniqKeys.map((k) => {
         const isDate =
@@ -1287,7 +1287,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
             if (isDate && typeof v === "string") return v.slice(0, 10);
             return v as any;
           }
-        } as CsvColumn<InsuranceDetail>;
+        } as XlsxColumn<InsuranceDetail>;
       })
     ];
 
@@ -1296,10 +1296,10 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     const yyyy = String(today.getFullYear());
     const mm = String(today.getMonth() + 1).padStart(2, "0");
     const dd = String(today.getDate()).padStart(2, "0");
-    const filename = `车险导出_${yyyy}-${mm}-${dd}.csv`;
+    const filename = `车险导出_${yyyy}-${mm}-${dd}`;
 
     // 5) 导出
-    exportCsv(rows, columns, {
+    exportXlsx(rows, columns, {
       filename,
       // 这里也可以统一加 formatter 进行全局格式化（例如避免小数精度）
       // formatter: (val) => typeof val === "number" ? Number(val.toFixed(2)) : val,

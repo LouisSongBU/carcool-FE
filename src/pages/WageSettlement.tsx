@@ -3,7 +3,7 @@ import styles from "./WageSettlement.module.css";
 import React, { useEffect, useState } from "react";
 import { Button, Form, Table, Row, Col } from "react-bootstrap";
 import { UserItem } from "../App";
-import { exportCsv, CsvColumn } from "../utils/exportCsv";
+import { exportXlsx, XlsxColumn } from "../utils/exportXlsx";
 
 // commissionTypes.ts
 export interface CommissionSummary {
@@ -100,7 +100,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
       return;
     }
 
-    const columns: CsvColumn<typeof summary[number]>[] = [
+    const columns: XlsxColumn<typeof summary[number]>[] = [
       { title: "业务员", key: "salesAgent" },
       { title: "起始日期", key: "startDate" },
       { title: "终止日期", key: "endDate" },
@@ -121,8 +121,8 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
     const mm = String(today.getMonth() + 1).padStart(2, "0");
     const dd = String(today.getDate()).padStart(2, "0");
 
-    exportCsv(summary, columns, {
-      filename: `工资结算_统计_${yyyy}-${mm}-${dd}.csv`,
+    exportXlsx(summary, columns, {
+      filename: `工资结算_统计_${yyyy}-${mm}-${dd}`,
       // 如果需要统一数值保留两位小数，可打开：
       // formatter: v => (typeof v === "number" ? Number(v.toFixed(2)) : v),
     });
@@ -136,7 +136,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
       return;
     }
 
-    const columns: CsvColumn<typeof rows[number]>[] = [
+    const columns: XlsxColumn<typeof rows[number]>[] = [
       { title: "业务员", key: "salesAgent" },
       { title: "商业保单号", key: "commercialPolicyNumber" },
       { title: "车牌号码", key: "licensePlate" },
@@ -159,8 +159,8 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
     const mm = String(today.getMonth() + 1).padStart(2, "0");
     const dd = String(today.getDate()).padStart(2, "0");
 
-    exportCsv(rows, columns, {
-      filename: `工资结算_明细_${yyyy}-${mm}-${dd}.csv`,
+    exportXlsx(rows, columns, {
+      filename: `工资结算_明细_${yyyy}-${mm}-${dd}`,
       // 同上，可选的全局格式化：
       // formatter: v => (typeof v === "number" ? Number(v.toFixed(2)) : v),
     });

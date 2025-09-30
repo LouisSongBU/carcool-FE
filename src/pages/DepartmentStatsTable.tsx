@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 import styles from "./DepartmentStatsTable.module.css";
 import { fetchDepartments, fetchSalesmanStats, Department, SalesmanStat } from "../api/DepartmentStatsTable";
 import { toast } from "react-toastify";
-import { makeCsvBlob, downloadBlob } from "../utils/exportCsv";
+import { exportXlsxFromMatrix } from "../utils/exportXlsx"; 
 
 // 成员类型
 interface Member {
@@ -53,36 +53,26 @@ const DepartmentStatsTable: React.FC = () => {
     return fromCent(toCent(v)); // 用“分”为单位 -> 两位小数字符串
   };
 
-  // —— 导出 CSV：严格按“当前展示格式”构造二维表 ——
-  // 结构：第一行是部门标题（CSV 无法跨列合并，只在组首列写部门名）；
-  // 第二行是子列标题；第三行开始：第一行是每个部门的“合计（总单量）”，其后是成员行。
-  const handleExportCsv = () => {
-    if (!departmentData.length) {
-      message.warning("请先点击【计算】获取数据再导出～");
-      return;
-    }
-
+  const handleExportXlsx = async () => {
+    if (!departmentData.length) { message.warning("请先计算再导出～"); return; }
+  
     const subHeaders = ["姓名", "商业保费", "交强保费", "商单", "交单"];
-
+  
     // 1) 头两行
-    const headerRow1: string[] = [];
-    const headerRow2: string[] = [];
-    departmentData.forEach((dept) => {
-      const deptTitle =
-        dept.deptCode === "OTHER" ? dept.deptName : `${dept.deptCode}-${dept.deptName}`;
-      headerRow1.push(deptTitle, "", "", "", "");
+    const headerRow1:string[] = [], headerRow2:string[] = [];
+    departmentData.forEach(dept => {
+      const title = dept.deptCode === "OTHER" ? dept.deptName : `${dept.deptCode}-${dept.deptName}`;
+      headerRow1.push(title, "", "", "", "");
       headerRow2.push(...subHeaders);
     });
-
-    // 2) 合计行（每个部门一组）
-    const totalRow: string[] = [];
-    departmentData.forEach((dept) => {
+  
+    // 2) 合计行
+    const totalRow:string[] = [];
+    departmentData.forEach(dept => {
       const members = dept.members.filter(m => m.name);
-      const t = getDeptTotal(members); // 已用“分”为单位求和，返回两位小数字符串
-      const nameWithCount =
-        t.name && t.totalPolicyCount !== undefined && t.totalPolicyCount !== ""
-          ? `${t.name}（${t.totalPolicyCount}）`
-          : "";
+      const t = getDeptTotal(members);
+      const nameWithCount = (t.name && t.totalPolicyCount !== "" && t.totalPolicyCount != null)
+        ? `${t.name}（${t.totalPolicyCount}）` : "";
       totalRow.push(
         nameWithCount,
         String(t.commercialPremium ?? ""),
@@ -91,34 +81,42 @@ const DepartmentStatsTable: React.FC = () => {
         String(t.compulsoryCount ?? "")
       );
     });
-
-    // 3) 成员行（与表格当前展示一致：姓名带（单量），金额两位小数）
-    //    注意我们用 deptsPadded 来保证各部门行数对齐
-    const rows: string[][] = [];
-    const maxRows = Math.max(...departmentData.map(d => d.members.length), 0);
-    for (let i = 0; i < maxRows; i++) {
-      const row: string[] = [];
-      departmentData.forEach((dept) => {
-        const mem = dept.members[i] || ({} as any);
-        const nameWithCount =
-          mem?.name && mem?.totalPolicyCount !== undefined && mem?.totalPolicyCount !== ""
-            ? `${mem.name}（${mem.totalPolicyCount}）`
-            : (mem?.name ?? "");
-        row.push(
+  
+    // 3) 成员行
+    const rows:string[][] = [];
+    const max = Math.max(...departmentData.map(d => d.members.length), 0);
+    for (let i = 0; i < max; i++) {
+      const r:string[] = [];
+      departmentData.forEach(dept => {
+        const m = dept.members[i] || ({} as any);
+        const nameWithCount = (m?.name && m?.totalPolicyCount !== "" && m?.totalPolicyCount != null)
+          ? `${m.name}（${m.totalPolicyCount}）` : (m?.name ?? "");
+        r.push(
           nameWithCount ?? "",
-          showMoney(mem?.commercialPremium),
-          showMoney(mem?.compulsoryPremium),
-          mem?.commercialCount != null && mem?.commercialCount !== "" ? String(mem.commercialCount) : "",
-          mem?.compulsoryCount != null && mem?.compulsoryCount !== "" ? String(mem.compulsoryCount) : ""
+          String(m?.commercialPremium ?? ""),
+          String(m?.compulsoryPremium ?? ""),
+          String(m?.commercialCount ?? ""),
+          String(m?.compulsoryCount ?? "")
         );
       });
-      rows.push(row);
+      rows.push(r);
     }
-
-    // 4) 拼成二维数组 & 下载
-    const matrix: (string | number)[][] = [headerRow1, headerRow2, totalRow, ...rows];
-    const blob = makeCsvBlob(matrix, { filename: "部门统计.csv", newline: "\r\n" }); // \r\n 对 Excel 更友好
-    downloadBlob(blob, "部门统计.csv");
+  
+    const matrix = [headerRow1, headerRow2, totalRow, ...rows];
+  
+    // 4) 合并首行部门标题（每 5 列合并一次）
+    const merges = departmentData.map((_, i) => {
+      const sCol = i * 5, eCol = sCol + 4;
+      return { s: { r: 0, c: sCol }, e: { r: 0, c: eCol } };
+    });
+  
+    const d = new Date(); const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,"0"); const dd = String(d.getDate()).padStart(2,"0");
+    await exportXlsxFromMatrix(matrix, {
+      filename: `部门统计_${yyyy}-${mm}-${dd}.xlsx`,
+      sheetName: "部门统计",
+      merges
+    });
   };
 
   // 获取上一个 21 号
@@ -347,7 +345,7 @@ const DepartmentStatsTable: React.FC = () => {
           <Col>
             <Button
               style={{ background: "#6f42c1", color: "#fff", borderColor: "#5b36a1", width: 60 }}
-              onClick={handleExportCsv}
+              onClick={handleExportXlsx}
             >
               导出
             </Button>

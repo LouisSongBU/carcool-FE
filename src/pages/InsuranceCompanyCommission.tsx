@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Button, Form, Table, Modal, Row, Col } from "react-bootstrap";
 import styles from './InsuranceCompanyCommission.module.css';
 import { getCompanyList, addCompany, updateCompany, deleteCompany } from "../api/InsuranceCompanyCommission.ts";
-import { exportCsv, type CsvColumn } from "../utils/exportCsv";
+import { exportXlsx, XlsxColumn } from "../utils/exportXlsx";
 
 type InsuranceCompany = {
   id?: number;
@@ -30,7 +30,7 @@ const emptyForm: InsuranceCompany = {
   validEndDate: "",
 };
 
-const exportColumns: CsvColumn<InsuranceCompany>[] = [
+const exportColumns: XlsxColumn<InsuranceCompany>[] = [
   { title: "保险公司", key: "insuranceCompany" },
   { title: "商业佣金", key: "commercialCommission" },
   { title: "交强佣金", key: "compulsoryCommission" },
@@ -63,10 +63,8 @@ const InsuranceCompanyCommissionPage: React.FC = () => {
       alert("当前没有可导出的数据哦～");
       return;
     }
-    exportCsv<InsuranceCompany>(list, exportColumns, {
-      filename: "保险公司提成.csv",
-      newline: "\r\n", // Excel 兼容性更好；不需要可去掉
-      // arrayJoiner: "、", // 若某列是数组且要自定义拼接符
+    exportXlsx<InsuranceCompany>(list, exportColumns, {
+      filename: "保险公司提成"
     });
   };
 
@@ -152,7 +150,7 @@ const InsuranceCompanyCommissionPage: React.FC = () => {
               onClick={handleDownloadCSV}
               className={styles.operateBtn}
             >
-              导出 CSV
+              导出
             </Button>
           </Col>
         </Form>
