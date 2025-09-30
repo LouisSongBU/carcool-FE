@@ -10,7 +10,7 @@ import {
 } from "../api/insuranceDetails.ts";
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
 import { renderInsuranceInput, calcReceivablePremium, InsuranceCompanySelect, AgentSelectInput } from "../utils/insuranceFormUtils";
-import { Rnd } from "react-rnd";
+import { exportCsv, CsvColumn } from "../utils/exportCsv";
 
 type InsuranceDetailsProps = {
   insuranceCompanies: any[];
@@ -1244,6 +1244,68 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     }
   };
 
+  const handleExport = () => {
+    // 1) 需要导出的“当前可见列表”
+    const rows = myList;
+
+    if (!rows || rows.length === 0) {
+      alert("当前没有可导出的数据～");
+      return;
+    }
+
+    // 2) 生成导出列：按 detailFieldOrder 展开，并自动避开当前角色的隐藏字段
+    const keys: string[] = [];
+    detailFieldOrder.forEach(pair => {
+      const [k1, k2] = pair;
+      if (!isSuperAdmin && hiddenFieldsForUser.includes(k1)) {
+        // 跳过
+      } else if (k1) {
+        keys.push(k1);
+      }
+      if (k2 && !(!isSuperAdmin && hiddenFieldsForUser.includes(k2))) {
+        keys.push(k2);
+      }
+    });
+
+    // 去重（以防同一key出现多次）
+    const uniqKeys = Array.from(new Set(keys));
+
+    // 3) 构造列定义（中文表头 & 简单格式化）
+    const columns: CsvColumn<InsuranceDetail>[] = [
+      { title: "#", value: (_row, i) => i + 1 },
+      ...uniqKeys.map((k) => {
+        const isDate =
+          k === "signingDate" ||
+          k === "firstRegistrationDate" ||
+          k === "inputDate" ||
+          k === "policyStartDate";
+        return {
+          title: insuranceDetailsNameMap[k as keyof typeof insuranceDetailsNameMap] || k,
+          key: k,
+          // 日期统一导出成 YYYY-MM-DD
+          format: (v) => {
+            if (isDate && typeof v === "string") return v.slice(0, 10);
+            return v as any;
+          }
+        } as CsvColumn<InsuranceDetail>;
+      })
+    ];
+
+    // 4) 文件名：带当天日期
+    const today = new Date();
+    const yyyy = String(today.getFullYear());
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    const filename = `车险导出_${yyyy}-${mm}-${dd}.csv`;
+
+    // 5) 导出
+    exportCsv(rows, columns, {
+      filename,
+      // 这里也可以统一加 formatter 进行全局格式化（例如避免小数精度）
+      // formatter: (val) => typeof val === "number" ? Number(val.toFixed(2)) : val,
+    });
+  };
+
 
   const handleCreateSave = async () => {
     if (!editData) return;
@@ -1963,6 +2025,21 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                     已收款
                   </span>
                 </label>
+                {isSuperAdmin && (
+                  <button
+                    className="btn btn-success btn-sm"
+                    style={{
+                      minWidth: "50px",
+                      padding: "2px 6px",
+                      fontSize: "12px",
+                      marginLeft: "4px"
+                    }}
+                    type="button"
+                    onClick={handleExport}
+                  >
+                    导出
+                  </button>
+                )}
               </div>
 
               {/* 详细表格 */}

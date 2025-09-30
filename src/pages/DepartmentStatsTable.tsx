@@ -24,6 +24,10 @@ interface DepartmentWithMembers {
   members: Member[];
 }
 
+const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
+const role = userInfo?.role || "normal";
+const isSuperAdmin = role === "superAdmin";
+
 const OTHERS_DEPT_CODE = "OTHER";
 const OTHERS_DEPT_NAME = "其他";
 
@@ -339,14 +343,16 @@ const DepartmentStatsTable: React.FC = () => {
         <Col>
           <Button type="primary" onClick={handleCalculate} style={{ width: 60 }}>计算</Button>
         </Col>
-        <Col>
-          <Button
-            style={{ background: "#6f42c1", color: "#fff", borderColor: "#5b36a1",  width: 60  }}
-            onClick={handleExportCsv}
-          >
-            导出
-          </Button>
-        </Col>
+        {isSuperAdmin && (
+          <Col>
+            <Button
+              style={{ background: "#6f42c1", color: "#fff", borderColor: "#5b36a1", width: 60 }}
+              onClick={handleExportCsv}
+            >
+              导出
+            </Button>
+          </Col>
+        )}
         <Col>
           <span className={styles.statsHighlight}>
             商业：{totalCommercialPremium}；交强：{totalCompulsoryPremium}

@@ -3,6 +3,7 @@ import styles from "./WageSettlement.module.css";
 import React, { useEffect, useState } from "react";
 import { Button, Form, Table, Row, Col } from "react-bootstrap";
 import { UserItem } from "../App";
+import { exportCsv, CsvColumn } from "../utils/exportCsv";
 
 // commissionTypes.ts
 export interface CommissionSummary {
@@ -71,7 +72,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
   const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
     e.preventDefault();
     setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
-  
+
     // ✅ 用 .detailsArea 作为参考系，并考虑横向滚动
     const container = (e.currentTarget as HTMLElement).closest(`.${styles.detailsArea}`) as HTMLElement | null;
     if (container) {
@@ -81,7 +82,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
       setDragLineX(e.clientX);
     }
   };
-  
+
   const handleMouseMove = (e: MouseEvent) => {
     if (!dragging) return;
     // ✅ 不要再用 queryResultTable；统一用 .detailsArea
@@ -91,7 +92,80 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
       setDragLineX(e.clientX - rect.left + container.scrollLeft);
     }
   };
-  
+
+  // 导出统计（第一个表：summary）
+  const handleExportSummary = () => {
+    if (!summary?.length) {
+      alert("当前没有可导出的统计数据～");
+      return;
+    }
+
+    const columns: CsvColumn<typeof summary[number]>[] = [
+      { title: "业务员", key: "salesAgent" },
+      { title: "起始日期", key: "startDate" },
+      { title: "终止日期", key: "endDate" },
+      { title: "商业保单数", key: "commercialPolicyCount" },
+      { title: "交强保单数", key: "compulsoryPolicyCount" },
+      { title: "商业保费", key: "commercialPremium" },
+      { title: "商业提成", key: "commercialCommission" },
+      { title: "交强保费", key: "compulsoryPremium" },
+      { title: "交强提成", key: "compulsoryCommission" },
+      { title: "应收保费", key: "receivablePremium" },
+      { title: "已收保费", key: "receivedPremium" },
+      { title: "提成金额", key: "commissionAmount" },
+      { title: "实际提成", key: "actualCommission" },
+    ];
+
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+
+    exportCsv(summary, columns, {
+      filename: `工资结算_统计_${yyyy}-${mm}-${dd}.csv`,
+      // 如果需要统一数值保留两位小数，可打开：
+      // formatter: v => (typeof v === "number" ? Number(v.toFixed(2)) : v),
+    });
+  };
+
+  // 导出详细（第二个表：details，导出当下“可见”的 filteredDetails）
+  const handleExportDetails = () => {
+    const rows = filteredDetails; // 注意：导出“当前筛选后”的明细
+    if (!rows?.length) {
+      alert("当前没有可导出的明细数据～");
+      return;
+    }
+
+    const columns: CsvColumn<typeof rows[number]>[] = [
+      { title: "业务员", key: "salesAgent" },
+      { title: "商业保单号", key: "commercialPolicyNumber" },
+      { title: "车牌号码", key: "licensePlate" },
+      { title: "被保险人", key: "insuredName" },
+      { title: "签单日期", key: "signingDate"},
+      { title: "保险公司", key: "insuranceCompany" },
+      { title: "商业保费", key: "commercialPremium" },
+      { title: "商业提成", key: "commercialCommission" },
+      { title: "交强保费", key: "compulsoryPremium" },
+      { title: "交强提成", key: "compulsoryCommission" },
+      { title: "应收保费", key: "receivablePremium" },
+      { title: "已收保费", key: "receivedPremium" },
+      { title: "提成金额", key: "commissionAmount" },
+      { title: "实际提成", key: "actualCommission" },
+      { title: "支付状态", key: "payStatus" },
+    ];
+
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+
+    exportCsv(rows, columns, {
+      filename: `工资结算_明细_${yyyy}-${mm}-${dd}.csv`,
+      // 同上，可选的全局格式化：
+      // formatter: v => (typeof v === "number" ? Number(v.toFixed(2)) : v),
+    });
+  };
+
   const handleMouseUp = (e: MouseEvent) => {
     if (!dragging) return;
     const delta = e.clientX - dragging.startX;
@@ -260,6 +334,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
               <div style={{ position: "relative" }}>
                 <Form.Control
                   size="sm"
+                  style={{ width: 140 }}
                   placeholder="输入业务员姓名"
                   value={agentInput}
                   autoComplete="off"
@@ -293,7 +368,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
             ) : (
               <Form.Control
                 size="sm"
-                style={{ width: 180 }}
+                style={{ width: 140 }}
                 value={currentUserName}
                 disabled
                 readOnly
@@ -303,7 +378,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
           <Col xs="auto">
             <Form.Control
               size="sm"
-              style={{ width: 180 }}
+              style={{ width: 140 }}
               type="date"
               placeholder="签单起"
               value={query.startDate}
@@ -313,7 +388,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
           <Col xs="auto">
             <Form.Control
               size="sm"
-              style={{ width: 180 }}
+              style={{ width: 140 }}
               type="date"
               placeholder="签单止"
               value={query.endDate}
@@ -323,7 +398,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
           <Col xs="auto">
             <Form.Select
               size="sm"
-              style={{ width: 180 }}
+              style={{ width: 140 }}
               value={query.paidStatus}
               onChange={e => setQuery(q => ({ ...q, paidStatus: e.target.value }))}
             >
@@ -335,7 +410,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
           <Col xs="auto">
             <Form.Select
               size="sm"
-              style={{ width: 180 }}
+              style={{ width: 140 }}
               value={query.settleStatus}
               onChange={e => setQuery(q => ({ ...q, settleStatus: e.target.value }))}
             >
@@ -360,6 +435,26 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
               >
                 确认支付
               </Button>
+            )}
+            {isSuperAdmin && (
+              <>
+                <Button
+                  size="sm"
+                  variant="success"
+                  className={styles.confirmPayBtn}
+                  onClick={handleExportSummary}
+                >
+                  导出统计
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline-success"
+                  className={styles.confirmPayBtn}
+                  onClick={handleExportDetails}
+                >
+                  导出详细
+                </Button>
+              </>
             )}
           </Col>
         </Form>
