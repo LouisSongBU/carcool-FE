@@ -8,7 +8,7 @@ import {
     fetchFollowUpPotentialList, fetchMineWithInsured, fetchByFollowUpDate
 } from '../api/potentialCustomer';
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
-import { addInsuranceDetail } from "../api/insuranceDetails";
+import { addInsuranceDetail, fetchInsuranceHistory } from "../api/insuranceDetails";
 import { initInsuranceForm, renderInsuranceInput, calcReceivablePremium } from "../utils/insuranceFormUtils";
 import { detailFieldOrder as insuranceDetailFieldOrder } from "./InsuranceDetails";
 import { AgentSelectInput } from "../utils/insuranceFormUtils";
@@ -196,6 +196,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     const isAdmin = role === "admin";
     const isNormalUser = role === "normal";
     const currentUserName = userInfo.displayName || "";
+    const [historyLoading, setHistoryLoading] = useState(false);
 
     const hiddenCreateFieldsForUser = isSuperAdmin
         ? [] // 超级管理员不隐藏
@@ -233,6 +234,11 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     const [dragging, setDragging] = useState<{ col: number; startX: number; startWidth: number } | null>(null);
     const [dragLineX, setDragLineX] = useState<number | null>(null);
 
+    // 组件顶部其它 useState 旁边加
+    const [createSubmitting, setCreateSubmitting] = useState(false);
+    // 同一车辆组合同时只允许一条请求在路上
+    const inflightCreateRef = React.useRef<Set<string>>(new Set());
+
     const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
         setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
         setDragLineX(e.clientX);
@@ -260,6 +266,150 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         setDragging(null);
         setDragLineX(null);
     };
+
+    // —— 小工具：纯日期加天（不受本地时区/DST影响）——
+    const addDaysPlain = (dateStr: string, days: number): string => {
+        const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return "";
+        const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+        const dt = new Date(Date.UTC(y, mo - 1, d, 0, 0, 0));
+        dt.setUTCDate(dt.getUTCDate() + days);
+        const yy = dt.getUTCFullYear();
+        const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+        const dd = String(dt.getUTCDate()).padStart(2, "0");
+        return `${yy}-${mm}-${dd}`;
+    };
+
+    // —— 工具：生成幂等 Key —— 车牌|发动机|VIN|起保日（统一大写，减少匹配误差）——
+    const makeIdemKey = (form: any, startDate: string) => {
+        const plate = String(form.licensePlate || "").trim().toUpperCase();
+        const engine = String(form.engineNumber || "").trim().toUpperCase();
+        const vin = String(form.vinNumber || "").trim().toUpperCase();
+        return [plate, engine, vin, startDate].join("|");
+    };
+
+    // ✅ 提炼后的保存函数：同步校验 → 去重/加锁 → 异步执行（带 finally）
+    const handleCreateSave = React.useCallback(
+        async (e: React.FormEvent<HTMLFormElement>) => {
+            e.preventDefault();
+            if (!createForm) return;
+
+            // —— 0) 纯同步校验（此时尚未加锁，早退安全）——
+            const startDate = String(createForm.policyStartDate || "").slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+                alert("起保日期为必填项，且格式必须是 YYYY-MM-DD");
+                return;
+            }
+
+            // 0.2 三要素必填（出单必需）
+            const plateRaw = String(createForm.licensePlate || "").trim();
+            const engineRaw = String(createForm.engineNumber || "").trim();
+            const vinRaw = String(createForm.vinNumber || "").trim();
+            if (!plateRaw || !engineRaw || !vinRaw) {
+                alert("请填写完整：车牌号、发动机号、车架号（VIN）");
+                return;
+            }
+
+            // 统一规范化，减少大小写/空格差异
+            createForm.licensePlate = plateRaw.toUpperCase();
+            createForm.engineNumber = engineRaw.toUpperCase();
+            createForm.vinNumber = vinRaw.toUpperCase();
+
+            const today = getTodayDate();
+            const validCompanies = insuranceCompanies
+                .filter(c => {
+                    const s = c.validStartDate?.slice(0, 10);
+                    const e2 = c.validEndDate?.slice(0, 10);
+                    return (!s || s <= today) && (!e2 || e2 >= today);
+                })
+                .map(c => c.insuranceCompany);
+
+            if (!createForm.insuranceCompany || !validCompanies.includes(createForm.insuranceCompany)) {
+                alert("请选择有效期内的保险公司！");
+                return;
+            }
+
+            // —— 1) 生成去重Key，并先做 in-flight 拦截（尽量早，减少并发窗口）——
+            const idemKey = makeIdemKey(createForm, startDate);
+            if (inflightCreateRef.current.has(idemKey)) {
+                alert("正在保存中，请勿重复点击…");
+                return;
+            }
+
+            // —— 2) 提交锁（防二次点击） + 标记in-flight —— 
+            if (createSubmitting) return;
+            inflightCreateRef.current.add(idemKey);
+            setCreateSubmitting(true);
+
+            try {
+                // —— 3) 异步预检：三项查重（近330天）——
+                const dup = await checkDupByPlateEngineVin({
+                    licensePlate: createForm.licensePlate,
+                    vinNumber: createForm.vinNumber,
+                    engineNumber: createForm.engineNumber,
+                });
+                if (dup) {
+                    alert("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能新增！");
+                    return; // ← 会进入 finally，安全释放
+                }
+
+                // —— 4) 组装 payload 并去除不该传的字段 —— 
+                const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
+                const payload: any = {
+                    insurancedetails: { ...createForm },
+                    username: userInfo.username || ""
+                };
+                delete payload.insurancedetails.id;
+                delete payload.insurancedetails.commercialPolicyNumber;
+                delete payload.insurancedetails.compulsoryPolicyNumber;
+
+                // —— 5) 新增保单 —— 
+                await addInsuranceDetail(payload);
+
+                // —— 6) 成功后联动更新“希望客户”：成功投保=-1、下次回访=起保+335天 —— 
+                if (selectedDetail?.id != null) {
+                    const updatedCustomer = {
+                        ...selectedDetail,
+                        insuredCount: -1 as number,
+                        scheduleFollowUpDate: addDaysPlain(startDate, 335),
+                    };
+                    try {
+                        const res2 = await updatePotentialCustomer(updatedCustomer);
+                        const saved = res2.data ?? updatedCustomer;
+
+                        // 同步 UI
+                        setSelectedDetail(saved);
+                        setMyList(list => list.map(i => (i.id === saved.id ? saved : i)));
+                        setAllList(list => list.map(i => (i.id === saved.id ? saved : i)));
+                    } catch (err) {
+                        console.error(err);
+                        alert("保单已保存，但同步更新希望客户（成功投保/下次回访）失败，请稍后在希望客户页手动修改。");
+                    }
+                }
+
+                alert("出单成功！");
+                setCreateModalVisible(false);
+            } catch (err) {
+                console.error(err);
+                alert("出单失败，请稍后再试");
+            } finally {
+                // —— 7) 统一释放锁与 in-flight 标记（无论成功/失败/早退）——
+                inflightCreateRef.current.delete(idemKey);
+                setCreateSubmitting(false);
+            }
+        },
+        [
+            createForm,
+            insuranceCompanies,
+            selectedDetail,
+            createSubmitting,
+            setCreateSubmitting,
+            setCreateModalVisible,
+            setSelectedDetail,
+            setMyList,
+            setAllList
+        ]
+    );
 
     useEffect(() => {
         if (dragging) {
@@ -609,6 +759,41 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         }
     }
 
+    const handleOpenHistory = async () => {
+        if (!selectedDetail) {
+            alert("请先在左侧列表选中一个希望客户");
+            return;
+        }
+        const licensePlate = (selectedDetail.licensePlate || "").trim();
+        const engineNumber = (selectedDetail.engineNumber || "").trim();
+
+        if (!licensePlate || !engineNumber) {
+            alert("缺少【车牌号】或【发动机号】，无法查询投保历史");
+            return;
+        }
+
+        try {
+            setHistoryLoading(true);
+            const res = await fetchInsuranceHistory({ licensePlate, engineNumber });
+            // 如果后端字段名与你弹窗展示不一致，这里做一次映射
+            const rows = (res?.data || []).map((x: any) => ({
+                licensePlate: x.licensePlate ?? licensePlate,
+                engineNumber: x.engineNumber ?? engineNumber,
+                insuredName: x.insuredName ?? x.registrationOwner ?? "",
+                insuredDate: (x.insuredDate || x.policyStartDate || "").slice(0, 10),
+                insuranceCompany: x.insuranceCompany ?? "",
+                agent: x.salesAgent ?? x.agent ?? "",
+            }));
+            setInsuranceHistory(rows);
+            setHistoryModalVisible(true);
+        } catch (err: any) {
+            console.error(err);
+            alert("查询投保历史失败：" + (err?.message || "未知错误"));
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
     // === 6. 渲染相关函数 ===
     // === 新增/编辑按钮组 ===
     const renderButtonGroup = () => (
@@ -661,23 +846,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             <button
                 className={`btn btn-outline-primary btn-sm`}
                 style={{ marginRight: 6, minWidth: 85 }}
-                onClick={() => {
-                    // 模拟后端请求
-                    setTimeout(() => {
-                        setInsuranceHistory([
-                            {
-                                licensePlate: selectedDetail?.licensePlate || "苏A12345",
-                                engineNumber: "E123456",
-                                insuredName: selectedDetail?.registrationOwner || "张三",
-                                insuredDate: "2024-07-10",
-                                insuranceCompany: "中国人保",
-                                agent: "李四"
-                            },
-                            // 可再多加几条
-                        ]);
-                        setHistoryModalVisible(true);
-                    }, 100);
-                }}
+                onClick={handleOpenHistory}
             >
                 投保历史
             </button>
@@ -1248,6 +1417,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                 {editModalVisible && editForm && (
                     <div className={styles.customModalOverlay}>
                         <div className={styles.customModal}>
+                            {historyLoading && <div style={{ color: "#888", marginBottom: 8 }}>查询中…</div>}
                             <h4 style={{ marginBottom: 0 }}>
                                 {editForm.id != null ? "编辑希望客户" : "新增希望客户"}
                             </h4>
@@ -1673,16 +1843,22 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {insuranceHistory.map((item, idx) => (
-                                        <tr key={idx}>
-                                            <td>{item.licensePlate}</td>
-                                            <td>{item.engineNumber}</td>
-                                            <td>{item.insuredName}</td>
-                                            <td>{item.insuredDate}</td>
-                                            <td>{item.insuranceCompany}</td>
-                                            <td>{item.agent}</td>
-                                        </tr>
-                                    ))}
+                                    {historyLoading ? (
+                                        <tr><td colSpan={6} style={{ textAlign: "center", color: "#999" }}>查询中…</td></tr>
+                                    ) : insuranceHistory.length === 0 ? (
+                                        <tr><td colSpan={6} style={{ textAlign: "center", color: "#999" }}>暂无历史</td></tr>
+                                    ) : (
+                                        insuranceHistory.map((item, idx) => (
+                                            <tr key={idx}>
+                                                <td>{item.licensePlate}</td>
+                                                <td>{item.engineNumber}</td>
+                                                <td>{item.insuredName}</td>
+                                                <td>{item.insuredDate}</td>
+                                                <td>{item.insuranceCompany}</td>
+                                                <td>{item.agent}</td>
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 26 }}>
@@ -1698,102 +1874,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                     <div className={styles.customModalOverlay}>
                         <div className={styles.customNewPolicy}>
                             <h4 style={{ marginBottom: 0 }}>新增保单</h4>
-                            <form
-                                onSubmit={async e => {
-                                    e.preventDefault();
-                                    if (!createForm) return;
-
-                                    // —— 工具：纯日期加天（不受本地时区/DST影响）——
-                                    const addDaysPlain = (dateStr: string, days: number): string => {
-                                        const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-                                        if (!m) return "";
-                                        const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
-                                        const dt = new Date(Date.UTC(y, mo - 1, d, 0, 0, 0));
-                                        dt.setUTCDate(dt.getUTCDate() + days);
-                                        const yy = dt.getUTCFullYear();
-                                        const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-                                        const dd = String(dt.getUTCDate()).padStart(2, "0");
-                                        return `${yy}-${mm}-${dd}`;
-                                    };
-
-                                    // 0) 起保日期必填校验（严格 YYYY-MM-DD）
-                                    const startDate = String(createForm.policyStartDate || "").slice(0, 10);
-                                    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
-                                        alert("起保日期为必填项，且格式必须是 YYYY-MM-DD");
-                                        return;
-                                    }
-
-                                    // 1) 校验保险公司有效期（保留你现有逻辑）
-                                    const today = getTodayDate();
-                                    const validCompanies = insuranceCompanies
-                                        .filter(c => {
-                                            const start = c.validStartDate?.slice(0, 10);
-                                            const end = c.validEndDate?.slice(0, 10);
-                                            return (!start || start <= today) && (!end || end >= today);
-                                        })
-                                        .map(c => c.insuranceCompany);
-
-                                    if (!createForm.insuranceCompany || !validCompanies.includes(createForm.insuranceCompany)) {
-                                        alert("请选择有效期内的保险公司！");
-                                        return;
-                                    }
-
-                                    try {
-                                        // 2) 三项查重（近330天）：车牌 + 车架号(VIN) + 发动机号
-                                        // 这里复用与保险详情相同的预检逻辑
-                                        const dup = await checkDupByPlateEngineVin({
-                                            licensePlate: createForm.licensePlate,
-                                            vinNumber: createForm.vinNumber,
-                                            engineNumber: createForm.engineNumber,
-                                        });
-                                        if (dup) {
-                                            alert("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能新增！");
-                                            return;
-                                        }
-
-                                        // 3) 按你原来的方式组装 payload 并去掉不该传的字段
-                                        const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
-                                        const payload: any = {
-                                            insurancedetails: { ...createForm },
-                                            username: userInfo.username || ""
-                                        };
-                                        delete payload.insurancedetails.id;
-                                        delete payload.insurancedetails.commercialPolicyNumber;
-                                        delete payload.insurancedetails.compulsoryPolicyNumber;
-
-                                        // 4) 新增保单
-                                        await addInsuranceDetail(payload); // 你原先就在这里直接保存:contentReference[oaicite:0]{index=0}
-
-                                        // 5) 成功后，更新当前希望客户：成功投保=-1、下次回访=起保+335天
-                                        if (selectedDetail?.id != null) {
-                                            const updatedCustomer = {
-                                                ...selectedDetail,
-                                                insuredCount: -1 as number,
-                                                scheduleFollowUpDate: addDaysPlain(startDate, 335),
-                                            };
-                                            try {
-                                                const res2 = await updatePotentialCustomer(updatedCustomer);
-                                                const saved = res2.data ?? updatedCustomer;
-
-                                                // 同步 UI
-                                                setSelectedDetail(saved);
-                                                setMyList(list => list.map(i => i.id === saved.id ? saved : i));
-                                                setAllList(list => list.map(i => i.id === saved.id ? saved : i));
-                                            } catch (err: any) {
-                                                console.error(err);
-                                                alert("保单已保存，但同步更新希望客户（成功投保/下次回访）失败，请稍后在希望客户页手动修改。");
-                                            }
-                                        }
-
-                                        alert("出单成功！");
-                                        setCreateModalVisible(false);
-                                    } catch (err) {
-                                        console.error(err);
-                                        alert("出单失败，请稍后再试");
-                                    }
-                                }}
-                            >
-
+                            <form onSubmit={handleCreateSave}>
                                 <table className={`table table-sm ${styles.editTable}`}>
                                     <tbody>
                                         {(() => {
@@ -1864,8 +1945,8 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCreateModalVisible(false)}>
                                         取消
                                     </button>
-                                    <button type="submit" className="btn btn-primary btn-sm">
-                                        保存
+                                    <button type="submit" className="btn btn-success btn-sm" disabled={createSubmitting}>
+                                        {createSubmitting ? "保存中…" : "保存"}
                                     </button>
                                 </div>
                             </form>

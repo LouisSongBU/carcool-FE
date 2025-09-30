@@ -285,6 +285,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   const [dragLineX, setDragLineX] = useState<number | null>(null);
 
   const listScrollRef = useRef<HTMLDivElement | HTMLTableSectionElement | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
 
   const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
@@ -1026,93 +1027,125 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   // === 编辑保存 ===
   const handleEditSave = async () => {
     if (!editData) return;
+    if (submitting) return;
+    setSubmitting(true);
+
+    // 小工具：统一弹窗 + 复位 submitting
+    const fail = (msg: string) => {
+      alert(msg);
+      setSubmitting(false);
+      return;
+    };
+
+    // —— 基础清洗 —— //
     const dataToSave = normalizeEditData(editData);
 
-    // ★ 新增：业务员必须从下拉列表中选择，且主管/层级码一并回填为字符串
+    // 业务员必须下拉选择 + 回填字符串
     const pickedAgent = userList.find(u => u.displayName === dataToSave.salesAgent);
-    if (!pickedAgent) {
-      alert("请选择下拉列表中的业务员！");
-      return;
-    }
+    if (!pickedAgent) return fail("请选择下拉列表中的业务员！");
     const mgrRaw = (pickedAgent as any).manager ?? "";
-    const mgrName =
-      typeof mgrRaw === "string"
-        ? mgrRaw
-        : (mgrRaw?.displayName || mgrRaw?.name || mgrRaw?.username || "");
-
+    const mgrName = typeof mgrRaw === "string"
+      ? mgrRaw
+      : (mgrRaw?.displayName || mgrRaw?.name || mgrRaw?.username || "");
     const codeRaw = (pickedAgent as any).hierarchyCode ?? "";
-    const codeStr =
-      typeof codeRaw === "string" || typeof codeRaw === "number"
-        ? String(codeRaw)
-        : (codeRaw?.code || codeRaw?.value || "");
-
-    // 回填经清洗后的值
+    const codeStr = (typeof codeRaw === "string" || typeof codeRaw === "number")
+      ? String(codeRaw)
+      : (codeRaw?.code || codeRaw?.value || "");
     dataToSave.salesAgent = pickedAgent.displayName;
     dataToSave.salesManager = mgrName || "";
     dataToSave.hierarchyCode = codeStr || "";
 
-    // ★ 兜底：再整体跑一次统一清洗，防止其它路径也塞进了对象
+    // 兜底清洗（把可能塞进来的对象统一转成字符串）
     const finalDataToSave = normalizePersonFields(dataToSave);
 
-    // 1. 校验商业保费必须有保单号
-    if ((editData.commercialPremium != null && Number(editData.commercialPremium) !== 0)
-      && (!editData.commercialPolicyNumber || editData.commercialPolicyNumber === "")) {
-      alert("商业保费不为0时，商业保单号不能为空！");
-      return;
+    // —— 保单号/保费规则 —— //
+    if (
+      (editData.commercialPremium != null && Number(editData.commercialPremium) !== 0) &&
+      (!editData.commercialPolicyNumber || editData.commercialPolicyNumber === "")
+    ) {
+      return fail("商业保费不为0时，商业保单号不能为空！");
     }
-
-    // 2. 校验交强保费必须有交强保单号
-    if ((editData.compulsoryPremium != null && Number(editData.compulsoryPremium) !== 0)
-      && (!editData.compulsoryPolicyNumber || editData.compulsoryPolicyNumber === "")) {
-      alert("交强保费不为0时，交强保单号不能为空！");
-      return;
+    if (
+      (editData.compulsoryPremium != null && Number(editData.compulsoryPremium) !== 0) &&
+      (!editData.compulsoryPolicyNumber || editData.compulsoryPolicyNumber === "")
+    ) {
+      return fail("交强保费不为0时，交强保单号不能为空！");
     }
     if (!editData.commercialPolicyNumber && !editData.compulsoryPolicyNumber) {
-      alert("商业保单号和交强保单号不能同时为空！");
-      return;
+      return fail("商业保单号和交强保单号不能同时为空！");
     }
-    // 校验保险公司
+
+    // 保险公司校验
     const validCompanies = insuranceCompanies.map(c => c.insuranceCompany);
     if (!editData.insuranceCompany || !validCompanies.includes(editData.insuranceCompany)) {
-      alert("请选择下拉列表中的保险公司！");
-      return;
+      return fail("请选择下拉列表中的保险公司！");
     }
-    // === 保存前校验：已收保费 ≤ 应收保费 + 1 ===
+
+    // 已收保费 ≤ 应收保费 + 1
     {
       const receivable = Number(editData?.receivablePremium ?? 0) || 0;
       const received = Number(editData?.receivedPremium ?? 0) || 0;
       const maxAllowed = receivable + 1;
-
       if (received > maxAllowed) {
-        alert(`已收保费不能大于应收保费 + 1。应收：${receivable}，最大允许：${maxAllowed}。`);
-        return;
+        return fail(`已收保费不能大于应收保费 + 1。应收：${receivable}，最大允许：${maxAllowed}。`);
       }
     }
-    // ★ 保存前兜底：若关键字段有变更，强制写入当前操作者
+
+    // 关键字段变更则写入当前操作者（财务验证人）
     if (
       (selectedDetail?.receivedPremium !== editData?.receivedPremium) ||
       (selectedDetail?.isSettlement !== editData?.isSettlement)
     ) {
       (finalDataToSave as any).financeVerification = currentUserName;
     }
+
+    // ===== 权限闸门（非 L 开头仅管理员/超管可编辑）=====
+    const pn = preferredPN(editData); // 商业优先，其次交强
+    const isLPolicy = typeof pn === "string" && pn.startsWith("L");
+    const isAdminOrSuper = isAdmin || isSuperAdmin; // 直接用顶层已有布尔量
+    if (!isLPolicy && !isAdminOrSuper) {
+      return fail("此保单当前非 L 开头，仅管理员或超级管理员可编辑。");
+    }
+
+    // ===== 仅当 L 开头且三要素（车牌/发动机号/车架号）变更时做重复校验 =====
+    try {
+      const toPlate = (s: string) => (s || "").trim().toUpperCase(); // 车牌统一大写
+      const oldPlate = toPlate(selectedDetail?.licensePlate || "");
+      const oldEngine = (selectedDetail?.engineNumber || "").trim();
+      const oldVin = (selectedDetail?.vinNumber || "").trim();
+
+      const newPlate = toPlate(editData.licensePlate || "");
+      const newEngine = (editData.engineNumber || "").trim();
+      const newVin = (editData.vinNumber || "").trim();
+
+      const trioChanged = (oldPlate !== newPlate) || (oldEngine !== newEngine) || (oldVin !== newVin);
+
+      if (isLPolicy && trioChanged) {
+        const dup = await checkDupByPlateEngineVin({
+          licensePlate: newPlate,
+          engineNumber: newEngine,
+          vinNumber: newVin
+        });
+        if (dup) return fail("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能保存！");
+      }
+    } catch (e: any) {
+      return fail("重复性校验失败，请稍后重试：" + (e?.message || e));
+    }
+
+    // —— 提交 & 列表刷新 & 日志记录 —— //
     try {
       const updateRes = await updateInsuranceDetail(finalDataToSave);
       const updated = updateRes.data; // 假设后端返回最新对象
 
-      // 1. 列表移除旧项，把最新的插到第一位
-      setMyList(list => [
-        updated,
-        ...list.filter(item => item.id !== updated.id)
-      ]);
-      setSearchResult(list => [
-        updated,
-        ...list.filter(item => item.id !== updated.id)
-      ]);
+      // 列表顶替
+      setMyList(list => [updated, ...list.filter(item => item.id !== updated.id)]);
+      setSearchResult(list => [updated, ...list.filter(item => item.id !== updated.id)]);
       setIsEditing(false);
-      setSelectedDetail(updated); // 2. 右侧详情直接显示
+      setSelectedDetail(updated);
 
       alert("保存成功！");
 
+      // ===== 变更日志（保持你的原有规则）=====
       const logFields = [
         "commercialPolicyNumber", "commercialPremium", "compulsoryPremium",
         "receivedPremium", "isSettlement", "financeVerification",
@@ -1121,117 +1154,101 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
       const oldData = selectedDetail;
       const newData = editData;
-
-
       const logs: any[] = [];
 
       const oldPolicy = (oldData as any)?.commercialPolicyNumber || "";
       const newPolicy = (newData as any)?.commercialPolicyNumber || "";
 
-      // 1. 新增（原来没有保单号，现在有）
-      const isNew = !oldPolicy && !!newPolicy;
-
-      // 2. L 变 QL
+      // 供后续逻辑参考的标志位（若有其他用处）
       const isLtoQL = oldPolicy.startsWith("L") && newPolicy.startsWith("QL");
-
-      // 3. 当前是L，且不是L变QL
       const isPureL = newPolicy.startsWith("L") && !isLtoQL;
 
-      // 记录 commercialPolicyNumber 的变动
-      const isPolicyNumberChanged = (oldPolicy !== newPolicy);
+      // 工具函数 & 常量
+      const oldComm = String((oldData as any)?.commercialPolicyNumber || "");
+      const newComm = String((newData as any)?.commercialPolicyNumber || "");
+      const oldComp = String((oldData as any)?.compulsoryPolicyNumber || "");
+      const newComp = String((newData as any)?.compulsoryPolicyNumber || "");
+      const isL = (s: string) => typeof s === "string" && s.startsWith("L");
+      const isQL = (s: string) => typeof s === "string" && s.startsWith("QL");
+      const oldFV = (oldData as any)?.financeVerification ?? "";
+      const newFV = (newData as any)?.financeVerification ?? "";
+      let financeLogPushed = false; // 避免交强+商业都走 L→L 时重复记“财务验证”
 
-      {
-        // —— 公共工具 —— //
-        const oldComm = String((oldData as any)?.commercialPolicyNumber || "");
-        const newComm = String((newData as any)?.commercialPolicyNumber || "");
-        const oldComp = String((oldData as any)?.compulsoryPolicyNumber || "");
-        const newComp = String((newData as any)?.compulsoryPolicyNumber || "");
+      // 处理单个保单号的变更：除 L→L 外都记日志；L→L 不记号，但补“财务验证”（只补一次）
+      const handlePolicyChange = (label: "商业保单号" | "交强保单号", oldNum: string, newNum: string) => {
+        const changed = oldNum !== newNum;
+        const oldIsL = isL(oldNum);
+        const newIsL = isL(newNum);
+        const isLtoQLLocal = oldIsL && isQL(newNum);
+        const isPureLLocal = newIsL && !isLtoQLLocal;
 
-        const isL = (s: string) => typeof s === "string" && s.startsWith("L");
-        const isQL = (s: string) => typeof s === "string" && s.startsWith("QL");
-
-        const oldFV = (oldData as any)?.financeVerification ?? "";
-        const newFV = (newData as any)?.financeVerification ?? "";
-
-        let financeLogPushed = false; // 避免交强+商业都走 L→L 时重复记“财务验证”
-
-        // 处理单个保单号的变更：除 L→L 外都记日志；L→L 不记号，但补“财务验证”（只补一次）
-        const handlePolicyChange = (label: "商业保单号" | "交强保单号", oldNum: string, newNum: string) => {
-          const changed = oldNum !== newNum;
-          const oldIsL = isL(oldNum);
-          const newIsL = isL(newNum);
-          const isLtoQL = oldIsL && isQL(newNum);
-          const isPureL = newIsL && !isLtoQL; // 当前是 L 且不是 L→QL
-
-          if (changed && !(oldIsL && newIsL)) {
-            // ✅ 不是 L→L：记录该保单号的变更
+        if (changed && !(oldIsL && newIsL)) {
+          logs.push({
+            detailId: oldData?.id,
+            fieldName: label,
+            oldValue: oldNum,
+            newValue: newNum,
+            updateUser: currentUserName,
+            updateTime: getNowDateTime(),
+          });
+        } else if (isPureLLocal) {
+          if (!financeLogPushed && oldFV !== newFV) {
             logs.push({
               detailId: oldData?.id,
-              fieldName: label,
-              oldValue: oldNum,
-              newValue: newNum,
+              fieldName: "财务验证",
+              oldValue: oldFV,
+              newValue: newFV,
               updateUser: currentUserName,
               updateTime: getNowDateTime(),
             });
-          } else if (isPureL) {
-            // L→L：不记保单号，但补“财务验证”（仅补一次）
-            if (!financeLogPushed && oldFV !== newFV) {
-              logs.push({
-                detailId: oldData?.id,
-                fieldName: "财务验证",
-                oldValue: oldFV,
-                newValue: newFV,
-                updateUser: currentUserName,
-                updateTime: getNowDateTime(),
-              });
-              financeLogPushed = true;
-            }
+            financeLogPushed = true;
           }
-
-          return { isPureL };
-        };
-
-        // —— 先处理两种保单号 —— //
-        const { isPureL: isPureLComm } = handlePolicyChange("商业保单号", oldComm, newComm);
-        const { isPureL: isPureLComp } = handlePolicyChange("交强保单号", oldComp, newComp);
-
-        // 若任一为“纯 L 场景”，按原约定：不跑通用字段对比
-        const skipGeneralDiff = isPureLComm || isPureLComp;
-
-        // —— 其他字段差异：保持你原有写法（跳过两个保单号字段） —— //
-        if (!skipGeneralDiff) {
-          logFields.forEach(field => {
-            if (field === "commercialPolicyNumber" || field === "compulsoryPolicyNumber") return;
-
-            const oldValue = (oldData as any)?.[field];
-            const newValue = (newData as any)?.[field];
-
-            if (oldValue !== newValue) {
-              logs.push({
-                detailId: oldData?.id,
-                fieldName: insuranceDetailsNameMap[field] || field,
-                oldValue: oldValue ?? "",
-                newValue: newValue ?? "",
-                updateUser: currentUserName,
-                updateTime: getNowDateTime(),
-              });
-            }
-          });
         }
+
+        return { isPureL: isPureLLocal };
+      };
+
+      // 先处理两种保单号
+      const { isPureL: isPureLComm } = handlePolicyChange("商业保单号", oldComm, newComm);
+      const { isPureL: isPureLComp } = handlePolicyChange("交强保单号", oldComp, newComp);
+
+      // 若任一为“纯 L 场景”，不跑通用字段对比
+      const skipGeneralDiff = isPureLComm || isPureLComp;
+
+      // 其他字段差异（跳过两个保单号字段）
+      if (!skipGeneralDiff) {
+        logFields.forEach(field => {
+          if (field === "commercialPolicyNumber" || field === "compulsoryPolicyNumber") return;
+          const oldValue = (oldData as any)?.[field];
+          const newValue = (newData as any)?.[field];
+          if (oldValue !== newValue) {
+            logs.push({
+              detailId: oldData?.id,
+              fieldName: insuranceDetailsNameMap[field] || field,
+              oldValue: oldValue ?? "",
+              newValue: newValue ?? "",
+              updateUser: currentUserName,
+              updateTime: getNowDateTime(),
+            });
+          }
+        });
       }
 
       if (logs.length > 0) {
         await saveInsuranceChangeLogs(logs);
       }
-
     } catch (e: any) {
       alert("保存失败: " + (e?.message || e));
+    } finally {
+      setSubmitting(false);
     }
   };
 
 
   const handleCreateSave = async () => {
     if (!editData) return;
+    if (submitting) return; // 二次点击直接阻止
+    setSubmitting(true);
     // 校验保险公司
     const validCompanies = insuranceCompanies.map(c => c.insuranceCompany);
     if (!editData.insuranceCompany || !validCompanies.includes(editData.insuranceCompany)) {
@@ -1300,6 +1317,8 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       await saveInsuranceChangeLogs([log]);
     } catch (e: any) {
       alert("新增失败: " + (e?.message || e));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1494,7 +1513,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       {/* 保存 */}
       <button
         className={`${styles.btn} ${styles.btnPrimary}`}
-        disabled={!selectedDetail || !canEdit}
+        disabled={!selectedDetail || !canEdit || submitting}
         onClick={handleEditSave}
         type="button"
       >
@@ -2060,6 +2079,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                       <button
                         className={`${styles.btn} ${styles.btnPrimary} ms-2`}
                         onClick={editType === "add" ? handleCreateSave : handleEditSave}
+                        disabled={submitting}
                       >
                         保存
                       </button>
