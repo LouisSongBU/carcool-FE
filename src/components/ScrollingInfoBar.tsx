@@ -70,12 +70,17 @@ const ScrollingInfoBar: React.FC = () => {
   }, [currentIndex, announcements]);
 
   return (
-    <div className={styles.scrollingBarOuter}>
+    <div
+      className={styles.scrollingBarOuter}
+      title={`总出单数: ${orders.length} | 商业险总额: ${orders.reduce((s, o) => s + o.commercialPremium, 0)} | 交强险总额: ${orders.reduce((s, o) => s + o.compulsoryPremium, 0)}
+  我 - 总出单数: ${orders.filter(o => o.salesAgent === currentUser).length} | 商业险总额: ${orders.filter(o => o.salesAgent === currentUser).reduce((s, o) => s + o.commercialPremium, 0)} | 交强险总额: ${orders.filter(o => o.salesAgent === currentUser).reduce((s, o) => s + o.compulsoryPremium, 0)}`}
+    >
       <div className={styles.scrollingBarInner}>
         <span>{announcements[currentIndex]}</span>
       </div>
     </div>
   );
+
 };
 
 export default ScrollingInfoBar;

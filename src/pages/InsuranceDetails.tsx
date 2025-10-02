@@ -854,14 +854,20 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         newData[key] = "";
         return;
       }
-      if (typeof value === "number") {
-        newData[key] = 0;
-      } else if (key === "inputDate") {
+      if (key === "inputDate") {
         const now = new Date();
         const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const dd = String(now.getDate()).padStart(2, '0');
-        newData[key] = `${yyyy}-${mm}-${dd}`; // 得到"2024-07-01"这种格式
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const dd = String(now.getDate()).padStart(2, "0");
+        newData.inputDate = `${yyyy}-${mm}-${dd}`;
+        return;
+      }
+      if (key === "signingDate") {
+        newData.signingDate = ""; // 或者 null，看后端约定
+        return;
+      }
+      if (typeof value === "number") {
+        newData[key] = 0;
       } else {
         newData[key] = value;
       }
@@ -1309,80 +1315,91 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
   const handleCreateSave = async () => {
     if (!editData) return;
-    if (submitting) return; // 二次点击直接阻止
-    setSubmitting(true);
-    // 校验保险公司
+    if (submitting) return; // 防重复点击
+
+    const failCreate = (msg: string) => {
+      alert(msg);
+      setSubmitting(false);
+      return false as const;
+    };
+
+    // —— 1) 先做同步校验（此时不要上锁）——
     const validCompanies = insuranceCompanies.map(c => c.insuranceCompany);
     if (!editData.insuranceCompany || !validCompanies.includes(editData.insuranceCompany)) {
-      alert("请选择下拉列表中的保险公司！");
-      return;
+      return failCreate("请选择下拉列表中的保险公司！");
     }
-    // ★ 新增：新增时也强校验业务员，并回填主管/层级码为字符串
+
     const pickedAgent = userList.find(u => u.displayName === editData.salesAgent);
     if (!pickedAgent) {
-      alert("请选择下拉列表中的业务员！");
-      return;
+      return failCreate("请选择下拉列表中的业务员！");
     }
+
+    // 回填字符串字段
     const mgrRaw = (pickedAgent as any).manager ?? "";
-    const mgrName =
-      typeof mgrRaw === "string"
-        ? mgrRaw
-        : (mgrRaw?.displayName || mgrRaw?.name || mgrRaw?.username || "");
-
+    const mgrName = typeof mgrRaw === "string" ? mgrRaw
+      : (mgrRaw?.displayName || mgrRaw?.name || mgrRaw?.username || "");
     const codeRaw = (pickedAgent as any).hierarchyCode ?? "";
-    const codeStr =
-      typeof codeRaw === "string" || typeof codeRaw === "number"
-        ? String(codeRaw)
-        : (codeRaw?.code || codeRaw?.value || "");
-
-    // 直接把 editData 修正（你后面会拷贝它）
+    const codeStr = (typeof codeRaw === "string" || typeof codeRaw === "number")
+      ? String(codeRaw) : (codeRaw?.code || codeRaw?.value || "");
     editData.salesAgent = pickedAgent.displayName;
     editData.salesManager = mgrName || "";
     editData.hierarchyCode = codeStr || "";
 
-    // ★ 兜底：统一清洗一次
+    // 统一清洗
     const finalEditData = normalizePersonFields(editData);
 
-    // ★ 新增：做 车牌+发动机号+车架号 的重复校验（近330天）
-    const dup = await checkDupByPlateEngineVin(editData);
+    // —— 2) 重复校验（仍然不加锁）——
+    // 建议做一次与编辑保存一致的规范化（车牌大写、去空格）
+    const toPlate = (s: string) => (s || "").trim().toUpperCase();
+    const dup = await checkDupByPlateEngineVin({
+      licensePlate: toPlate(finalEditData.licensePlate || ""),
+      engineNumber: (finalEditData.engineNumber || "").trim(),
+      vinNumber: (finalEditData.vinNumber || "").trim()
+    });
     if (dup) {
-      alert("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能新增！");
-      return;
+      return failCreate("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能新增！");
     }
+
+    // —— 3) 真正提交时再上锁 —— 
+    setSubmitting(true);
     try {
-      // 拷贝一份数据，然后清除这三个字段
-      const submitData = { insurancedetails: { ...finalEditData }, username: userInfo.username || "" } as any;
+      const submitData: any = {
+        insurancedetails: { ...finalEditData },
+        username: userInfo.username || ""
+      };
       if (!isSuperAdmin) {
         submitData.insurancedetails.salesAgent = currentUserName;
       }
+      // 新增必须去掉以下字段
       delete submitData.insurancedetails.id;
       delete submitData.insurancedetails.commercialPolicyNumber;
       delete submitData.insurancedetails.compulsoryPolicyNumber;
+      delete submitData.insurancedetails.signingDate;
+
       const addRes = await addInsuranceDetail(submitData);
-      const newRecord = addRes.data; // 后端返回最新对象（带id等）
+      const newRecord = addRes.data;
 
       setMyList(list => [newRecord, ...list]);
       setSearchResult(list => [newRecord, ...list]);
       setIsEditing(false);
-      setSelectedDetail(newRecord); // 新增的直接右侧展示
+      setSelectedDetail(newRecord);
 
       alert("新增成功！");
-
-      const log = {
+      await saveInsuranceChangeLogs([{
         detailId: newRecord.id,
         fieldName: "商业保单号",
         oldValue: "",
         newValue: newRecord.commercialPolicyNumber,
         updateUser: currentUserName,
         updateTime: getNowDateTime()
-      };
-      await saveInsuranceChangeLogs([log]);
+      }]);
     } catch (e: any) {
       alert("新增失败: " + (e?.message || e));
     } finally {
       setSubmitting(false);
     }
   };
+
 
   function getTodayDateStr() {
     const now = new Date();
@@ -2150,7 +2167,18 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                       </tbody>
                     </table>
                     <div className="d-flex justify-content-end mt-2">
-                      <button className={styles.btn} onClick={() => setIsEditing(false)}>
+                      <button
+                        className={styles.btn}
+                        onClick={() => {
+                          setIsEditing(false);
+                          setEditType("edit");
+                          if (selectedDetail) {
+                            setEditData(normalizePersonFields({ ...selectedDetail }));
+                          } else {
+                            setEditData(null);
+                          }
+                        }}
+                      >
                         取消
                       </button>
                       <button
