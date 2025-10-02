@@ -361,6 +361,19 @@ export function renderInsuranceInput(
   ];
 
   // 保险公司
+  if (key === "id") {
+    return (
+      <input
+        type="text"
+        className={`${styles.editInput} form-control`}
+        value={value ?? ""}
+        disabled
+        readOnly
+      />
+    );
+  }
+
+  // 保险公司
   if (key === "insuranceCompany") {
     return (
       <InsuranceCompanySelect
@@ -373,17 +386,17 @@ export function renderInsuranceInput(
     );
   }
 
-if (key === "financeVerification") {
-  return (
-    <input
-      type="text"
-      className={`${styles.editInput} form-control`}
-      value={value ?? ""}
-      readOnly
-      disabled
-    />
-  );
-}
+  if (key === "financeVerification") {
+    return (
+      <input
+        type="text"
+        className={`${styles.editInput} form-control`}
+        value={value ?? ""}
+        readOnly
+        disabled
+      />
+    );
+  }
 
   // 新增页：保单号默认只读展示（自动生成）
   if (key === "commercialPolicyNumber" || key === "compulsoryPolicyNumber") {
@@ -418,6 +431,23 @@ if (key === "financeVerification") {
     );
   }
 
+  // 录入日期：锁死为当天（不可修改）
+  if (key === "signingDate") {
+    const isSuperAdmin = !!opts?.isSuperAdmin;
+
+    return (
+      <input
+        type="date"
+        className={`${styles.editInput} form-control`}
+        onChange={(e) =>
+          isSuperAdmin &&
+          setForm((prev) => (prev ? { ...prev, inputDate: e.target.value } : prev))
+        }
+        readOnly={!isSuperAdmin}
+        disabled={!isSuperAdmin}
+      />
+    );
+  }
 
   // 日期/时间  
   if (key.endsWith("Date")) {
@@ -433,17 +463,17 @@ if (key === "financeVerification") {
           e.preventDefault();
           const raw = (e.clipboardData?.getData("text") || "").trim();
           if (!raw) return;
-        
+
           // 统一分隔符为 "-"
           let s = raw.replace(/[./\s]+/g, "-");
-        
+
           // 纯8位数字：YYYYMMDD -> YYYY-MM-DD
           if (/^\d{8}$/.test(s)) {
             s = s.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
           }
-        
+
           let Y: string | undefined, M: string | undefined, D: string | undefined;
-        
+
           // 1) YYYY-M-D
           let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
           if (m) {
@@ -453,20 +483,20 @@ if (key === "financeVerification") {
             m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
             if (m) { Y = m[3]; M = m[2]; D = m[1]; }
           }
-        
+
           const pad2 = (n: any) => String(Number(n)).padStart(2, "0");
           const inRange = (y: any, m: any, d: any) => {
             const mm = Number(m), dd = Number(d);
             return mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31;
           };
-        
+
           if (Y && M && D && inRange(Y, M, D)) {
             const parsed = `${Y}-${pad2(M)}-${pad2(D)}`;
             setForm(prev => (prev ? { ...prev, [key]: parsed } : prev)); // 直接存 YYYY-MM-DD 纯字符串
           } else {
             alert("日期格式应为 YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD / YYYYMMDD / DD-MM-YYYY");
           }
-        }}        
+        }}
       />
     );
   }

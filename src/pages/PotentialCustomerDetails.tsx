@@ -359,6 +359,8 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                     insurancedetails: { ...createForm },
                     username: userInfo.username || ""
                 };
+                payload.insurancedetails.inputDate = getTodayDate(); // 录入日期=今天
+                delete payload.insurancedetails.signingDate;
                 delete payload.insurancedetails.id;
                 delete payload.insurancedetails.commercialPolicyNumber;
                 delete payload.insurancedetails.compulsoryPolicyNumber;
@@ -881,7 +883,8 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                         const b = (fallback ?? "").toString().trim();
                         return b || "";
                     };
-
+                    form.inputDate = getTodayDate();
+                    form.signingDate = "";
                     // 被保险人及其证件号（为空则回落到车主）
                     form.insuredName = pick(detailForSubmit.insuredName, detailForSubmit.registrationOwner);
                     form.insuredIdNumber = pick(detailForSubmit.insuredIdNumber, detailForSubmit.registrationOwnerId);
