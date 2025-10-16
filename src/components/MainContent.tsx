@@ -13,6 +13,7 @@ import UserManagementPage from '../pages/UserManagementPage.tsx';
 import DepartmentStatsTable from '../pages/DepartmentStatsTable.tsx';
 import RankingStats from '../pages/RankingStats.tsx';
 import ProfitPage from '../pages/ProfitPage.tsx';
+import QuoteAndFollowUp from '../pages/QuoteAndFollowUpPage.tsx';
 
 type MainContentProps = {
   currentPage: string;
@@ -55,6 +56,8 @@ const MainContent: React.FC<MainContentProps> = ({
         return <RankingStats/>;
       case '利润统计':
         return <ProfitPage/>;
+      case '报价回访统计':
+        return <QuoteAndFollowUp userList={userList}/>;
       default:
         return <div>页面未找到</div>;
     }

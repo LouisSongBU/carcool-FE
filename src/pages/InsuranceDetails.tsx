@@ -6,7 +6,7 @@ import { useRef } from "react";
 import {
   addInsuranceDetail, fetchInsuranceDetails, updateInsuranceDetail, confirmIssueInsuranceDetail, fetchInsuranceHistory, uploadInsuranceImage,
   fetchInsuranceImages, deleteInsuranceImage, updateInsuranceImageRemark, uploadIdCardImage, fetchIdCardImage, fetchInsuranceChangeLogs
-  , saveInsuranceChangeLogs, updateInsuranceComment, checkDuplicateLicensePlate, deleteInsuranceDetail
+  , saveInsuranceChangeLogs, updateInsuranceComment, checkDuplicateLicensePlate, deleteInsuranceDetail, searchInsuranceDetails
 } from "../api/insuranceDetails.ts";
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
 import { renderInsuranceInput, calcReceivablePremium, InsuranceCompanySelect, AgentSelectInput } from "../utils/insuranceFormUtils";
@@ -194,6 +194,12 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   const [filterOperator, setFilterOperator] = useState("like");
   const [filterValue, setFilterValue] = useState("");
 
+  // 分页：只渲染当前页
+  const [page, setPage] = useState(1);
+  const [size] = useState(1000);      // 固定每页 1000，可做成下拉
+  const [total, setTotal] = useState(0);
+  const [pageInput, setPageInput] = useState<string>("1"); // 跳页输入框
+
   const [filters, setFilters] = useState<{ [key: string]: boolean }>({
     issued: false,
     notIssued: false,
@@ -293,6 +299,85 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     setDragLineX(e.clientX);
     e.preventDefault();
   };
+
+  function buildFilters() {
+    const {
+      insuredName,
+      licensePlate,
+      signingDateStart,
+      signingDateEnd,
+      policyStartDateStart,
+      policyStartDateEnd,
+      commercialPolicyNumber,
+      mobileOrPhone,
+    } = query;
+
+    // 业务员：普通用户强制自己；管理员/超管只有选择下拉项才传
+    const salesAgent = isNormalUser ? currentUserName : (selectedAgent || "");
+
+    // 后端用 policyNumber 字段统一搜商业/交强
+    return {
+      insuredName,
+      licensePlate,
+      signingDateStart,
+      signingDateEnd,
+      policyStartDateStart,
+      policyStartDateEnd,
+      policyNumber: (commercialPolicyNumber || "").trim(),
+      mobileOrPhone,
+      salesAgent
+    };
+  }
+
+  async function fetchPage(
+    toPage: number,
+    opts?: {
+      filtersOverride?: ReturnType<typeof buildFilters>;
+      customFiltersOverride?: { field: string; op: '=' | '>' | '<' | 'like' | 'not like'; value: string }[];
+    }
+  ) {
+    setLoading(true);
+    setShowList(false);
+    try {
+      const payloadFilters = opts?.filtersOverride ?? buildFilters();
+      const payloadCustomFilters = opts?.customFiltersOverride ?? customFilters;
+  
+      const res = await searchInsuranceDetails({
+        ...payloadFilters,
+        customFilters: payloadCustomFilters,
+        page: toPage,
+        size,
+        sort: "id,desc",
+      }).then(r => r.data);
+  
+      const rows = res?.rows || [];
+      setSearchResult(rows);
+      setMyList(rows);
+      setTotal(Number(res?.total || 0));
+      setPage(toPage);
+      setPageInput(String(toPage));
+    } finally {
+      setLoading(false);
+      setShowList(true);
+    }
+  }  
+
+  // 计算总页数（避免 0）
+  const totalPages = Math.max(1, Math.ceil(total / size));
+
+  function gotoPage(p: number) {
+    const clamped = Math.min(Math.max(1, p), totalPages);
+    if (clamped !== page) fetchPage(clamped);
+  }
+
+  function onPrev() { if (page > 1) fetchPage(page - 1); }
+  function onNext() { if (page < totalPages) fetchPage(page + 1); }
+
+  function onJumpSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const n = parseInt(pageInput, 10);
+    if (!Number.isNaN(n)) gotoPage(n);
+  }
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!dragging) return;
@@ -855,15 +940,11 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         return;
       }
       if (key === "inputDate") {
-        const now = new Date();
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, "0");
-        const dd = String(now.getDate()).padStart(2, "0");
-        newData.inputDate = `${yyyy}-${mm}-${dd}`;
+        newData.inputDate = getTodayDate();
         return;
       }
       if (key === "signingDate") {
-        newData.signingDate = ""; // 或者 null，看后端约定
+        newData.signingDate = getTodayDate(); // 或者 null，看后端约定
         return;
       }
       if (typeof value === "number") {
@@ -894,13 +975,10 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       policyStartDateEnd,
       commercialPolicyNumber,
       mobileOrPhone,
-      // salesAgent: 不要从query里拿！
     } = query;
-
-    // 用 selectedAgent，没选只能查其他字段
+  
     const salesAgent = isNormalUser ? currentUserName : (selectedAgent || "");
-
-    // 限制：如果业务员输入了但没选下拉，则禁止查询
+  
     if (
       !insuredName &&
       !licensePlate &&
@@ -915,84 +993,44 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       alert("请至少填写一个查询条件！");
       return;
     }
-
-    // 如果业务员输入有值，但是没有选中下拉，直接禁止
+  
     if (agentInput && !selectedAgent) {
       alert("请选择下拉列表中的业务员！");
       return;
     }
-
-    setLoading(true);
-    setShowList(false);
-
-    try {
-      // 只传选中的业务员，其它字段照常
-      const res = await fetchInsuranceDetails({
-        insuredName,
-        licensePlate,
-        signingDateStart,
-        signingDateEnd,
-        policyStartDateStart,
-        policyStartDateEnd,
-        // 兼容老字段，但后端优先用 policyNumber：
-        commercialPolicyNumber,
-        policyNumber: commercialPolicyNumber?.trim() || "",
-        mobileOrPhone,
-        salesAgent
-      });
-
-      // 按签单日期倒序（空值排最后）
-      const sortedData = (res.data || []).sort(
-        (a: InsuranceDetail, b: InsuranceDetail) => Number(b.id) - Number(a.id)
-      );
-
-      setSearchResult(sortedData);
-      setMyList(sortedData);
-    } catch (e: any) {
-      alert("查询失败: " + (e?.message || e));
-      setSearchResult([]);
-      setMyList([]);
-    } finally {
-      setLoading(false);
-      setShowList(true);
-    }
+  
+    // 1) 清空自定义筛选（避免“查询”还叠加旧筛选）
+    setCustomFilters([]);
+  
+    // 2) 立刻按当前 buildFilters() 的结果请求第一页，并覆盖 customFilters 为空
+    await fetchPage(1, { customFiltersOverride: [] });
   };
+  
+
+  // 组件 state：把自定义筛选累积起来（可选：只用单个）
+  const [customFilters, setCustomFilters] = useState<
+    { field: string; op: '=' | '>' | '<' | 'like' | 'not like'; value: string }[]
+  >([]);
 
   const handleCustomFilter = () => {
     if (!filterField || !filterOperator || filterValue === "") return;
-
-    const isDateField = dateFields.has(filterField);
-
-    const filtered = searchResult.filter((item) => {
-      const rawVal = item[filterField as keyof InsuranceDetail];
-      if (rawVal === undefined || rawVal === null) return false;
-
-      let val: string | number;
-      let userInput: string | number = filterValue;
-
-      if (isDateField) {
-        // 只用字符串处理
-        val = String(rawVal).slice(0, 10);
-        userInput = String(filterValue).slice(0, 10);
-      } else if (typeof rawVal === "number") {
-        val = rawVal;
-        userInput = Number(filterValue);
-      } else {
-        val = String(rawVal);
-      }
-
-      if (filterOperator === "=") return val === userInput;
-      if (filterOperator === ">") return val > userInput;
-      if (filterOperator === "<") return val < userInput;
-      if (filterOperator === "like") return String(val).includes(String(userInput));
-      if (filterOperator === "not like") return !String(val).includes(String(userInput));
-
-      return false;
-    });
-
-    setMyList(filtered);
+  
+    const nextFilters = [
+      ...customFilters,
+      { field: filterField, op: filterOperator as any, value: String(filterValue) }
+    ];
+  
+    // 先发请求用 nextFilters，随后再 setState（顺序很重要）
+    fetchPage(1, { customFiltersOverride: nextFilters });
+    setCustomFilters(nextFilters);
   };
-
+  
+  // 清除按钮改为：清空 customFilters 并刷第一页
+  const clearCustomFilter = () => {
+    setFilterField(""); setFilterOperator("="); setFilterValue("");
+    setCustomFilters([]);
+    fetchPage(1);
+  };
 
   const handleFilterChange = (filterName: keyof typeof filters) => {
     setFilters((prevFilters) => {
@@ -1899,11 +1937,51 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
               <button
                 className={`btn btn-sm btn-outline-secondary ${styles.filterBtn}`}
                 onClick={() => {
-                  setFilterField("");
-                  setFilterOperator("=");
-                  setFilterValue("");
-                  setMyList(searchResult);
-                }}
+                  const cleared = {
+                    insuredName: "",
+                    licensePlate: "",
+                    signingDateStart: "",
+                    signingDateEnd: "",
+                    policyStartDateStart: "",
+                    policyStartDateEnd: "",
+                    commercialPolicyNumber: "",
+                    mobileOrPhone: "",
+                    salesAgent: ""
+                  };
+                
+                  // 管理员/超管清空业务员；普通用户强制自己
+                  setAgentInput("");
+                  setSelectedAgent(null);
+                  if (isNormalUser) {
+                    cleared.salesAgent = currentUserName;
+                  }
+                
+                  // 1) 先把 UI 的受控输入清空
+                  setQuery(cleared);
+                  setCustomFilters([]);
+                
+                  // 2) 立刻按“清空后的条件”请求第一页（避免等异步 setState）
+                  const filtersOverride = (() => {
+                    // buildFilters() 里会把 salesAgent 处理成 currentUserName（普通用户）或 selectedAgent
+                    // 但为了绝对一致，这里我们直接手工构造与 buildFilters 等价的对象：
+                    return {
+                      insuredName: "",
+                      licensePlate: "",
+                      signingDateStart: "",
+                      signingDateEnd: "",
+                      policyStartDateStart: "",
+                      policyStartDateEnd: "",
+                      policyNumber: "",         // commercialPolicyNumber -> policyNumber
+                      mobileOrPhone: "",
+                      salesAgent: isNormalUser ? currentUserName : ""
+                    };
+                  })();
+                
+                  fetchPage(1, {
+                    filtersOverride,
+                    customFiltersOverride: []
+                  });
+                }}                
               >清除</button>
             </div>
           </div>
@@ -1935,7 +2013,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                     }}
                   />
                 )}
-                <div className={styles.queryResultWrap} ref={listScrollRef} style={{ maxHeight: 360, overflowY: 'auto' }}>
+                <div className={styles.queryResultWrap} ref={listScrollRef} style={{ maxHeight: 300, overflowY: 'auto' }}>
                   <table className={styles.queryResultTable}>
                     <thead>
                       <tr>
@@ -1982,7 +2060,60 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
               </div>
             )
           )}
+          {/* 分页条（粘在左侧列表容器的底部，不改变整体布局） */}
+          <div
+            style={{
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              padding: '5px 3px',
+              borderTop: '1px solid #eef3fc',
+              background: '#fff',      // 或者 'inherit'，看你左侧背景
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary"
+              onClick={onPrev}
+              disabled={loading || page <= 1}
+            >
+              上
+            </button>
 
+            <span style={{ margin: '0 1px', whiteSpace: 'nowrap' }}>
+              第<strong>{page}</strong>/{totalPages}页,共<strong>{total}</strong>
+            </span>
+
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary"
+              onClick={onNext}
+              disabled={loading || page >= totalPages}
+            >
+              下
+            </button>
+
+            <form
+              onSubmit={onJumpSubmit}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 1, marginLeft: 1 }}
+            >
+              <span>跳至</span>
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={pageInput}
+                onChange={e => setPageInput(e.target.value)}
+                className="form-control form-control-sm"
+                style={{ width: 32 }}
+              />
+              <span>页</span>
+              <button type="submit" className="btn btn-sm btn-primary">确定</button>
+            </form>
+          </div>
         </div>
 
         {/* 右侧 详情、按钮组、弹窗 */}
@@ -2815,6 +2946,19 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
           </div>
         </div>
       </div>
+      {loading && (
+        <div
+          className={styles.loadingMask}
+          role="dialog"
+          aria-modal="true"
+          aria-busy="true"
+        >
+          <div className={styles.loadingBox}>
+            <div className={styles.spinner} />
+            <div>正在查询，请稍候…</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

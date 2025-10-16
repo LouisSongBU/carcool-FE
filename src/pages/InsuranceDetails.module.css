@@ -958,3 +958,41 @@
 .rndRoot {
   position: absolute !important; /* 让 Rnd 按 x/y 定位到屏幕，而不是被居中 */
 }
+
+/* 全屏遮罩：盖住页面，拦截所有交互 */
+.loadingMask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;          /* 确保在最上层 */
+  pointer-events: all;     /* 接管事件，阻止下层交互 */
+}
+
+/* 弹窗盒子 */
+.loadingBox {
+  min-width: 240px;
+  max-width: 80vw;
+  padding: 20px 24px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  text-align: center;
+  font-size: 16px;
+}
+
+/* 简易转圈圈 */
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

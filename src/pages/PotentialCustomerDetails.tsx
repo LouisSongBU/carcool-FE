@@ -360,7 +360,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                     username: userInfo.username || ""
                 };
                 payload.insurancedetails.inputDate = getTodayDate(); // 录入日期=今天
-                delete payload.insurancedetails.signingDate;
+                payload.insurancedetails.signingDate = getTodayDate();
                 delete payload.insurancedetails.id;
                 delete payload.insurancedetails.commercialPolicyNumber;
                 delete payload.insurancedetails.compulsoryPolicyNumber;
@@ -468,7 +468,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
 
             ctx.font = "12px Arial"; // 要跟表格里字体保持一致
 
-            const titles = ["#", "成功", "车牌号", "厂牌型号", "起保日期", "被保险人"];
+            const titles = ["#", "成功", "车牌号", "厂牌型号", "起保日期", "车主"];
 
             const widths = titles.map((t, colIdx) => {
                 // 1. 标题宽度
@@ -483,7 +483,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                         case 2: text = row.licensePlate ?? ""; break;
                         case 3: text = row.vehicleModel ?? ""; break;
                         case 4: text = row.policyStartDate?.slice(0, 10) ?? ""; break;
-                        case 5: text = row.insuredName ?? ""; break;
+                        case 5: text = row.registrationOwner ?? ""; break;
                     }
                     const w = ctx.measureText(text).width + 20; // 适当 padding
                     if (w > maxWidth) maxWidth = w;
@@ -1204,7 +1204,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                 <table className={styles.queryResultTable}>
                                     <thead>
                                         <tr>
-                                            {["#", "成功", "车牌号", "被保险人", "起保日期", "厂牌型号"].map((title, idx) => (
+                                            {["#", "成功", "车牌号", "车主", "起保日期", "厂牌型号"].map((title, idx) => (
                                                 <th key={idx} style={{ width: colWidths[idx], position: "relative" }}>
                                                     {title}
                                                     <div
@@ -1240,7 +1240,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                 <td>{idx + 1}</td>
                                                 <td>{item.insuredCount}</td>
                                                 <td>{item.licensePlate}</td>
-                                                <td>{item.insuredName}</td>
+                                                <td>{item.registrationOwner}</td>
                                                 <td>{item.policyStartDate ? String(item.policyStartDate).slice(0, 10) : ""}</td>
                                                 <td>{item.vehicleModel}</td>
                                             </tr>
@@ -1826,9 +1826,6 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                         </div>
                     </div>
                 )}
-
-
-
 
                 {historyModalVisible && (
                     <div className={styles.customModalOverlay}>

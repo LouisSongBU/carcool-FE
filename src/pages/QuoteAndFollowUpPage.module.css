@@ -1,0 +1,118 @@
+.container {
+    padding: 6px;
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    align-items: center;
+}
+
+.field {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.agentInput {
+    width: 180px;
+}
+
+.typeSelect {
+    width: 120px;
+}
+
+.divider {
+    margin: 12px 0;
+}
+
+.table {
+
+    /* 不换行，避免被内容撑宽；超出靠 Table 的横向滚动条 */
+    :global(.ant-table) {
+        table-layout: fixed;
+    }
+
+    :global(.ant-table-cell) {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+.info {
+    margin-top: 2px;
+}
+
+.label {
+    white-space: nowrap;
+}
+
+.agentPicker {
+    min-width: 220px;
+}
+
+/* 你也可调到 240/260 */
+
+.field {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-items: center;
+    white-space: nowrap;
+    /* 保证“业务员：+选择框”整体不被拆行 */
+}
+
+/* 放大“业务员：”文字 */
+.label {
+    white-space: nowrap;
+    font-size: 16px !important;
+  }
+  
+  /* 包一层，方便精准覆盖内部 input / 下拉 */
+  .agentPicker {
+    min-width: 180px;
+    font-size: 16px; /* 让子元素默认继承更大的字号 */
+  }
+  
+  /* 命中 AgentSelectInput 内部的原生 input（带有全局类 .form-control） */
+  .agentPicker :global(input.form-control) {
+    height: 35px !important;
+    line-height: 40px !important;
+    font-size: 16px !important;
+    padding: 1px 2px !important;
+  }
+  
+  /* 命中该组件的下拉菜单（CSS Modules 会生成含 agentDropdown 片段的类名） */
+  .agentPicker :global([class*="agentDropdown"]) {
+    font-size: 16px !important;
+    max-height: 320px;        /* 可选：限制一下高度 */
+    overflow: auto;
+  }
+  
+  /* 下拉里的每一项 */
+  .agentPicker :global([class*="agentDropdown"]) li {
+    line-height: 34px !important;
+    padding: 6px 12px !important;
+    cursor: pointer;
+  }
+  
+  /* “无匹配项”提示也放大 */
+  .agentPicker :global([class*="noMatch"]),
+  .agentPicker :global([class*="agentDropdown"]) .dropdown-item,
+  .agentPicker :global([class*="agentDropdown"]) li.disabled {
+    font-size: 16px !important;
+  }
+  
+  /* 其他筛选控件（类型、日期、按钮）保持大尺寸（如果你还没改过） */
+  .controls :global(.ant-select-selector),
+  .controls :global(.ant-picker),
+  .controls :global(.ant-btn) {
+    height: 40px !important;
+    font-size: 16px !important;
+  }
+  .typeSelect {
+    position: relative;
+    top: -4px;   /* 觉得还低就 -3px，根据视觉微调 */
+  }

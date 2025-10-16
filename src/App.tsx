@@ -26,6 +26,7 @@ const pageTitles: Record<string, string> = {
   '部门统计': '部门统计',
   '排名统计': '排名统计',
   '利润统计': '利润统计',
+  '报价回访统计': '报价回访统计',
 };
 
 export type UserItem = {

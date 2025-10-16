@@ -156,7 +156,7 @@ export const InsuranceCompanySelect: React.FC<InsuranceCompanySelectProps> = ({
 /** ==========================
  * 业务员选择（供超级管理员使用，带下拉 + 自动带出主管/层级码）
  * ========================== */
-type SimpleUser = {
+export type SimpleUser = {
   id: string;
   displayName: string;
   manager?: { displayName?: string } | null;

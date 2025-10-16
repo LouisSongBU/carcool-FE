@@ -29,6 +29,7 @@ const sections: Section[] = [
     items: [
       { name: "车险客户" },
       { name: "希望客户" },
+      { name: "报价回访统计" },
     ],
   },
   {
@@ -78,6 +79,7 @@ const iconMap: Record<string, string> = {
   "部门统计": "bi-diagram-3-fill",
   "排名统计": "bi-bar-chart-fill",
   "利润统计": "bi-cash-stack",
+  "报价回访统计": "bi-clipboard-check",
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ onMenuClick }) => {

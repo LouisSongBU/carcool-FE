@@ -106,3 +106,27 @@ export function checkDuplicateLicensePlate(licensePlate: string, engineNumber: s
     params: { licensePlate, engineNumber, vinNumber }
   });
 }
+
+export function searchInsuranceDetails(payload: {
+  insuredName?: string;
+  licensePlate?: string;
+  signingDateStart?: string;
+  signingDateEnd?: string;
+  policyStartDateStart?: string;
+  policyStartDateEnd?: string;
+  policyNumber?: string;
+  mobileOrPhone?: string;
+  salesAgent?: string;
+  customFilters?: CustomFilter[];
+  page?: number;
+  size?: number;   // 建议 1000
+  sort?: string;   // 'id,desc'
+}) {
+  return api.post("/insurance-details/search", payload);
+}
+
+export type CustomFilter = {
+  field: string;                          // 例如 "policyStartDate" / "licensePlate" / "receivedPremium"
+  op: "=" | ">" | "<" | "like" | "not like";
+  value: string;                          // 统一字符串；数值/日期由后端转换
+};
