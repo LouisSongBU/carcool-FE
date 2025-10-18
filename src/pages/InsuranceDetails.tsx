@@ -329,11 +329,14 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     };
   }
 
+  // ✅ 替换原来的 fetchPage 定义
   async function fetchPage(
     toPage: number,
     opts?: {
-      filtersOverride?: ReturnType<typeof buildFilters>;
+      // 允许只传一部分字段（比如仅 salesAgent）
+      filtersOverride?: Partial<ReturnType<typeof buildFilters>>;
       customFiltersOverride?: { field: string; op: '=' | '>' | '<' | 'like' | 'not like'; value: string }[];
+      sizeOverride?: number;
     }
   ) {
     setLoading(true);
@@ -341,15 +344,16 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     try {
       const payloadFilters = opts?.filtersOverride ?? buildFilters();
       const payloadCustomFilters = opts?.customFiltersOverride ?? customFilters;
-  
+      const pageSize = opts?.sizeOverride ?? size;
+
       const res = await searchInsuranceDetails({
         ...payloadFilters,
         customFilters: payloadCustomFilters,
         page: toPage,
-        size,
+        size: pageSize,
         sort: "id,desc",
       }).then(r => r.data);
-  
+
       const rows = res?.rows || [];
       setSearchResult(rows);
       setMyList(rows);
@@ -360,7 +364,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       setLoading(false);
       setShowList(true);
     }
-  }  
+  }
 
   // 计算总页数（避免 0）
   const totalPages = Math.max(1, Math.ceil(total / size));
@@ -400,6 +404,27 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     setDragging(null);
     setDragLineX(null);
   };
+
+  // 放到组件内部、在 fetchPage 定义之后
+  const didInitRef = useRef(false);
+
+  useEffect(() => {
+    if (didInitRef.current) return;
+    didInitRef.current = true;
+
+    if (!currentUserName) return; // 无登录信息则跳过
+
+    // UI 同步：业务员输入/选择设为当前用户（管理员也默认看“我”的单）
+    setAgentInput(currentUserName);
+    setSelectedAgent(currentUserName);
+
+    // 仅本次：限制 20 条；其余保持默认（id,desc）
+    fetchPage(1, {
+      filtersOverride: { salesAgent: currentUserName },
+      customFiltersOverride: [],
+      sizeOverride: 20, // ← 只首屏这次用 20
+    });
+  }, [currentUserName]);
 
   useEffect(() => {
     if (dragging) {
@@ -976,9 +1001,9 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       commercialPolicyNumber,
       mobileOrPhone,
     } = query;
-  
+
     const salesAgent = isNormalUser ? currentUserName : (selectedAgent || "");
-  
+
     if (
       !insuredName &&
       !licensePlate &&
@@ -993,19 +1018,19 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       alert("请至少填写一个查询条件！");
       return;
     }
-  
+
     if (agentInput && !selectedAgent) {
       alert("请选择下拉列表中的业务员！");
       return;
     }
-  
+
     // 1) 清空自定义筛选（避免“查询”还叠加旧筛选）
     setCustomFilters([]);
-  
+
     // 2) 立刻按当前 buildFilters() 的结果请求第一页，并覆盖 customFilters 为空
     await fetchPage(1, { customFiltersOverride: [] });
   };
-  
+
 
   // 组件 state：把自定义筛选累积起来（可选：只用单个）
   const [customFilters, setCustomFilters] = useState<
@@ -1014,17 +1039,17 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
   const handleCustomFilter = () => {
     if (!filterField || !filterOperator || filterValue === "") return;
-  
+
     const nextFilters = [
       ...customFilters,
       { field: filterField, op: filterOperator as any, value: String(filterValue) }
     ];
-  
+
     // 先发请求用 nextFilters，随后再 setState（顺序很重要）
     fetchPage(1, { customFiltersOverride: nextFilters });
     setCustomFilters(nextFilters);
   };
-  
+
   // 清除按钮改为：清空 customFilters 并刷第一页
   const clearCustomFilter = () => {
     setFilterField(""); setFilterOperator("="); setFilterValue("");
@@ -1933,18 +1958,18 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                     mobileOrPhone: "",
                     salesAgent: ""
                   };
-                
+
                   // 管理员/超管清空业务员；普通用户强制自己
                   setAgentInput("");
                   setSelectedAgent(null);
                   if (isNormalUser) {
                     cleared.salesAgent = currentUserName;
                   }
-                
+
                   // 1) 先把 UI 的受控输入清空
                   setQuery(cleared);
                   setCustomFilters([]);
-                
+
                   // 2) 立刻按“清空后的条件”请求第一页（避免等异步 setState）
                   const filtersOverride = (() => {
                     // buildFilters() 里会把 salesAgent 处理成 currentUserName（普通用户）或 selectedAgent
@@ -1961,12 +1986,12 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                       salesAgent: isNormalUser ? currentUserName : ""
                     };
                   })();
-                
+
                   fetchPage(1, {
                     filtersOverride,
                     customFiltersOverride: []
                   });
-                }}                
+                }}
               >清除</button>
             </div>
           </div>

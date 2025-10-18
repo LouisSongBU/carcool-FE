@@ -18,8 +18,8 @@ export function fetchByRecordDate(
   const recordTimeStartFull = toDateTimeRange(recordTimeStart, 'start');
   const recordTimeEndFull = toDateTimeRange(recordTimeEnd, 'end');
   return api.get('/potential-customers/byRecordTime', {
-    params: { 
-      recordTimeStart: recordTimeStartFull, 
+    params: {
+      recordTimeStart: recordTimeStartFull,
       recordTimeEnd: recordTimeEndFull,
       salesAgent   // ✅ 只有普通用户才传，调用时控制
     }
@@ -43,6 +43,14 @@ export function fetchComprehensive(query: {
   return api.get('/potential-customers/byRecordTimeAndPolicyStartDate', { params });
 }
 
+export interface PotentialCustomerSearchPayload {
+  salesAgent?: string;
+  // …你已有的筛选字段
+  minInsuredCount?: number; // ✨ 新增
+  page?: number;
+  size?: number;
+  sort?: string; // "id,desc"
+}
 
 export function updatePotentialCustomer(customer: PotentialCustomer) {
   return api.post("/potential-customers/update", customer);
@@ -82,9 +90,9 @@ export async function fetchFollowUpPotentialList(potentialCustomerId: number) {
   return api.get(`/potential-customers/follow_up_potential/list`, { params: { potentialCustomerId } });
 }
 
-export function fetchMineWithInsured(salesAgent: string) {
+export function fetchMineWithInsured(salesAgent: string, page = 0, size = 1000) {
   return api.get('/potential-customers/mine-with-insured', {
-    params: { salesAgent }
+    params: { salesAgent, page, size },
   });
 }
 
@@ -96,4 +104,8 @@ export function fetchByFollowUpDate(date: string, salesAgent: string) {
       salesAgent
     }
   });
+}
+
+export function searchPotentialCustomers(payload: PotentialCustomerSearchPayload) {
+  return api.post("/potential-customers/search", payload);
 }

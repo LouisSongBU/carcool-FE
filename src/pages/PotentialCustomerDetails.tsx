@@ -5,7 +5,7 @@ import { checkDupByPlateEngineVin } from "./InsuranceDetails.tsx";
 import { getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
 import {
     fetchByRecordDate, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer, addFollowUpPotential, updateFollowUpPotential,
-    fetchFollowUpPotentialList, fetchMineWithInsured, fetchByFollowUpDate
+    fetchFollowUpPotentialList, fetchMineWithInsured, fetchByFollowUpDate, searchPotentialCustomers
 } from '../api/potentialCustomer';
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
 import { addInsuranceDetail, fetchInsuranceHistory } from "../api/insuranceDetails";
@@ -230,7 +230,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     const todayFollowUp = followUpList.find(f => f.date === today);
 
     // === 在组件里新增这几个 state 和函数 ===
-    const [colWidths, setColWidths] = useState<number[]>([50, 10, 120, 150, 120, 100]);
+    const [colWidths, setColWidths] = useState<number[]>([30, 30, 100, 60, 100, 100]);
     const [dragging, setDragging] = useState<{ col: number; startX: number; startWidth: number } | null>(null);
     const [dragLineX, setDragLineX] = useState<number | null>(null);
 
@@ -238,6 +238,68 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     const [createSubmitting, setCreateSubmitting] = useState(false);
     // 同一车辆组合同时只允许一条请求在路上
     const inflightCreateRef = React.useRef<Set<string>>(new Set());
+
+    // —— 分页（与保险明细页一致）——
+    const [page, setPage] = useState(1);
+    const [size, setSize] = useState(1000);     // 你也可以用 1000，保持两页一致即可
+    const [total, setTotal] = useState(0);
+    const [pageInput, setPageInput] = useState<string>("1");
+
+    const totalPages = Math.max(1, Math.ceil(total / size));
+
+    function gotoPage(p: number) {
+        const clamped = Math.min(Math.max(1, p), totalPages);
+        if (clamped !== page) fetchPage(clamped);
+    }
+
+    function onPrev() { if (page > 1) fetchPage(page - 1); }
+    function onNext() { if (page < totalPages) fetchPage(page + 1); }
+
+    function onJumpSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        const n = parseInt(pageInput, 10);
+        if (!Number.isNaN(n)) gotoPage(n);
+    }
+
+    function buildFilters() {
+        // 先保持极简：仅按业务员查（后续你再加其它筛选）
+        const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
+        const currentUserName = userInfo.displayName || "";
+        return { salesAgent: currentUserName };
+    }
+
+    // ✅ 关键：与保险明细页风格一致，只是调用 searchPotentialCustomers
+    async function fetchPage(
+        toPage: number,
+        opts?: {
+            filtersOverride?: Partial<ReturnType<typeof buildFilters>> & { minInsuredCount?: number };
+            sizeOverride?: number;
+        }
+    ) {
+        setShowList(false);
+        try {
+            const payloadFilters = opts?.filtersOverride ?? buildFilters();
+            const pageSize = opts?.sizeOverride ?? size;
+
+            const res = await searchPotentialCustomers({
+                ...payloadFilters,
+                page: toPage,
+                size: pageSize,
+                sort: "id,desc",
+            }).then(r => r.data);
+
+            // ✅ 同时兼容 {rows,total} 和 Spring Page {content,totalElements}
+            const rows = (res?.rows ?? res?.content ?? []) as any[];
+            const totalFromRes = (res?.total ?? res?.totalElements ?? 0) as number;
+
+            setMyList(rows);
+            setTotal(Number(totalFromRes));
+            setPage(toPage);
+            setPageInput(String(toPage));
+        } finally {
+            setShowList(true);
+        }
+    }
 
     const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
         setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
@@ -431,21 +493,15 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
 
     // ① 页面初始化：进入页面时自动查询希望客户列表
     useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                const res = await fetchMineWithInsured(currentUserName);
-                const sorted = (res.data || [])
-                    .sort((a, b) => (b.insuredCount ?? 0) - (a.insuredCount ?? 0)); // 倒序
-
-                setAllList(sorted);
-                setMyList(sorted);
-                setShowList(true);
-            } catch (err: any) {
-                alert("自动加载失败: " + (err.message || "未知错误"));
-            }
-        };
-
-        fetchInitialData();
+        // 首屏：查“自己”的客户，限定 insuredCount ≥ 1，分页一次 1000 条，按 id desc
+        fetchPage(1, {
+            filtersOverride: {
+                salesAgent: currentUserName,
+                minInsuredCount: 0,   // ✨ 关键：首屏只要有保单的客户
+            },
+            sizeOverride: 1000,
+        });
+        // 如果你的 fetchPage 会缓存/复用上次 filters，后续翻页就会自动带上 minInsuredCount
     }, [currentUserName]);
 
 
@@ -459,43 +515,6 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             setFollowUpList([]);
         }
     }, [selectedDetail?.id]);
-
-    useEffect(() => {
-        if (myList.length > 0) {
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-            if (!ctx) return;
-
-            ctx.font = "12px Arial"; // 要跟表格里字体保持一致
-
-            const titles = ["#", "成功", "车牌号", "厂牌型号", "起保日期", "车主"];
-
-            const widths = titles.map((t, colIdx) => {
-                // 1. 标题宽度
-                let maxWidth = ctx.measureText(t).width + 20;
-
-                // 2. 遍历数据
-                myList.forEach((row, rowIdx) => {
-                    let text = "";
-                    switch (colIdx) {
-                        case 0: text = String(rowIdx + 1); break;
-                        case 1: text = String(row.insuredCount ?? ""); break;
-                        case 2: text = row.licensePlate ?? ""; break;
-                        case 3: text = row.vehicleModel ?? ""; break;
-                        case 4: text = row.policyStartDate?.slice(0, 10) ?? ""; break;
-                        case 5: text = row.registrationOwner ?? ""; break;
-                    }
-                    const w = ctx.measureText(text).width + 20; // 适当 padding
-                    if (w > maxWidth) maxWidth = w;
-                });
-
-                // 限制最大最小值
-                return Math.min(Math.max(maxWidth, 10), 300);
-            });
-
-            setColWidths(widths);
-        }
-    }, [myList]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -522,34 +541,30 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [selectedIndex, myList]);
 
-
+    // 1) 按记录日期查询：改为分页调用
     const handleRecordDateSearch = () => {
         if (!query.recordTimeStart || !query.recordTimeEnd) {
-            alert("请选择完整记录日期");
+            alert("请输入完整记录日期");
             return;
         }
-        const start = dayjs(query.recordTimeStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
-        const end = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+        const recordStart = dayjs(query.recordTimeStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
+        const recordEnd = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
 
-        fetchByRecordDate(start, end, isNormalUser ? currentUserName : undefined)
-            .then(res => {
-                const sorted = (res.data || []).sort((a, b) => (b.insuredCount ?? 0) - (a.insuredCount ?? 0));
-                setAllList(sorted);
-                setMyList(sorted);
-                setShowList(true);
-            })
-            .catch(err => {
-                alert("查询失败: " + err.message);
-            });
+        // 把日期条件作为 filters，交给分页入口
+        fetchPage(1, {
+            filtersOverride: {
+                // 后端 searchPaged 里读取这些字段进行过滤（与普通查询保持一致）
+                recordTimeStart: recordStart,
+                recordTimeEnd: recordEnd,
+                // 普通用户只查自己
+                salesAgent: isNormalUser ? currentUserName : undefined,
+            } as any
+        });
     };
 
+    // 2) 综合查询：同样改为分页调用
     const handleComprehensiveSearch = () => {
-        if (
-            !query.recordTimeStart ||
-            !query.recordTimeEnd ||
-            !query.policyStartDateStart ||
-            !query.policyStartDateEnd
-        ) {
+        if (!query.recordTimeStart || !query.recordTimeEnd || !query.policyStartDateStart || !query.policyStartDateEnd) {
             alert("请输入完整记录日期和起保日期");
             return;
         }
@@ -558,26 +573,16 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         const policyStart = dayjs(query.policyStartDateStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
         const policyEnd = dayjs(query.policyStartDateEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
 
-        fetchComprehensive({
-            recordTimeStart: recordStart,
-            recordTimeEnd: recordEnd,
-            policyStartDateStart: policyStart,
-            policyStartDateEnd: policyEnd,
-            salesAgent: isNormalUser ? currentUserName : undefined
-        })
-
-            .then(res => {
-                const sorted = (res.data || []).sort((a, b) => (b.insuredCount ?? 0) - (a.insuredCount ?? 0));
-                setAllList(sorted);
-                setMyList(sorted);
-                setShowList(true);
-            })
-            .catch(err => {
-                alert("查询失败: " + err.message);
-            });
+        fetchPage(1, {
+            filtersOverride: {
+                recordTimeStart: recordStart,
+                recordTimeEnd: recordEnd,
+                policyStartDateStart: policyStart,
+                policyStartDateEnd: policyEnd,
+                salesAgent: isNormalUser ? currentUserName : undefined,
+            } as any
+        });
     };
-
-
 
     // 4. 筛选按钮
     const handleFilterBtn = (key: keyof typeof filters) => {
@@ -1186,7 +1191,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                 暂无查询结果
                             </div>
                         ) : (
-                            <div style={{ maxHeight: 350, overflowY: "auto", position: "relative" }}>
+                            <div style={{ maxHeight: 360, overflowY: "auto", position: "relative" }}>
                                 {/* 拖动辅助线 */}
                                 {dragLineX !== null && (
                                     <div
@@ -1247,6 +1252,48 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                         ))}
                                     </tbody>
                                 </table>
+                                {showList && myList.length > 0 && (
+                                    <div style={{
+                                        position: 'sticky',
+                                        bottom: 0,
+                                        zIndex: 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        padding: '5px 3px',
+                                        borderTop: '1px solid #eef3fc',
+                                        background: '#fff',      // 或者 'inherit'，看你左侧背景
+                                    }}>
+                                        <button
+                                            className="btn btn-sm btn-outline-primary"
+                                            onClick={onPrev}
+                                            disabled={page <= 1}
+                                        >
+                                            上
+                                        </button>
+                                        <span style={{ margin: "0 8px" }}>
+                                            第{page}/{totalPages}页，共{total}条
+                                        </span>
+                                        <button
+                                            className="btn btn-sm btn-outline-primary"
+                                            onClick={onNext}
+                                            disabled={page >= totalPages}
+                                        >
+                                            下
+                                        </button>
+                                        <form onSubmit={onJumpSubmit} style={{ display: "inline-block", marginLeft: 10 }}>
+                                            <input
+                                                type="number"
+                                                value={pageInput}
+                                                onChange={(e) => setPageInput(e.target.value)}
+                                                style={{ width: 50 }}
+                                            />
+                                            <button className="btn btn-sm btn-outline-secondary" type="submit">
+                                                跳转
+                                            </button>
+                                        </form>
+                                    </div>
+                                )}
                             </div>
                         )
                     )}
