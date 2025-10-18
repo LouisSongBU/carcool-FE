@@ -106,6 +106,36 @@ export function fetchByFollowUpDate(date: string, salesAgent: string) {
   });
 }
 
-export function searchPotentialCustomers(payload: PotentialCustomerSearchPayload) {
-  return api.post("/potential-customers/search", payload);
+export const ALLOWED_OPS = ['=', '>', '<', 'like', 'not like'] as const;
+export type Op = typeof ALLOWED_OPS[number];
+
+export type CustomFilter = {
+  field: string;
+  op: Op;
+  value: string;
+};
+
+export interface SearchPotentialPayload {
+  // —— 公共 filters（根据你后端已有的字段补充/裁剪）——
+  salesAgent?: string;
+  minInsuredCount?: number;
+
+  // 日期/范围类（和组件 handleRecordDateSearch/handleComprehensiveSearch 对齐）
+  recordTimeStart?: string;  // "YYYY-MM-DD HH:mm:ss"
+  recordTimeEnd?: string;
+  policyStartDateStart?: string;
+  policyStartDateEnd?: string;
+
+  // —— 关键：自定义筛选 —— 
+  customFilters?: CustomFilter[];
+
+  // —— 分页排序 —— 
+  page: number;     // 1-based 或 0-based：按你后端约定来（和后端统一）
+  size: number;
+  sort?: string;    // "id,desc"
+}
+
+export async function searchPotentialCustomers(payload: SearchPotentialPayload) {
+  // 具体 URL 以你后端约定为准
+  return api.post('/potential-customers/search', payload);
 }

@@ -47,6 +47,16 @@ export interface PotentialCustomer {
     insuredIdNumber?: string | null;
 }
 
+// 允许的操作符（字面量联合，避免被扩大为 string）
+export const ALLOWED_OPS = ['=', '>', '<', 'like', 'not like'] as const;
+export type Op = typeof ALLOWED_OPS[number];
+
+export type CustomFilter = {
+    field: string;
+    op: Op;
+    value: string;
+};
+
 interface FollowUpPotential {
     index: number;
     content: string;
@@ -272,34 +282,53 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     async function fetchPage(
         toPage: number,
         opts?: {
-            filtersOverride?: Partial<ReturnType<typeof buildFilters>> & { minInsuredCount?: number };
-            sizeOverride?: number;
+          filtersOverride?: FiltersPayload;
+          customFiltersOverride?: CustomFilter[];
+          sizeOverride?: number;
+          sortOverride?: string;
         }
-    ) {
+      ) {
         setShowList(false);
+      
+        // ❶ 选定本次要用的条件（优先 override，否则用“上一份”）
+        const payloadFilters: FiltersPayload = opts?.filtersOverride ?? lastFilters;
+        const payloadCustom: CustomFilter[] = opts?.customFiltersOverride ?? lastCustomFilters;
+        const pageSize = opts?.sizeOverride ?? lastSize;
+        const sortStr = opts?.sortOverride ?? lastSort;
+      
         try {
-            const payloadFilters = opts?.filtersOverride ?? buildFilters();
-            const pageSize = opts?.sizeOverride ?? size;
-
-            const res = await searchPotentialCustomers({
-                ...payloadFilters,
-                page: toPage,
-                size: pageSize,
-                sort: "id,desc",
-            }).then(r => r.data);
-
-            // ✅ 同时兼容 {rows,total} 和 Spring Page {content,totalElements}
-            const rows = (res?.rows ?? res?.content ?? []) as any[];
-            const totalFromRes = (res?.total ?? res?.totalElements ?? 0) as number;
-
-            setMyList(rows);
-            setTotal(Number(totalFromRes));
-            setPage(toPage);
-            setPageInput(String(toPage));
+          const res = await searchPotentialCustomers({
+            ...payloadFilters,
+            customFilters: payloadCustom,
+            page: toPage,
+            size: pageSize,
+            sort: sortStr,
+          }).then(r => r.data);
+      
+          const rows = (res?.rows ?? res?.content ?? []) as any[];
+          const totalFromRes = (res?.total ?? res?.totalElements ?? 0) as number;
+      
+          setMyList(rows);
+          setAllList(rows);
+          setTotal(Number(totalFromRes));
+          setPage(toPage);
+          setPageInput(String(toPage));
+      
+          // ❷ 这一次真正“生效”的条件，写回缓存（成为“上一份”）
+          setLastFilters(payloadFilters);
+          setLastCustomFilters(payloadCustom);
+          setLastSort(sortStr);
+          setLastSize(pageSize);
         } finally {
-            setShowList(true);
+          setShowList(true);
         }
-    }
+      }
+      
+      function applySingleFilter(cf: CustomFilter | null) {
+        const next = cf ? [cf] : [];
+        setCustomFilters(next);
+        fetchPage(1, { customFiltersOverride: next });
+      }
 
     const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
         setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
@@ -499,7 +528,11 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                 salesAgent: currentUserName,
                 minInsuredCount: 0,   // ✨ 关键：首屏只要有保单的客户
             },
+            customFiltersOverride: [
+                { field: "scheduleFollowUpDate", op: "=", value: today }  // ✅ 新增条件
+              ],
             sizeOverride: 1000,
+            sortOverride: "insuredCount,desc",
         });
         // 如果你的 fetchPage 会缓存/复用上次 filters，后续翻页就会自动带上 minInsuredCount
     }, [currentUserName]);
@@ -544,54 +577,98 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     // 1) 按记录日期查询：改为分页调用
     const handleRecordDateSearch = () => {
         if (!query.recordTimeStart || !query.recordTimeEnd) {
-            alert("请输入完整记录日期");
-            return;
+          alert("请输入完整记录日期");
+          return;
         }
         const recordStart = dayjs(query.recordTimeStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
-        const recordEnd = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
-
-        // 把日期条件作为 filters，交给分页入口
+        const recordEnd   = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+      
+        // ✅ 点“查询”前：清空所有筛选的本地状态（不会改你的“上一份查询条件”的 filters）
+        setCustomFilters([]);
+        setSelectedFollowUpCount('');
+        setNeverFollowUp(false);
+        setFilters({ signed:false, notSigned:false, currentSigned:false, currentNotSigned:false, scheduled:false, notScheduledOrExpired:false });
+      
+        // ✅ 同时把 customFiltersOverride 显式置空，确保这次查询不叠加旧筛选
         fetchPage(1, {
-            filtersOverride: {
-                // 后端 searchPaged 里读取这些字段进行过滤（与普通查询保持一致）
-                recordTimeStart: recordStart,
-                recordTimeEnd: recordEnd,
-                // 普通用户只查自己
-                salesAgent: isNormalUser ? currentUserName : undefined,
-            } as any
+          filtersOverride: {
+            recordTimeStart: recordStart,
+            recordTimeEnd:   recordEnd,
+            salesAgent: isNormalUser ? currentUserName : undefined,
+          } as any,
+          customFiltersOverride: [],   // ← 关键
         });
-    };
+      };
 
     // 2) 综合查询：同样改为分页调用
     const handleComprehensiveSearch = () => {
         if (!query.recordTimeStart || !query.recordTimeEnd || !query.policyStartDateStart || !query.policyStartDateEnd) {
-            alert("请输入完整记录日期和起保日期");
-            return;
+          alert("请输入完整记录日期和起保日期");
+          return;
         }
         const recordStart = dayjs(query.recordTimeStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
-        const recordEnd = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+        const recordEnd   = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
         const policyStart = dayjs(query.policyStartDateStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
-        const policyEnd = dayjs(query.policyStartDateEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
-
+        const policyEnd   = dayjs(query.policyStartDateEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+      
+        // ✅ 清空筛选UI和 customFilters
+        setCustomFilters([]);
+        setSelectedFollowUpCount('');
+        setNeverFollowUp(false);
+        setFilters({ signed:false, notSigned:false, currentSigned:false, currentNotSigned:false, scheduled:false, notScheduledOrExpired:false });
+      
+        // ✅ customFiltersOverride 显式传空
         fetchPage(1, {
-            filtersOverride: {
-                recordTimeStart: recordStart,
-                recordTimeEnd: recordEnd,
-                policyStartDateStart: policyStart,
-                policyStartDateEnd: policyEnd,
-                salesAgent: isNormalUser ? currentUserName : undefined,
-            } as any
+          filtersOverride: {
+            recordTimeStart: recordStart,
+            recordTimeEnd:   recordEnd,
+            policyStartDateStart: policyStart,
+            policyStartDateEnd:   policyEnd,
+            salesAgent: isNormalUser ? currentUserName : undefined,
+          } as any,
+          customFiltersOverride: [],   // ← 关键
         });
-    };
+      };      
 
     // 4. 筛选按钮
     const handleFilterBtn = (key: keyof typeof filters) => {
-        setFilters(prev => ({ ...prev, [key]: !prev[key] }));
-    };
+        const nextFlag = !filters[key];
+      
+        // ① 清空并只保留当前项的选中状态
+        const base = {
+          signed: false, notSigned: false,
+          currentSigned: false, currentNotSigned: false,
+          scheduled: false, notScheduledOrExpired: false,
+        };
+        setFilters({ ...base, [key]: nextFlag });
+      
+        // ② 覆盖式生成 customFilters
+        if (!nextFlag) {
+          applySingleFilter(null);
+          return;
+        }
+      
+        if (key === 'signed')                 return applySingleFilter({ field: 'insuredCount', op: '>' as Op, value: '0' });
+        if (key === 'notSigned')              return applySingleFilter({ field: 'insuredCount', op: '=' as Op, value: '0' });
+        if (key === 'scheduled')              return applySingleFilter({ field: 'scheduleFollowUpDate', op: 'not like' as Op, value: '' });
+      
+        // TODO: currentSigned/currentNotSigned/notScheduledOrExpired
+        // - 若后端有专用布尔，建议走 filtersOverride；
+        // - 若用日期比较表达（如 “< 今天”），同样只生成一条并 applySingleFilter(...)
+      };      
 
     const [filterField, setFilterField] = useState("");
-    const [filterOperator, setFilterOperator] = useState("=");
+    const [filterOperator, setFilterOperator] = useState<Op>('=');
     const [filterValue, setFilterValue] = useState("");
+
+    const [customFilters, setCustomFilters] = useState<CustomFilter[]>([]);
+
+    type FiltersPayload = ReturnType<typeof buildFilters> & { minInsuredCount?: number };
+
+const [lastFilters, setLastFilters] = useState<FiltersPayload>(() => buildFilters());
+const [lastCustomFilters, setLastCustomFilters] = useState<CustomFilter[]>([]);
+const [lastSize, setLastSize] = useState<number>(size);
+const [lastSort, setLastSort] = useState<string>("id,desc");
 
     const excludedFilterFields = [
         "firstFollowUpDate",
@@ -654,89 +731,59 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         }
     };
 
-
-
-    // 1. 回访次数选择变化时触发筛选
     const handleFollowUpCountChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const val = e.target.value;
         setSelectedFollowUpCount(val);
-
-        if (!val) {
-            setMyList([...allList]);
-            return;
-        }
-        setMyList(allList.filter(item => String(item.followUpCount ?? "") === val));
-        setShowList(true);
-    };
-
-
-    // 2. 未回访多选框变化时触发筛选
-    const handleNeverFollowUpChange = () => {
+        applySingleFilter(val ? { field: 'followUpCount', op: '=' as Op, value: String(val) } : null);
+      };
+      
+      const handleNeverFollowUpChange = () => {
         const newVal = !neverFollowUp;
         setNeverFollowUp(newVal);
-        if (!newVal) {
-            setMyList([...allList]);
-            return;
-        }
-        setMyList(allList.filter(item =>
-            !item.firstFollowUpNote || item.firstFollowUpNote.trim() === ""
-        ));
-        setShowList(true);
-    };
+        applySingleFilter(newVal ? { field: 'firstFollowUpNote', op: 'like' as Op, value: '' } : null);
+      };      
 
-
+    // 点击筛选按钮：仅保留本次条件
     const handleCustomFilter = () => {
-        if (!filterField || !filterValue) {
-            setMyList(allList);
-            return;
-        }
-
-        setMyList(
-            allList.filter(item => {
-                const v = (item as any)[filterField];
-
-                // 日期字段
-                if (dateFields.has(filterField)) {
-                    if (!v) return false;
-                    return String(v).slice(0, 10) === filterValue;
-                }
-
-                // 非日期字段
-                if (filterOperator === "=") {
-                    return String(v ?? "") === filterValue;
-                } else if (filterOperator === ">") {
-                    return v > filterValue;
-                } else if (filterOperator === "<") {
-                    return v < filterValue;
-                } else if (filterOperator === "like") {
-                    return String(v ?? "").includes(filterValue);
-                } else if (filterOperator === "not like") {
-                    return !String(v ?? "").includes(filterValue);
-                }
-
-                // 默认不筛选
-                return true;
-            })
-        );
-    };
-
-
-    // 3. 重置按钮，三个相关 state 也要重置
-    const handleResetFilters = () => {
-        setFilters({
-            signed: false,
-            notSigned: false,
-            currentSigned: false,
-            currentNotSigned: false,
-            scheduled: false,
-            notScheduledOrExpired: false,
+        if (!filterField || !filterOperator || filterValue === "") return;
+        applySingleFilter({
+          field: filterField,
+          op: filterOperator as Op,
+          value: String(filterValue),
         });
-        setFollowUpDateQuery("");
-        setMyList([...allList]);
+      };
+      
+    // 重置按钮：清空所有自定义筛选并重新拉第一页
+    const handleResetFilters = () => {
+        // ① 清 UI
+        setFilters({
+          signed:false, notSigned:false,
+          currentSigned:false, currentNotSigned:false,
+          scheduled:false, notScheduledOrExpired:false,
+        });
         setSelectedFollowUpCount('');
         setNeverFollowUp(false);
-    };
-
+        setFilterField(''); setFilterOperator('=' as Op); setFilterValue('');
+        setCustomFilters([]);
+      
+        // ② 重置“上一份”缓存为你的默认首屏（按需调整）
+        const DEFAULT_FILTERS: FiltersPayload = { salesAgent: currentUserName, minInsuredCount: 0 };
+        const DEFAULT_SIZE = 1000;
+        const DEFAULT_SORT = "insuredCount,desc";
+      
+        setLastFilters(DEFAULT_FILTERS);
+        setLastCustomFilters([]);
+        setLastSize(DEFAULT_SIZE);
+        setLastSort(DEFAULT_SORT);
+      
+        // ③ 真正以默认值重新拉第一页
+        fetchPage(1, {
+          filtersOverride: DEFAULT_FILTERS,
+          customFiltersOverride: [],
+          sizeOverride: DEFAULT_SIZE,
+          sortOverride: DEFAULT_SORT,
+        });
+      };      
 
     function getEmptyPotentialCustomer(): PotentialCustomer {
         return {
@@ -1111,7 +1158,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                             <select
                                 className={`form-select form-select-sm ${styles.filterOperator}`}
                                 value={isDateField ? "=" : filterOperator}
-                                onChange={e => setFilterOperator(e.target.value)}
+                                onChange={e => setFilterOperator(e.target.value as Op)}
                                 disabled={isDateField}
                             >
                                 <option value="=">=</option>
@@ -1124,6 +1171,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                     </>
                                 )}
                             </select>
+
                             {isDateField ? (
                                 <input
                                     type="date"
