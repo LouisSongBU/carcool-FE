@@ -393,6 +393,46 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
   };
 
+  // 放到组件内其它 handler 附近
+  const handleClearAndReload = () => {
+    // 1) 清空查询 UI
+    setQuery({
+      insuredName: "",
+      licensePlate: "",
+      signingDateStart: "",
+      signingDateEnd: "",
+      policyStartDateStart: "",
+      policyStartDateEnd: "",
+      commercialPolicyNumber: "",
+      mobileOrPhone: "",
+      salesAgent: ""
+    });
+    // 2) 清空“自定义筛选”UI
+    setFilterField("");
+    setFilterOperator("=");   // 跟你自定义筛选清除时保持一致
+    setFilterValue("");
+
+    // 3) 清空自定义筛选的 payload
+    setCustomFilters([]);
+
+    // 4) 业务员输入框/选中项复位
+    if (isNormalUser) {
+      setAgentInput(currentUserName);
+      setSelectedAgent(currentUserName);
+    } else {
+      setAgentInput("");
+      setSelectedAgent(null);
+    }
+
+    setPageInput("1"); // UI 上页码复位
+
+    // 5) 立刻发起一次请求：仅带上必要的 salesAgent；其余条件/筛选均为空
+    fetchPage(1, {
+      filtersOverride: { salesAgent: isNormalUser ? currentUserName : "" },
+      customFiltersOverride: []
+    });
+  };
+
   const handleMouseUp = (e: MouseEvent) => {
     if (!dragging) return;
     const delta = e.clientX - dragging.startX;
@@ -1039,22 +1079,25 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
   const handleCustomFilter = () => {
     if (!filterField || !filterOperator || filterValue === "") return;
-
+  
     const nextFilters = [
-      ...customFilters,
       { field: filterField, op: filterOperator as any, value: String(filterValue) }
     ];
-
-    // 先发请求用 nextFilters，随后再 setState（顺序很重要）
+  
+    // 先请求再覆盖本地状态（顺序不变）
     fetchPage(1, { customFiltersOverride: nextFilters });
     setCustomFilters(nextFilters);
   };
 
-  // 清除按钮改为：清空 customFilters 并刷第一页
+  // 清除按钮改为：清空 customFilters 并刷第一页（只影响筛选）
   const clearCustomFilter = () => {
-    setFilterField(""); setFilterOperator("="); setFilterValue("");
+    setFilterField("");
+    setFilterOperator("=");   // 日期字段默认就是 "="，复位保持一致
+    setFilterValue("");
     setCustomFilters([]);
-    fetchPage(1);
+
+    // 关键：带上 customFiltersOverride: []，只清空筛选的 payload
+    fetchPage(1, { customFiltersOverride: [] });
   };
 
   const handleFilterChange = (filterName: keyof typeof filters) => {
@@ -1945,54 +1988,14 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
               )}
               <button className={`btn btn-sm btn-outline-primary ${styles.filterBtn}`} onClick={handleCustomFilter}>筛选</button>
               <button
-                className={`btn btn-sm btn-outline-secondary ${styles.filterBtn}`}
-                onClick={() => {
-                  const cleared = {
-                    insuredName: "",
-                    licensePlate: "",
-                    signingDateStart: "",
-                    signingDateEnd: "",
-                    policyStartDateStart: "",
-                    policyStartDateEnd: "",
-                    commercialPolicyNumber: "",
-                    mobileOrPhone: "",
-                    salesAgent: ""
-                  };
+                className="btn btn-secondary btn-sm"
+                style={{ minWidth: "50px", paddingLeft: "0px", paddingRight: "0px", fontSize: "15px", letterSpacing: "2px" }}
+                type="button"
+                onClick={clearCustomFilter}
+              >
+                清除
+              </button>
 
-                  // 管理员/超管清空业务员；普通用户强制自己
-                  setAgentInput("");
-                  setSelectedAgent(null);
-                  if (isNormalUser) {
-                    cleared.salesAgent = currentUserName;
-                  }
-
-                  // 1) 先把 UI 的受控输入清空
-                  setQuery(cleared);
-                  setCustomFilters([]);
-
-                  // 2) 立刻按“清空后的条件”请求第一页（避免等异步 setState）
-                  const filtersOverride = (() => {
-                    // buildFilters() 里会把 salesAgent 处理成 currentUserName（普通用户）或 selectedAgent
-                    // 但为了绝对一致，这里我们直接手工构造与 buildFilters 等价的对象：
-                    return {
-                      insuredName: "",
-                      licensePlate: "",
-                      signingDateStart: "",
-                      signingDateEnd: "",
-                      policyStartDateStart: "",
-                      policyStartDateEnd: "",
-                      policyNumber: "",         // commercialPolicyNumber -> policyNumber
-                      mobileOrPhone: "",
-                      salesAgent: isNormalUser ? currentUserName : ""
-                    };
-                  })();
-
-                  fetchPage(1, {
-                    filtersOverride,
-                    customFiltersOverride: []
-                  });
-                }}
-              >清除</button>
             </div>
           </div>
 

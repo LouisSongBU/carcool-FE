@@ -1,7 +1,39 @@
 import api from "./api"; // 假设你的 axios 实例就叫 api
 
-export function fetchInsuredBirthdayList(displayName: string) {
-    return api.get('/insured-birthday/expirations', {
-        params: { displayName }
-    }).then(res => res.data);
-}
+export type PagedResp<T = any> = {
+    items: T[];
+    total: number;
+    page: number;
+    size: number;
+  };
+  
+  function normalize<T>(data: any, page: number, size: number): PagedResp<T> {
+    if (Array.isArray(data)) {
+      const items = data.slice((page - 1) * size, page * size);
+      return { items, total: data.length, page, size };
+    }
+    const items = data?.items ?? [];
+    const total = Number.isFinite(data?.total) ? data.total : items.length;
+    return { items, total, page: data?.page ?? page, size: data?.size ?? size };
+  }
+  
+  // 获取“已保生日”列表（支持分页；兼容老数组返回）
+  export function fetchInsuredBirthdayList(
+    displayName: string,
+    page = 1,
+    size = 100
+  ): Promise<PagedResp> {
+    return api
+      .get("/insured-birthday/expirations", {
+        params: { displayName, page, size },
+      })
+      .then((res) => normalize(res.data, page, size));
+  }
+
+  export async function fetchInsuredBirthdayAll() {
+    const resp = await fetch(`/api/insured-birthday/export-all`, {
+      credentials: "include",
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return resp.json() as Promise<any[]>; // 后端返回的 DTO 列表
+  }

@@ -1,112 +1,24 @@
-.expirationPage {
-  width: 100%;
-  margin-top: 0px;
-  margin-left: 0px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: #f9f4fc;       /* 主背景 淡紫粉 */
-}
+.expirationPage{width:100%;margin-top:0;margin-left:0;display:flex;flex-direction:column;align-items:center;background:#f9f4fc;}
+.topBar{width:100%;max-width:1100px;display:flex;align-items:center;justify-content:space-between;background:#f8eaff;border-radius:10px;padding:6px 10px;margin-bottom:6px;box-shadow:0 1px 6px rgba(178,143,210,.09);}
+.title{font-size:1.1rem;color:#7d529b;font-weight:600;}
+.count{color:#c089e6;font-size:1.2rem;margin:0 6px;font-weight:bold;}
+.tableContainer{width:100%;max-width:1200px;background:#fff;border-radius:12px;box-shadow:0 2px 16px rgba(178,143,210,.09);padding:2px 3px 3px 2px;overflow-x:auto;height:500px;overflow-y:auto;margin-bottom:8px;}
+.table{min-width:100%;border-collapse:collapse;table-layout:auto;font-size:.9rem;background:#fff;}
+.table th,.table td{border-bottom:1px solid #f2e7fb;padding:6px 10px;text-align:center;white-space:nowrap;border-right:1px solid #f2e7fb;}
+.table th{background:#f6eafd;font-weight:600;color:#a974c5;font-size:.95rem;}
+.table tr:last-child td{border-bottom:none;}
 
-.topBar {
-  width: 100%;
-  max-width: 1100px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #f8eaff;       /* 淡淡紫色 */
-  border-radius: 10px;
-  padding: 0px 0px;
-  margin-bottom: 5px;
-  box-shadow: 0 1px 6px 0 rgba(178,143,210,0.09);
-}
+.paginationBar{width:100%;max-width:1200px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border-radius:12px;padding:10px 12px;box-shadow:0 2px 12px rgba(178,143,210,.08);border:1px solid #f2e7fb;}
+.pageInfo{color:#7d529b;font-size:.95rem;}
+.pagerBtns{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+.pagerBtn{padding:6px 14px;border-radius:10px;background:#fff;color:#7d529b;border:1px solid #e6c1e6;cursor:pointer;font-size:.95rem;font-weight:600;transition:all .18s ease;line-height:1;}
+.pagerBtn:hover{background:#f6eafd;border-color:#c089e6;color:#6a4784;}
+.pagerBtn:active{transform:translateY(1px);}
+.pagerBtn:disabled{cursor:not-allowed;opacity:.55;background:#fbf7ff;color:#c4a7db;}
+.jumpForm{display:inline-flex;align-items:center;gap:6px;margin-left:6px;font-size:.95rem;color:#7d529b;}
+.jumpInput{width:72px;padding:6px 8px;border-radius:8px;border:1px solid #e6c1e6;outline:none;background:#fbf7ff;transition:border .2s,box-shadow .2s;}
+.jumpInput:focus{border-color:#c089e6;box-shadow:0 0 0 3px rgba(192,137,230,.15);}
 
-.title {
-  font-size: 1.2rem;
-  color: #7d529b;           /* 深一点的紫，主标题 */
-  font-weight: 600;
-}
-
-.count {
-  color: #c089e6;           /* 柔和高亮数字 */
-  font-size: 1.4rem;
-  margin: 0 6px;
-  font-weight: bold;
-}
-
-.daysSelect {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1rem;
-}
-
-.input {
-  width: 60px;
-  border: 1px solid #e6c1e6;   /* 淡粉紫边框 */
-  border-radius: 6px;
-  padding: 3px 8px;
-  font-size: 1rem;
-  margin: 0 4px;
-  outline: none;
-  transition: border 0.2s;
-  background: #f9f4fc;
-}
-.input:focus {
-  border-color: #c089e6;    /* 高亮边框 */
-}
-
-.confirmBtn {
-  margin-left: 10px;
-  padding: 5px 18px;
-  border-radius: 6px;
-  border: none;
-  background: #c089e6;        /* 主按钮 柔和紫 */
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: background 0.18s;
-  cursor: pointer;
-}
-.confirmBtn:hover {
-  background: #7d529b;        /* 深一点的紫 按钮悬浮 */
-}
-
-.tableContainer {
-  width: 100%;
-  max-width:1200px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 16px 0 rgba(178,143,210,0.09);
-  padding: 2px 3px 3px 2px;
-  overflow-x: auto;
-  height: 660px;
-  overflow-y: auto;
-}
-
-.table {
-  min-width: 100%;
-  border-collapse: collapse;
-  table-layout: auto;
-  font-size: 0.9rem;
-  background: #fff;
-}
-
-.table th, .table td {
-  border-bottom: 1px solid #f2e7fb;
-  padding: 0px 0px;
-  text-align: center;
-  white-space: nowrap;
-  border-right: 1px solid #f2e7fb;
-}
-
-.table th {
-  background: #f6eafd;        /* 表头淡紫色 */
-  font-weight: 600;
-  color: #a974c5;             /* 紫色表头文字 */
-  font-size: 1rem;
-}
-
-.table tr:last-child td {
-  border-bottom: none;
-}
+.confirmBtn{margin-left:10px;padding:5px 16px;border-radius:8px;border:none;background:#c089e6;color:#fff;font-size:.95rem;font-weight:600;transition:background .18s,transform .08s;cursor:pointer;}
+.confirmBtn:hover{background:#b069e3;}
+.confirmBtn:active{transform:translateY(1px);}  
