@@ -19,6 +19,8 @@ type PotentialCustomersProps = {
     userList: any[];
 };
 
+const SHOW_EDIT_TODAY = false;
+
 export interface PotentialCustomer {
     insuredCount: number | null;
     licensePlate: string;
@@ -282,53 +284,53 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     async function fetchPage(
         toPage: number,
         opts?: {
-          filtersOverride?: FiltersPayload;
-          customFiltersOverride?: CustomFilter[];
-          sizeOverride?: number;
-          sortOverride?: string;
+            filtersOverride?: FiltersPayload;
+            customFiltersOverride?: CustomFilter[];
+            sizeOverride?: number;
+            sortOverride?: string;
         }
-      ) {
+    ) {
         setShowList(false);
-      
+
         // ❶ 选定本次要用的条件（优先 override，否则用“上一份”）
         const payloadFilters: FiltersPayload = opts?.filtersOverride ?? lastFilters;
         const payloadCustom: CustomFilter[] = opts?.customFiltersOverride ?? lastCustomFilters;
         const pageSize = opts?.sizeOverride ?? lastSize;
         const sortStr = opts?.sortOverride ?? lastSort;
-      
+
         try {
-          const res = await searchPotentialCustomers({
-            ...payloadFilters,
-            customFilters: payloadCustom,
-            page: toPage,
-            size: pageSize,
-            sort: sortStr,
-          }).then(r => r.data);
-      
-          const rows = (res?.rows ?? res?.content ?? []) as any[];
-          const totalFromRes = (res?.total ?? res?.totalElements ?? 0) as number;
-      
-          setMyList(rows);
-          setAllList(rows);
-          setTotal(Number(totalFromRes));
-          setPage(toPage);
-          setPageInput(String(toPage));
-      
-          // ❷ 这一次真正“生效”的条件，写回缓存（成为“上一份”）
-          setLastFilters(payloadFilters);
-          setLastCustomFilters(payloadCustom);
-          setLastSort(sortStr);
-          setLastSize(pageSize);
+            const res = await searchPotentialCustomers({
+                ...payloadFilters,
+                customFilters: payloadCustom,
+                page: toPage,
+                size: pageSize,
+                sort: sortStr,
+            }).then(r => r.data);
+
+            const rows = (res?.rows ?? res?.content ?? []) as any[];
+            const totalFromRes = (res?.total ?? res?.totalElements ?? 0) as number;
+
+            setMyList(rows);
+            setAllList(rows);
+            setTotal(Number(totalFromRes));
+            setPage(toPage);
+            setPageInput(String(toPage));
+
+            // ❷ 这一次真正“生效”的条件，写回缓存（成为“上一份”）
+            setLastFilters(payloadFilters);
+            setLastCustomFilters(payloadCustom);
+            setLastSort(sortStr);
+            setLastSize(pageSize);
         } finally {
-          setShowList(true);
+            setShowList(true);
         }
-      }
-      
-      function applySingleFilter(cf: CustomFilter | null) {
+    }
+
+    function applySingleFilter(cf: CustomFilter | null) {
         const next = cf ? [cf] : [];
         setCustomFilters(next);
         fetchPage(1, { customFiltersOverride: next });
-      }
+    }
 
     const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
         setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
@@ -530,7 +532,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             },
             customFiltersOverride: [
                 { field: "scheduleFollowUpDate", op: "=", value: today }  // ✅ 新增条件
-              ],
+            ],
             sizeOverride: 1000,
             sortOverride: "insuredCount,desc",
         });
@@ -577,85 +579,85 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     // 1) 按记录日期查询：改为分页调用
     const handleRecordDateSearch = () => {
         if (!query.recordTimeStart || !query.recordTimeEnd) {
-          alert("请输入完整记录日期");
-          return;
+            alert("请输入完整记录日期");
+            return;
         }
         const recordStart = dayjs(query.recordTimeStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
-        const recordEnd   = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
-      
+        const recordEnd = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+
         // ✅ 点“查询”前：清空所有筛选的本地状态（不会改你的“上一份查询条件”的 filters）
         setCustomFilters([]);
         setSelectedFollowUpCount('');
         setNeverFollowUp(false);
-        setFilters({ signed:false, notSigned:false, currentSigned:false, currentNotSigned:false, scheduled:false, notScheduledOrExpired:false });
-      
+        setFilters({ signed: false, notSigned: false, currentSigned: false, currentNotSigned: false, scheduled: false, notScheduledOrExpired: false });
+
         // ✅ 同时把 customFiltersOverride 显式置空，确保这次查询不叠加旧筛选
         fetchPage(1, {
-          filtersOverride: {
-            recordTimeStart: recordStart,
-            recordTimeEnd:   recordEnd,
-            salesAgent: isNormalUser ? currentUserName : undefined,
-          } as any,
-          customFiltersOverride: [],   // ← 关键
+            filtersOverride: {
+                recordTimeStart: recordStart,
+                recordTimeEnd: recordEnd,
+                salesAgent: isNormalUser ? currentUserName : undefined,
+            } as any,
+            customFiltersOverride: [],   // ← 关键
         });
-      };
+    };
 
     // 2) 综合查询：同样改为分页调用
     const handleComprehensiveSearch = () => {
         if (!query.recordTimeStart || !query.recordTimeEnd || !query.policyStartDateStart || !query.policyStartDateEnd) {
-          alert("请输入完整记录日期和起保日期");
-          return;
+            alert("请输入完整记录日期和起保日期");
+            return;
         }
         const recordStart = dayjs(query.recordTimeStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
-        const recordEnd   = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+        const recordEnd = dayjs(query.recordTimeEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
         const policyStart = dayjs(query.policyStartDateStart).startOf("day").format("YYYY-MM-DD HH:mm:ss");
-        const policyEnd   = dayjs(query.policyStartDateEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
-      
+        const policyEnd = dayjs(query.policyStartDateEnd).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+
         // ✅ 清空筛选UI和 customFilters
         setCustomFilters([]);
         setSelectedFollowUpCount('');
         setNeverFollowUp(false);
-        setFilters({ signed:false, notSigned:false, currentSigned:false, currentNotSigned:false, scheduled:false, notScheduledOrExpired:false });
-      
+        setFilters({ signed: false, notSigned: false, currentSigned: false, currentNotSigned: false, scheduled: false, notScheduledOrExpired: false });
+
         // ✅ customFiltersOverride 显式传空
         fetchPage(1, {
-          filtersOverride: {
-            recordTimeStart: recordStart,
-            recordTimeEnd:   recordEnd,
-            policyStartDateStart: policyStart,
-            policyStartDateEnd:   policyEnd,
-            salesAgent: isNormalUser ? currentUserName : undefined,
-          } as any,
-          customFiltersOverride: [],   // ← 关键
+            filtersOverride: {
+                recordTimeStart: recordStart,
+                recordTimeEnd: recordEnd,
+                policyStartDateStart: policyStart,
+                policyStartDateEnd: policyEnd,
+                salesAgent: isNormalUser ? currentUserName : undefined,
+            } as any,
+            customFiltersOverride: [],   // ← 关键
         });
-      };      
+    };
 
     // 4. 筛选按钮
     const handleFilterBtn = (key: keyof typeof filters) => {
         const nextFlag = !filters[key];
-      
+
         // ① 清空并只保留当前项的选中状态
         const base = {
-          signed: false, notSigned: false,
-          currentSigned: false, currentNotSigned: false,
-          scheduled: false, notScheduledOrExpired: false,
+            signed: false, notSigned: false,
+            currentSigned: false, currentNotSigned: false,
+            scheduled: false, notScheduledOrExpired: false,
         };
         setFilters({ ...base, [key]: nextFlag });
-      
+
         // ② 覆盖式生成 customFilters
         if (!nextFlag) {
-          applySingleFilter(null);
-          return;
+            applySingleFilter(null);
+            return;
         }
-      
-        if (key === 'signed')                 return applySingleFilter({ field: 'insuredCount', op: '>' as Op, value: '0' });
-        if (key === 'notSigned')              return applySingleFilter({ field: 'insuredCount', op: '=' as Op, value: '0' });
-        if (key === 'scheduled')              return applySingleFilter({ field: 'scheduleFollowUpDate', op: 'not like' as Op, value: '' });
-      
+
+        if (key === 'signed') return applySingleFilter({ field: 'insuredCount', op: '>' as Op, value: '0' });
+        if (key === 'notSigned') return applySingleFilter({ field: 'insuredCount', op: '=' as Op, value: '0' });
+        if (key === 'scheduled') return applySingleFilter({ field: 'scheduleFollowUpDate', op: 'not like' as Op, value: '' });
+
         // TODO: currentSigned/currentNotSigned/notScheduledOrExpired
         // - 若后端有专用布尔，建议走 filtersOverride；
         // - 若用日期比较表达（如 “< 今天”），同样只生成一条并 applySingleFilter(...)
-      };      
+    };
 
     const [filterField, setFilterField] = useState("");
     const [filterOperator, setFilterOperator] = useState<Op>('=');
@@ -665,10 +667,10 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
 
     type FiltersPayload = ReturnType<typeof buildFilters> & { minInsuredCount?: number };
 
-const [lastFilters, setLastFilters] = useState<FiltersPayload>(() => buildFilters());
-const [lastCustomFilters, setLastCustomFilters] = useState<CustomFilter[]>([]);
-const [lastSize, setLastSize] = useState<number>(size);
-const [lastSort, setLastSort] = useState<string>("id,desc");
+    const [lastFilters, setLastFilters] = useState<FiltersPayload>(() => buildFilters());
+    const [lastCustomFilters, setLastCustomFilters] = useState<CustomFilter[]>([]);
+    const [lastSize, setLastSize] = useState<number>(size);
+    const [lastSort, setLastSort] = useState<string>("id,desc");
 
     const excludedFilterFields = [
         "firstFollowUpDate",
@@ -735,55 +737,55 @@ const [lastSort, setLastSort] = useState<string>("id,desc");
         const val = e.target.value;
         setSelectedFollowUpCount(val);
         applySingleFilter(val ? { field: 'followUpCount', op: '=' as Op, value: String(val) } : null);
-      };
-      
-      const handleNeverFollowUpChange = () => {
+    };
+
+    const handleNeverFollowUpChange = () => {
         const newVal = !neverFollowUp;
         setNeverFollowUp(newVal);
         applySingleFilter(newVal ? { field: 'firstFollowUpNote', op: 'like' as Op, value: '' } : null);
-      };      
+    };
 
     // 点击筛选按钮：仅保留本次条件
     const handleCustomFilter = () => {
         if (!filterField || !filterOperator || filterValue === "") return;
         applySingleFilter({
-          field: filterField,
-          op: filterOperator as Op,
-          value: String(filterValue),
+            field: filterField,
+            op: filterOperator as Op,
+            value: String(filterValue),
         });
-      };
-      
+    };
+
     // 重置按钮：清空所有自定义筛选并重新拉第一页
     const handleResetFilters = () => {
         // ① 清 UI
         setFilters({
-          signed:false, notSigned:false,
-          currentSigned:false, currentNotSigned:false,
-          scheduled:false, notScheduledOrExpired:false,
+            signed: false, notSigned: false,
+            currentSigned: false, currentNotSigned: false,
+            scheduled: false, notScheduledOrExpired: false,
         });
         setSelectedFollowUpCount('');
         setNeverFollowUp(false);
         setFilterField(''); setFilterOperator('=' as Op); setFilterValue('');
         setCustomFilters([]);
-      
+
         // ② 重置“上一份”缓存为你的默认首屏（按需调整）
         const DEFAULT_FILTERS: FiltersPayload = { salesAgent: currentUserName, minInsuredCount: 0 };
         const DEFAULT_SIZE = 1000;
         const DEFAULT_SORT = "insuredCount,desc";
-      
+
         setLastFilters(DEFAULT_FILTERS);
         setLastCustomFilters([]);
         setLastSize(DEFAULT_SIZE);
         setLastSort(DEFAULT_SORT);
-      
+
         // ③ 真正以默认值重新拉第一页
         fetchPage(1, {
-          filtersOverride: DEFAULT_FILTERS,
-          customFiltersOverride: [],
-          sizeOverride: DEFAULT_SIZE,
-          sortOverride: DEFAULT_SORT,
+            filtersOverride: DEFAULT_FILTERS,
+            customFiltersOverride: [],
+            sizeOverride: DEFAULT_SIZE,
+            sortOverride: DEFAULT_SORT,
         });
-      };      
+    };
 
     function getEmptyPotentialCustomer(): PotentialCustomer {
         return {
@@ -973,19 +975,20 @@ const [lastSort, setLastSort] = useState<string>("id,desc");
                 新增回访
             </button>
 
-            <button
-                className="btn btn-outline-warning btn-sm"
-                style={{ marginRight: 6, minWidth: 120, opacity: todayFollowUp ? 1 : 0.4, pointerEvents: todayFollowUp ? 'auto' : 'none' }}
-                disabled={!todayFollowUp}
-                onClick={() => {
-                    setFollowUpContent(todayFollowUp?.content || "");
-                    setEditingFollowUpId(todayFollowUp?.index || null);
-                    setFollowUpEditMode("edit");
-                    setFollowUpModalVisible(true);
-                }}
-            >
-                编辑今日回访
-            </button>
+            {SHOW_EDIT_TODAY && (
+                <button
+                    className="btn btn-outline-warning btn-sm"
+                    style={{ marginRight: 6, minWidth: 120 }}
+                    onClick={() => {
+                        setFollowUpContent(todayFollowUp?.content || "");
+                        setEditingFollowUpId(todayFollowUp?.index || null);
+                        setFollowUpEditMode("edit");
+                        setFollowUpModalVisible(true);
+                    }}
+                >
+                    编辑今日回访
+                </button>
+            )}
 
         </div>
     );
@@ -1826,25 +1829,57 @@ const [lastSort, setLastSort] = useState<string>("id,desc");
                                                 <input
                                                     name={fieldName || key}
                                                     type="text"
+                                                    inputMode="numeric"
                                                     className={`${styles.editInput} form-control`}
                                                     value={value == null ? "" : String(value)}
+                                                    onKeyDown={e => {
+                                                        // 允许的控制键
+                                                        const control = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Home", "End", "Tab", "Enter"].includes(e.key) || (e.ctrlKey || e.metaKey);
+                                                        if (control) return;
+
+                                                        // 仅允许 0-9 和 '-'；其它一概拦截
+                                                        if (!/^[0-9-]$/.test(e.key)) {
+                                                            e.preventDefault();
+                                                            return;
+                                                        }
+
+                                                        // 处理 '-'：只能出现在开头，且只能有一个
+                                                        if (e.key === "-") {
+                                                            const el = e.currentTarget as HTMLInputElement;
+                                                            const v = el.value || "";
+                                                            const selStart = el.selectionStart ?? 0;
+                                                            // 只能在第0位输入，且原值不能已以 '-' 开头
+                                                            if (selStart !== 0 || v.startsWith("-")) {
+                                                                e.preventDefault();
+                                                            }
+                                                        }
+                                                    }}
                                                     onChange={e => {
-                                                        // 全角数字转半角
-                                                        const norm = e.target.value.replace(/[０-９]/g, ch =>
+                                                        // 统一全角数字 -> 半角
+                                                        let norm = e.target.value.replace(/[０-９]/g, ch =>
                                                             String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30)
                                                         );
+                                                        // 统一各种横线/负号为标准 '-'
+                                                        norm = norm.replace(/[－—‒–―−]/g, "-");
 
-                                                        // 只允许整数（可为空）
-                                                        if (norm === "" || /^\d+$/.test(norm)) {
-                                                            setEditForm(prev =>
-                                                                prev ? { ...prev, [key]: norm } : prev
-                                                            );
+                                                        // 只允许 “可选前导- + 任意位数字”（含空串与仅“-”的过渡态）
+                                                        if (/^-?\d*$/.test(norm)) {
+                                                            // 折叠多余的 '-'（例如用户粘贴了多个负号）
+                                                            if (/^-{2,}/.test(norm)) norm = "-" + norm.replace(/-/g, "");
+                                                            setEditForm(prev => (prev ? { ...prev, [key]: norm } : prev));
+                                                        }
+                                                        // 不合法输入直接丢弃（不 setState），光标不跳
+                                                    }}
+                                                    onBlur={e => {
+                                                        const v = (e.target.value || "").trim();
+                                                        // 失焦时把孤立 '-' 清掉（也可以改成设为 "0"）
+                                                        if (v === "-") {
+                                                            setEditForm(prev => (prev ? { ...prev, [key]: "" } : prev));
                                                         }
                                                     }}
                                                 />
                                             );
                                         }
-
 
                                         // 默认文本
                                         return (
@@ -2079,7 +2114,7 @@ const [lastSort, setLastSort] = useState<string>("id,desc");
                                                 await addFollowUpPotential({
                                                     potentialCustomerId: selectedDetail.id,
                                                     content: followUpContent,
-                                                    date: today,
+                                                    date: getNowDateTime(),
                                                     index: nextIndex,
                                                 });
                                             } else if (followUpEditMode === "edit" && editingFollowUpId) {
