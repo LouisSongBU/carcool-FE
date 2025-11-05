@@ -301,7 +301,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
     // 构造后端需要的参数
     const payload = unpaid.map(row => ({
       id: row.id,
-      intermediaryInvoiceNo: row.commissionAmount,
+      intermediaryInvoiceNo: row.actualCommission,
     }));
 
     try {

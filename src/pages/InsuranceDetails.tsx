@@ -451,20 +451,41 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   useEffect(() => {
     if (didInitRef.current) return;
     didInitRef.current = true;
-
-    if (!currentUserName) return; // 无登录信息则跳过
-
-    // UI 同步：业务员输入/选择设为当前用户（管理员也默认看“我”的单）
-    setAgentInput(currentUserName);
-    setSelectedAgent(currentUserName);
-
-    // 仅本次：限制 20 条；其余保持默认（id,desc）
-    fetchPage(1, {
-      filtersOverride: { salesAgent: currentUserName },
-      customFiltersOverride: [],
-      sizeOverride: 20, // ← 只首屏这次用 20
-    });
-  }, [currentUserName]);
+    if (!currentUserName) return;
+  
+    if (isNormalUser) {
+      // 普通业务员：默认看自己
+      setAgentInput(currentUserName);
+      setSelectedAgent(currentUserName);
+      fetchPage(1, {
+        filtersOverride: { salesAgent: currentUserName },
+        customFiltersOverride: [],
+        sizeOverride: 20,
+      });
+    } else {
+      // 管理员/超管：业务员输入框留空，默认查全员
+      setAgentInput("");
+      setSelectedAgent(null);
+  
+      // 注意：你初始 query 里签单日期是“今天到今天”，会把结果限制掉；
+      // 这里顺便把日期条件覆盖为空，确保能查全量
+      fetchPage(1, {
+        filtersOverride: {
+          salesAgent: "",
+          insuredName: "",
+          licensePlate: "",
+          signingDateStart: "",
+          signingDateEnd: "",
+          policyStartDateStart: "",
+          policyStartDateEnd: "",
+          policyNumber: "",
+          mobileOrPhone: "",
+        },
+        customFiltersOverride: [],
+        sizeOverride: 20,
+      });
+    }
+  }, [currentUserName, isNormalUser]);  
 
   useEffect(() => {
     if (dragging) {
@@ -479,6 +500,16 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [dragging]);
+
+  useEffect(() => {
+    if (myList && myList.length > 0) {
+      setSelectedIndex(0);
+      setSelectedDetail(myList[0]);
+    } else {
+      setSelectedIndex(null);
+      setSelectedDetail(null);
+    }
+  }, [myList]);  
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -993,11 +1024,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
           return;
         }
       }
-      // 中介票号
-      if (key === "intermediaryInvoiceNo") {
-        newData[key] = "0";
-        return;
-      }
 
       // 出单处
       if (key === "issuingOffice" || key === "isSettlement" || key === "financeVerification") {
@@ -1480,7 +1506,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       delete submitData.insurancedetails.id;
       delete submitData.insurancedetails.commercialPolicyNumber;
       delete submitData.insurancedetails.compulsoryPolicyNumber;
-      delete submitData.insurancedetails.signingDate;
 
       const addRes = await addInsuranceDetail(submitData);
       const newRecord = addRes.data;

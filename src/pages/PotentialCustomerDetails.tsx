@@ -520,6 +520,16 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         };
     }, [dragging]);
 
+    useEffect(() => {
+        if (myList && myList.length > 0) {
+          setSelectedIndex(0);
+          setSelectedDetail(myList[0]);
+        } else {
+          setSelectedIndex(null);
+          setSelectedDetail(null);
+        }
+      }, [myList]);      
+
     // 3. 查询逻辑
 
     // ① 页面初始化：进入页面时自动查询希望客户列表
@@ -2037,6 +2047,17 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                             />
                                                         );
                                                     }
+                                                    if (key === "intermediaryInvoiceNo") {
+                                                        return (
+                                                          <input
+                                                            type="number"
+                                                            className={`${styles.editInput} form-control`}
+                                                            value={String(value ?? "")}
+                                                            disabled
+                                                            readOnly
+                                                          />
+                                                        );
+                                                      }
                                                     // 其余字段走通用渲染
                                                     return renderInsuranceInput(
                                                         key,
