@@ -4,7 +4,7 @@ import { insuranceDetailsNameMap, insuranceDetailFieldTypeMap } from "../utils/f
 import { useEffect } from "react";
 import { useRef } from "react";
 import {
-  addInsuranceDetail, fetchInsuranceDetails, updateInsuranceDetail, confirmIssueInsuranceDetail, fetchInsuranceHistory, uploadInsuranceImage,
+  addInsuranceDetail, exportInsuranceDetailsAll, updateInsuranceDetail, confirmIssueInsuranceDetail, fetchInsuranceHistory, uploadInsuranceImage,
   fetchInsuranceImages, deleteInsuranceImage, updateInsuranceImageRemark, uploadIdCardImage, fetchIdCardImage, fetchInsuranceChangeLogs
   , saveInsuranceChangeLogs, updateInsuranceComment, checkDuplicateLicensePlate, deleteInsuranceDetail, searchInsuranceDetails
 } from "../api/insuranceDetails.ts";
@@ -142,18 +142,13 @@ const dateFields = new Set([
 // 要隐藏的字段
 let hiddenFieldsForUser: string[] = [];
 
-if (isNormalUser) {
+if (isNormalUser || isAdmin) {
   hiddenFieldsForUser = [
     "isSettlement",
     "financeVerification",
     "commercialAdjustment",
     "compulsoryAdjustment"
   ];
-} else if (isAdmin) {
-  hiddenFieldsForUser = [
-    "isSettlement",
-    "financeVerification"
-  ]; // 管理员可见并能改 commercialAdjustment / compulsoryAdjustment
 }
 
 // ★ 新增：把人员字段统一清洗成字符串，避免 [object Object]
@@ -533,10 +528,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedIndex, myList]);
-
-
-  //表单生成
-  const omitKeys = ["id", "commercialPolicyNumber", "compulsoryPolicyNumber"];
 
   const openImageWindow = (url: string) => {
     const imgWin = window.open("", "_blank", "width=800,height=600,resizable=yes,scrollbars=yes");
@@ -999,11 +990,11 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     (isNormalUser && selectedDetail && typeof selectedDetail.commercialPolicyNumber === "string" &&
       selectedDetail.commercialPolicyNumber.startsWith("L"));
 
-  // 获取新增数据模板,新增时不带id/商业号/交强号/所有number字段清空
+  // 获取新增数据模板,新增时不带id/商业号/交强号/中介票号/所有number字段清空
   const getDefaultNewData = () => {
     console.log("当前层级码：", userInfo.hierarchyCode, typeof userInfo.hierarchyCode);
     if (!selectedDetail) return null;
-    const omitKeys = ["id", "commercialPolicyNumber", "compulsoryPolicyNumber"];
+    const omitKeys = ["id", "commercialPolicyNumber", "compulsoryPolicyNumber", "intermediaryInvoiceNo"];
     const newData: any = {};
 
     Object.entries(selectedDetail).forEach(([key, value]) => {
@@ -1382,68 +1373,52 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     }
   };
 
-  const handleExport = () => {
-    // 1) 需要导出的“当前可见列表”
-    const rows = myList;
-
-    if (!rows || rows.length === 0) {
-      alert("当前没有可导出的数据～");
-      return;
+  const handleExport = async () => {
+    try {
+      setLoading(true);
+  
+      // 1) 构造导出筛选（直接复用你现有的 buildFilters / customFilters）
+      const payload = {
+        ...buildFilters(),
+        customFilters,
+        // 明确告诉后端忽略分页
+        page: undefined,
+        size: undefined,
+        sort: "id,desc",
+      };
+  
+      // 2) 请求后端导出
+      const res = await exportInsuranceDetailsAll(payload);
+  
+      // 3) 解析文件名（兼容 Content-Disposition）
+      const disposition = (res.headers?.["content-disposition"] || "") as string;
+      let filename = `车险导出_${new Date().toISOString().slice(0,10)}.xlsx`;
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?([^;]+)/i);
+      if (match && match[1]) {
+        try {
+          const raw = match[1].trim().replace(/^"|"$/g, "");
+          filename = decodeURIComponent(raw);
+        } catch { /* 忽略解析失败，走默认名 */ }
+      }
+  
+      // 4) 触发下载
+      const blob = new Blob([res.data], {
+        type: res.headers["content-type"] || "application/octet-stream",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert("导出失败：" + (err?.message || "未知错误"));
+    } finally {
+      setLoading(false);
     }
-
-    // 2) 生成导出列：按 detailFieldOrder 展开，并自动避开当前角色的隐藏字段
-    const keys: string[] = [];
-    detailFieldOrder.forEach(pair => {
-      const [k1, k2] = pair;
-      if (!isSuperAdmin && hiddenFieldsForUser.includes(k1)) {
-        // 跳过
-      } else if (k1) {
-        keys.push(k1);
-      }
-      if (k2 && !(!isSuperAdmin && hiddenFieldsForUser.includes(k2))) {
-        keys.push(k2);
-      }
-    });
-
-    // 去重（以防同一key出现多次）
-    const uniqKeys = Array.from(new Set(keys));
-
-    // 3) 构造列定义（中文表头 & 简单格式化）
-    const columns: XlsxColumn<InsuranceDetail>[] = [
-      { title: "#", value: (_row, i) => i + 1 },
-      ...uniqKeys.map((k) => {
-        const isDate =
-          k === "signingDate" ||
-          k === "firstRegistrationDate" ||
-          k === "inputDate" ||
-          k === "policyStartDate";
-        return {
-          title: insuranceDetailsNameMap[k as keyof typeof insuranceDetailsNameMap] || k,
-          key: k,
-          // 日期统一导出成 YYYY-MM-DD
-          format: (v) => {
-            if (isDate && typeof v === "string") return v.slice(0, 10);
-            return v as any;
-          }
-        } as XlsxColumn<InsuranceDetail>;
-      })
-    ];
-
-    // 4) 文件名：带当天日期
-    const today = new Date();
-    const yyyy = String(today.getFullYear());
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    const filename = `车险导出_${yyyy}-${mm}-${dd}`;
-
-    // 5) 导出
-    exportXlsx(rows, columns, {
-      filename,
-      // 这里也可以统一加 formatter 进行全局格式化（例如避免小数精度）
-      // formatter: (val) => typeof val === "number" ? Number(val.toFixed(2)) : val,
-    });
   };
-
 
   const handleCreateSave = async () => {
     if (!editData) return;

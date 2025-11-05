@@ -130,3 +130,10 @@ export type CustomFilter = {
   op: "=" | ">" | "<" | "like" | "not like";
   value: string;                          // 统一字符串；数值/日期由后端转换
 };
+
+/** 后端生成 xlsx（全量，不分页），返回二进制 Blob */
+export function exportInsuranceDetailsAll(payload: any) {
+  return api.post("/insurance-details/export", payload, {
+    responseType: "blob",
+  });
+}

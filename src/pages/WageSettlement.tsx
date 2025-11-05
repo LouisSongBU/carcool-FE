@@ -34,8 +34,10 @@ export interface CommissionDetail {
   hierarchyCode: string;
   commercialPremium: number;
   commercialCommission: number;
+  commercialCommissionPercent: number;
   compulsoryPremium: number;
   compulsoryCommission: number;
+  compulsoryCommissionPercent: number;
   receivablePremium: number;
   receivedPremium: number;
   commissionAmount: number;
@@ -540,7 +542,7 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
               <tr>
                 {[
                   "业务员", "商业保单号", "车牌号码", "被保险人", "签单日期", "保险公司",
-                  "商业保费", "商业提成", "交强保费", "交强提成",
+                  "商业保费", "商业点位", "交强保费", "交强点位",
                   "应收保费", "已收保费", "提成金额", "实际提成", "支付"
                 ].map((title, idx) => (
                   <th key={idx}>
@@ -568,9 +570,9 @@ const WageSettlementPage: React.FC<WageSettlementProps> = ({ userList }) => {
                     <td><span className={styles.cellText}>{row.signingDate}</span></td>
                     <td><span className={styles.cellText}>{row.insuranceCompany}</span></td>
                     <td>{row.commercialPremium}</td>
-                    <td>{row.commercialCommission}</td>
+                    <td>{row.commercialCommissionPercent}</td>
                     <td>{row.compulsoryPremium}</td>
-                    <td>{row.compulsoryCommission}</td>
+                    <td>{row.compulsoryCommissionPercent}</td>
                     <td>{row.receivablePremium}</td>
                     <td>{row.receivedPremium}</td>
                     <td>{row.commissionAmount}</td>
