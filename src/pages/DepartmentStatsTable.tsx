@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 import styles from "./DepartmentStatsTable.module.css";
 import { fetchDepartments, fetchSalesmanStats, Department, SalesmanStat } from "../api/DepartmentStatsTable";
 import { toast } from "react-toastify";
-import { exportXlsxFromMatrix } from "../utils/exportXlsx"; 
+import { exportXlsxFromMatrix } from "../utils/exportXlsx";
 
 // 成员类型
 interface Member {
@@ -55,19 +55,19 @@ const DepartmentStatsTable: React.FC = () => {
 
   const handleExportXlsx = async () => {
     if (!departmentData.length) { message.warning("请先计算再导出～"); return; }
-  
+
     const subHeaders = ["姓名", "商业保费", "交强保费", "商单", "交单"];
-  
+
     // 1) 头两行
-    const headerRow1:string[] = [], headerRow2:string[] = [];
+    const headerRow1: string[] = [], headerRow2: string[] = [];
     departmentData.forEach(dept => {
       const title = dept.deptCode === "OTHER" ? dept.deptName : `${dept.deptCode}-${dept.deptName}`;
       headerRow1.push(title, "", "", "", "");
       headerRow2.push(...subHeaders);
     });
-  
+
     // 2) 合计行
-    const totalRow:string[] = [];
+    const totalRow: string[] = [];
     departmentData.forEach(dept => {
       const members = dept.members.filter(m => m.name);
       const t = getDeptTotal(members);
@@ -81,12 +81,12 @@ const DepartmentStatsTable: React.FC = () => {
         String(t.compulsoryCount ?? "")
       );
     });
-  
+
     // 3) 成员行
-    const rows:string[][] = [];
+    const rows: string[][] = [];
     const max = Math.max(...departmentData.map(d => d.members.length), 0);
     for (let i = 0; i < max; i++) {
-      const r:string[] = [];
+      const r: string[] = [];
       departmentData.forEach(dept => {
         const m = dept.members[i] || ({} as any);
         const nameWithCount = (m?.name && m?.totalPolicyCount !== "" && m?.totalPolicyCount != null)
@@ -101,17 +101,17 @@ const DepartmentStatsTable: React.FC = () => {
       });
       rows.push(r);
     }
-  
+
     const matrix = [headerRow1, headerRow2, totalRow, ...rows];
-  
+
     // 4) 合并首行部门标题（每 5 列合并一次）
     const merges = departmentData.map((_, i) => {
       const sCol = i * 5, eCol = sCol + 4;
       return { s: { r: 0, c: sCol }, e: { r: 0, c: eCol } };
     });
-  
+
     const d = new Date(); const yyyy = d.getFullYear();
-    const mm = String(d.getMonth()+1).padStart(2,"0"); const dd = String(d.getDate()).padStart(2,"0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0"); const dd = String(d.getDate()).padStart(2, "0");
     await exportXlsxFromMatrix(matrix, {
       filename: `部门统计_${yyyy}-${mm}-${dd}.xlsx`,
       sheetName: "部门统计",
@@ -163,12 +163,20 @@ const DepartmentStatsTable: React.FC = () => {
           .filter(stat => stat.deptCode === dept.deptCode)
           .map(stat => ({
             name: stat.salesmanName,
-            totalPolicyCount: stat.totalPolicyCount, // 新加字段
+            totalPolicyCount: stat.totalPolicyCount,
             commercialPremium: stat.commercialPremium,
             compulsoryPremium: stat.compulsoryPremium,
             commercialCount: stat.commercialCount,
             compulsoryCount: stat.compulsoryCount,
-          })),
+          }))
+          /** ✅ 新增：部门内按总保费降序排序 **/
+          .sort((a, b) => {
+            const sumA =
+              (Number(a.commercialPremium) || 0) + (Number(a.compulsoryPremium) || 0);
+            const sumB =
+              (Number(b.commercialPremium) || 0) + (Number(b.compulsoryPremium) || 0);
+            return sumB - sumA;
+          }),
       }));
 
       // 处理“其他”部门
@@ -177,14 +185,22 @@ const DepartmentStatsTable: React.FC = () => {
         depts.push({
           deptCode: OTHERS_DEPT_CODE,
           deptName: OTHERS_DEPT_NAME,
-          members: others.map(stat => ({
-            name: stat.salesmanName,
-            totalPolicyCount: stat.totalPolicyCount,
-            commercialPremium: stat.commercialPremium,
-            compulsoryPremium: stat.compulsoryPremium,
-            commercialCount: stat.commercialCount,
-            compulsoryCount: stat.compulsoryCount,
-          })),
+          members: others
+            .map(stat => ({
+              name: stat.salesmanName,
+              totalPolicyCount: stat.totalPolicyCount,
+              commercialPremium: stat.commercialPremium,
+              compulsoryPremium: stat.compulsoryPremium,
+              commercialCount: stat.commercialCount,
+              compulsoryCount: stat.compulsoryCount,
+            }))
+            .sort((a, b) => {
+              const sumA =
+                (Number(a.commercialPremium) || 0) + (Number(a.compulsoryPremium) || 0);
+              const sumB =
+                (Number(b.commercialPremium) || 0) + (Number(b.compulsoryPremium) || 0);
+              return sumB - sumA;
+            }),
         });
       }
       setDepartmentData(depts);
