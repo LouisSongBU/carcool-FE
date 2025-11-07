@@ -518,17 +518,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             window.removeEventListener("mousemove", handleMouseMove);
             window.removeEventListener("mouseup", handleMouseUp);
         };
-    }, [dragging]);
-
-    useEffect(() => {
-        if (myList && myList.length > 0) {
-          setSelectedIndex(0);
-          setSelectedDetail(myList[0]);
-        } else {
-          setSelectedIndex(null);
-          setSelectedDetail(null);
-        }
-      }, [myList]);      
+    }, [dragging]);    
 
     // 3. 查询逻辑
 
@@ -831,20 +821,20 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             return;
         }
         const licensePlate = (selectedDetail.licensePlate || "").trim();
-        const engineNumber = (selectedDetail.engineNumber || "").trim();
+        const vinNumber = (selectedDetail.vinNumber || "").trim();
 
-        if (!licensePlate || !engineNumber) {
-            alert("缺少【车牌号】或【发动机号】，无法查询投保历史");
+        if (!licensePlate || !vinNumber) {
+            alert("缺少【车牌号】或【车架号】，无法查询投保历史");
             return;
         }
 
         try {
             setHistoryLoading(true);
-            const res = await fetchInsuranceHistory({ licensePlate, engineNumber });
+            const res = await fetchInsuranceHistory({ licensePlate, vinNumber });
             // 如果后端字段名与你弹窗展示不一致，这里做一次映射
             const rows = (res?.data || []).map((x: any) => ({
                 licensePlate: x.licensePlate ?? licensePlate,
-                engineNumber: x.engineNumber ?? engineNumber,
+                vinNumber: x.vinNumber ?? vinNumber,
                 insuredName: x.insuredName ?? x.registrationOwner ?? "",
                 insuredDate: (x.insuredDate || x.policyStartDate || "").slice(0, 10),
                 insuranceCompany: x.insuranceCompany ?? "",
@@ -1975,7 +1965,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                 <thead>
                                     <tr>
                                         <th>车牌号</th>
-                                        <th>发动机号</th>
+                                        <th>车架号</th>
                                         <th>被保险人</th>
                                         <th>投保时间</th>
                                         <th>保险公司</th>
@@ -1991,7 +1981,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                         insuranceHistory.map((item, idx) => (
                                             <tr key={idx}>
                                                 <td>{item.licensePlate}</td>
-                                                <td>{item.engineNumber}</td>
+                                                <td>{item.vinNumber}</td>
                                                 <td>{item.insuredName}</td>
                                                 <td>{item.insuredDate}</td>
                                                 <td>{item.insuranceCompany}</td>

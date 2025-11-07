@@ -31,11 +31,11 @@ export async function confirmIssueInsuranceDetail(detail: InsuranceDetail) {
   return res.data;
 }
 
-export function fetchInsuranceHistory(params: { licensePlate: string, engineNumber: string, limit?: number }) {
+export function fetchInsuranceHistory(params: { licensePlate: string, vinNumber: string, limit?: number }) {
   return api.get('/insurance-details/history', {
     params: {
       licensePlate: params.licensePlate,
-      engineNumber: params.engineNumber,
+      vinNumber: params.vinNumber,
       limit: params.limit ?? 10
     }
   });

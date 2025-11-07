@@ -189,6 +189,23 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   const [filterOperator, setFilterOperator] = useState("like");
   const [filterValue, setFilterValue] = useState("");
 
+  // 裁成 YYYY-MM-DD
+  const toDateStr = (s?: string | null) => (s ? String(s).slice(0, 10) : "");
+
+  // 起保日期 +N 年（闰年自动回退）
+  const addYears = (dateStr: string, n: number) => {
+    if (!dateStr) return "";
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const newYear = y + n;
+  
+    // 处理闰年特殊情况：若原本是2月29日且新年份非闰年，则改为2月28日
+    if (m === 2 && d === 29 && !(newYear % 400 === 0 || (newYear % 4 === 0 && newYear % 100 !== 0))) {
+      return `${newYear}-02-28`;
+    }
+  
+    return `${newYear}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  };  
+
   // 分页：只渲染当前页
   const [page, setPage] = useState(1);
   const [size] = useState(1000);      // 固定每页 1000，可做成下拉
@@ -447,7 +464,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     if (didInitRef.current) return;
     didInitRef.current = true;
     if (!currentUserName) return;
-  
+
     if (isNormalUser) {
       // 普通业务员：默认看自己
       setAgentInput(currentUserName);
@@ -461,7 +478,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       // 管理员/超管：业务员输入框留空，默认查全员
       setAgentInput("");
       setSelectedAgent(null);
-  
+
       // 注意：你初始 query 里签单日期是“今天到今天”，会把结果限制掉；
       // 这里顺便把日期条件覆盖为空，确保能查全量
       fetchPage(1, {
@@ -480,7 +497,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         sizeOverride: 20,
       });
     }
-  }, [currentUserName, isNormalUser]);  
+  }, [currentUserName, isNormalUser]);
 
   useEffect(() => {
     if (dragging) {
@@ -504,7 +521,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       setSelectedIndex(null);
       setSelectedDetail(null);
     }
-  }, [myList]);  
+  }, [myList]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1025,6 +1042,10 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         newData.inputDate = getTodayDate();
         return;
       }
+      if (key === "policyStartDate") {
+        newData.policyStartDate = addYears(toDateStr(String(value || "")), 1);
+        return;
+      }
       if (key === "signingDate") {
         newData.signingDate = getTodayDate(); // 或者 null，看后端约定
         return;
@@ -1096,11 +1117,11 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
   const handleCustomFilter = () => {
     if (!filterField || !filterOperator || filterValue === "") return;
-  
+
     const nextFilters = [
       { field: filterField, op: filterOperator as any, value: String(filterValue) }
     ];
-  
+
     // 先请求再覆盖本地状态（顺序不变）
     fetchPage(1, { customFiltersOverride: nextFilters });
     setCustomFilters(nextFilters);
@@ -1376,7 +1397,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   const handleExport = async () => {
     try {
       setLoading(true);
-  
+
       // 1) 构造导出筛选（直接复用你现有的 buildFilters / customFilters）
       const payload = {
         ...buildFilters(),
@@ -1386,13 +1407,13 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         size: undefined,
         sort: "id,desc",
       };
-  
+
       // 2) 请求后端导出
       const res = await exportInsuranceDetailsAll(payload);
-  
+
       // 3) 解析文件名（兼容 Content-Disposition）
       const disposition = (res.headers?.["content-disposition"] || "") as string;
-      let filename = `车险导出_${new Date().toISOString().slice(0,10)}.xlsx`;
+      let filename = `车险导出_${new Date().toISOString().slice(0, 10)}.xlsx`;
       const match = disposition.match(/filename\*?=(?:UTF-8'')?([^;]+)/i);
       if (match && match[1]) {
         try {
@@ -1400,7 +1421,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
           filename = decodeURIComponent(raw);
         } catch { /* 忽略解析失败，走默认名 */ }
       }
-  
+
       // 4) 触发下载
       const blob = new Blob([res.data], {
         type: res.headers["content-type"] || "application/octet-stream",
@@ -1466,6 +1487,10 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     if (dup) {
       return failCreate("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能新增！");
     }
+
+    const psd = toDateStr(editData.policyStartDate);
+    if (!psd) return failCreate("起保日期不能为空！");
+    if (psd <= getTodayDateStr()) return failCreate("起保日期必须大于今天！");
 
     // —— 3) 真正提交时再上锁 —— 
     setSubmitting(true);
@@ -1540,6 +1565,17 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       }
     }
 
+    const psd = toDateStr(detail?.policyStartDate);
+    if (!psd) {
+      alert("起保日期不能为空！");
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (psd <= today) {
+      alert("起保日期必须大于今天，才能出单！");
+      return;
+    }
+
     try {
       const updated = await confirmIssueInsuranceDetail(detail);
 
@@ -1590,7 +1626,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     try {
       const res = await fetchInsuranceHistory({
         licensePlate: selectedDetail.licensePlate,
-        engineNumber: selectedDetail.engineNumber
+        vinNumber: selectedDetail.vinNumber
       });
       setInsuranceHistory(res.data || []);
       setHistoryModalVisible(true);
@@ -2390,7 +2426,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                       <thead>
                         <tr>
                           <th>车牌号</th>
-                          <th>发动机号</th>
+                          <th>车架号</th>
                           <th>被保险人</th>
                           <th>起保日期</th>
                           <th>保险公司</th>
@@ -2401,7 +2437,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                         {insuranceHistory.map((row, idx) => (
                           <tr key={idx}>
                             <td>{row.licensePlate}</td>
-                            <td>{row.engineNumber}</td>
+                            <td>{row.vinNumber}</td>
                             <td>{row.insuredName}</td>
                             <td>{row.policyStartDate ? String(row.policyStartDate).slice(0, 10) : ''}</td>
                             <td>{row.insuranceCompany}</td>

@@ -23,6 +23,8 @@ const ScrollingInfoBar: React.FC = () => {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const add = (a: number, b: number) => Math.round((a + b) * 100) / 100;
+
   // 拉取订单数据
   const fetchOrders = async () => {
     try {
@@ -72,8 +74,8 @@ const ScrollingInfoBar: React.FC = () => {
   return (
     <div
       className={styles.scrollingBarOuter}
-      title={`总出单数: ${orders.length} | 商业险总额: ${orders.reduce((s, o) => s + o.commercialPremium, 0)} | 交强险总额: ${orders.reduce((s, o) => s + o.compulsoryPremium, 0)}
-  我 - 总出单数: ${orders.filter(o => o.salesAgent === currentUser).length} | 商业险总额: ${orders.filter(o => o.salesAgent === currentUser).reduce((s, o) => s + o.commercialPremium, 0)} | 交强险总额: ${orders.filter(o => o.salesAgent === currentUser).reduce((s, o) => s + o.compulsoryPremium, 0)}`}
+      title={`总出单数: ${orders.length} | 商业险总额: ${orders.reduce((s, o) => add(s, o.commercialPremium), 0)} | 交强险总额: ${orders.reduce((s, o) => add(s, o.compulsoryPremium), 0)}
+我 - 总出单数: ${orders.filter(o => o.salesAgent === currentUser).length} | 商业险总额: ${orders.filter(o => o.salesAgent === currentUser).reduce((s, o) => add(s, o.commercialPremium), 0)} | 交强险总额: ${orders.filter(o => o.salesAgent === currentUser).reduce((s, o) => add(s, o.compulsoryPremium), 0)}`}
     >
       <div className={styles.scrollingBarInner}>
         <span>{announcements[currentIndex]}</span>
