@@ -101,9 +101,9 @@ export const updateInsuranceComment = (id: string, comment: string) =>
   api.post("/insurance-details/updateComment", { id, comment });
 
 
-export function checkDuplicateLicensePlate(licensePlate: string, engineNumber: string, vinNumber: string) {
+export function checkDuplicateLicensePlate(licensePlate: string, engineNumber: string, vinNumber: string, policyStartDate: string) {
   return api.get("/insurance-details/checkDuplicate", {
-    params: { licensePlate, engineNumber, vinNumber }
+    params: { licensePlate, engineNumber, vinNumber, policyStartDate }
   });
 }
 

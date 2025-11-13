@@ -78,14 +78,15 @@ export interface InsuranceDetail {
 
 // 文件顶层（组件外）
 export const checkDupByPlateEngineVin = async (
-  detail: Pick<InsuranceDetail, "licensePlate" | "engineNumber" | "vinNumber">
+  detail: Pick<InsuranceDetail, "licensePlate" | "engineNumber" | "vinNumber" | "policyStartDate">
 ): Promise<boolean> => {
   const licensePlate = (detail.licensePlate || "").trim();
   const engineNumber = (detail.engineNumber || "").trim();
   const vinNumber = (detail.vinNumber || "").trim();
+  const policyStartDate = (detail.policyStartDate || "").trim();
 
   try {
-    const res = await checkDuplicateLicensePlate(licensePlate, engineNumber, vinNumber);
+    const res = await checkDuplicateLicensePlate(licensePlate, engineNumber, vinNumber, policyStartDate);
     return !!res?.data; // true=存在重复
   } catch (err: any) {
     alert("校验重复失败：" + (err?.message || "未知错误"));
@@ -1267,6 +1268,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       const newPlate = toPlate(editData.licensePlate || "");
       const newEngine = (editData.engineNumber || "").trim();
       const newVin = (editData.vinNumber || "").trim();
+      const policyStartDate = (editData.policyStartDate || "").trim();
 
       const trioChanged = (oldPlate !== newPlate) || (oldEngine !== newEngine) || (oldVin !== newVin);
 
@@ -1274,9 +1276,10 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         const dup = await checkDupByPlateEngineVin({
           licensePlate: newPlate,
           engineNumber: newEngine,
-          vinNumber: newVin
+          vinNumber: newVin,
+          policyStartDate: policyStartDate
         });
-        if (dup) return fail("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能保存！");
+        if (dup) return fail("该【车牌+发动机号+车架号】组合在近305天内已存在记录，不能保存！");
       }
     } catch (e: any) {
       return fail("重复性校验失败，请稍后重试：" + (e?.message || e));
@@ -1482,10 +1485,11 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     const dup = await checkDupByPlateEngineVin({
       licensePlate: toPlate(finalEditData.licensePlate || ""),
       engineNumber: (finalEditData.engineNumber || "").trim(),
-      vinNumber: (finalEditData.vinNumber || "").trim()
+      vinNumber: (finalEditData.vinNumber || "").trim(),
+      policyStartDate: (finalEditData.policyStartDate || "").trim(),
     });
     if (dup) {
-      return failCreate("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能新增！");
+      return failCreate("该【车牌+发动机号+车架号】组合305天内已存在记录，不能新增！");
     }
 
     const psd = toDateStr(editData.policyStartDate);

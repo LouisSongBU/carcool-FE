@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import styles from "./InsuredExpirationPage.module.css";
-import { fetchInsuredExpirationList, updateInsuredExpirationDay, fetchInsuredExpirationAllByDays } from "../api/insuredExpirationApi";
+import { fetchInsuredExpirationList, updateInsuredExpirationDay, fetchInsuredExpirationAllByDays, createPotentialFromInsured } from "../api/insuredExpirationApi";
 import { exportXlsx, XlsxColumn } from "../utils/exportXlsx";
 
 type Row = Record<string, any>;
@@ -21,8 +21,12 @@ const COLUMNS = [
   { key: "vehicleModel", label: "厂牌型号" },
   { key: "insuredName", label: "被保险人" },
   { key: "insuredIdNumber", label: "被保险人证件" },
+  { key: "registrationOwner", label: "车主" },
+  { key: "registrationOwnerId", label: "车主证件" },
   { key: "phone", label: "电话" },
   { key: "mobile", label: "手机" },
+  { key: "firstRegistrationDate", label: "初登日期" },
+  { key: "deliveryAddress", label: "地址" },
   { key: "salesAgent", label: "业务员" },
   { key: "insuranceCompany", label: "保险公司" },
   { key: "engineNumber", label: "发动机号" },
@@ -48,6 +52,35 @@ const InsuredExpirationPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const totalPages = useMemo(() => (total > 0 ? Math.ceil(total / size) : 1), [total, size]);
+
+  const [selectedRow, setSelectedRow] = useState<number | null>(null);
+
+  const [creatingIds, setCreatingIds] = useState<Set<string | number>>(new Set());
+
+  // 点击“新增希望客户”
+  const onCreatePotential = async (row: Row) => {
+    // 如果你不想二次确认，可以去掉 confirm
+    if (!window.confirm("确认将该已保客户信息复制为『希望客户』吗？")) return;
+
+    const key = row.id ?? `${row.licensePlate || ""}-${row.vinNumber || ""}-${row.policyStartDate || ""}`;
+    setCreatingIds(prev => new Set(prev).add(key));
+    try {
+      // 把整行原样传给后端（包含未展示字段）
+      await createPotentialFromInsured({
+        ...row,
+        operator: displayName, // 可选：传当前操作人
+      });
+      alert("新增成功～");
+    } catch (e: any) {
+      alert(`新增失败：${e?.message || "未知错误"}`);
+    } finally {
+      setCreatingIds(prev => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
 
   useEffect(() => {
     let aborted = false;
@@ -178,18 +211,42 @@ const InsuredExpirationPage: React.FC = () => {
         ) : (
           <table className={styles.table}>
             <thead>
-              <tr>{COLUMNS.map(col => <th key={col.key}>{col.label}</th>)}</tr>
+              <tr>
+                {COLUMNS.map(col => <th key={col.key}>{col.label}</th>)}
+                <th>操作</th> {/* 新增 */}
+              </tr>
             </thead>
             <tbody>
               {list.length ? (
-                list.map((item, idx) => (
-                  <tr key={idx}>
-                    {COLUMNS.map(col => <td key={col.key}>{item[col.key]}</td>)}
-                  </tr>
-                ))
+                list.map((item, idx) => {
+                  const key = item.id ?? `${item.licensePlate || ""}-${item.vinNumber || ""}-${item.policyStartDate || ""}`;
+                  const pending = creatingIds.has(key);
+                  return (
+                    <tr
+                      key={idx}
+                      className={`${styles.tableRow} ${selectedRow === idx ? styles.activeRow : ""}`}
+                      onClick={() => setSelectedRow(idx)}
+                    >
+                      {COLUMNS.map(col => <td key={col.key}>{item[col.key]}</td>)}
+                      <td>
+                        <button
+                          className={styles.confirmBtn}
+                          disabled={pending}
+                          onClick={e => {
+                            e.stopPropagation(); // 防止点击按钮也触发行选中
+                            onCreatePotential(item);
+                          }}
+                          title="将该行信息复制为希望客户"
+                        >
+                          {pending ? "创建中..." : "新增希望客户"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={COLUMNS.length} style={{ textAlign: "center", color: "#999" }}>暂无数据</td>
+                  <td colSpan={COLUMNS.length + 1} style={{ textAlign: "center", color: "#999" }}>暂无数据</td>
                 </tr>
               )}
             </tbody>
@@ -201,9 +258,9 @@ const InsuredExpirationPage: React.FC = () => {
       <div className={styles.paginationBar}>
         <div className={styles.pageInfo}>共 {total} 条；每页 <b>100</b> 条；第 {page}/{totalPages} 页</div>
         <div className={styles.pagerBtns}>
-        {isSuperAdmin && (
-          <button className={styles.confirmBtn} onClick={onExportAll} disabled={loading} title="导出所有"> 导出全部 </button>
-        )}
+          {isSuperAdmin && (
+            <button className={styles.confirmBtn} onClick={onExportAll} disabled={loading} title="导出所有"> 导出全部 </button>
+          )}
           <button className={styles.pagerBtn} onClick={() => setPage(1)} disabled={page === 1}>首页</button>
           <button className={styles.pagerBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>上一页</button>
           <button className={styles.pagerBtn} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>下一页</button>

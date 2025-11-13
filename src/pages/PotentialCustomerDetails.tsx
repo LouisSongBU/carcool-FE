@@ -4,7 +4,7 @@ import type { InsuranceDetail } from './InsuranceDetails.tsx';
 import { checkDupByPlateEngineVin } from "./InsuranceDetails.tsx";
 import { getVisibleFields, groupEntriesInPairs, insuranceDetailsNameMap } from "../utils/fieldUtils";
 import {
-    fetchByRecordDate, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer, addFollowUpPotential, updateFollowUpPotential,
+    checkDuplicatePotential, fetchComprehensive, updatePotentialCustomer, addPotentialCustomer, addFollowUpPotential, updateFollowUpPotential,
     fetchFollowUpPotentialList, fetchMineWithInsured, fetchByFollowUpDate, searchPotentialCustomers
 } from '../api/potentialCustomer';
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
@@ -280,6 +280,28 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         return { salesAgent: currentUserName };
     }
 
+    async function checkPotentialDupByPlateEngineVin(detail: {
+        licensePlate?: string | null;
+        engineNumber?: string | null;
+        vinNumber?: string | null;
+        salesAgent?: string | null;
+        policyStartDate?: string | null;
+    }): Promise<boolean> {
+        const licensePlate = (detail.licensePlate || "").trim();
+        const engineNumber = (detail.engineNumber || "").trim();
+        const vinNumber = (detail.vinNumber || "").trim();
+        const salesAgent = (detail.salesAgent || "").trim();
+        const policyStartDate = (detail.policyStartDate || "").trim();
+
+        try {
+            const res = await checkDuplicatePotential(licensePlate, engineNumber, vinNumber, salesAgent, policyStartDate);
+            return !!res?.data; // true = 存在重复
+        } catch (err: any) {
+            alert("校验重复失败：" + (err?.message || "未知错误"));
+            return true; // 保守阻断
+        }
+    }
+
     // ✅ 关键：与保险明细页风格一致，只是调用 searchPotentialCustomers
     async function fetchPage(
         toPage: number,
@@ -440,6 +462,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                     licensePlate: createForm.licensePlate,
                     vinNumber: createForm.vinNumber,
                     engineNumber: createForm.engineNumber,
+                    policyStartDate: createForm.policyStartDate,
                 });
                 if (dup) {
                     alert("该【车牌+发动机号+车架号】组合在近330天内已存在记录，不能新增！");
@@ -518,7 +541,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             window.removeEventListener("mousemove", handleMouseMove);
             window.removeEventListener("mouseup", handleMouseUp);
         };
-    }, [dragging]);    
+    }, [dragging]);
 
     // 3. 查询逻辑
 
@@ -1534,6 +1557,8 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                         { key: "phone", label: "电话" },
                                         { key: "scheduleFollowUpDate", label: "下次回访时间" },
                                         { key: "policyStartDate", label: "起保日期" },
+                                        { key: "engineNumber", label: "发动机号" },
+                                        { key: "vinNumber", label: "车架号" },
                                     ];
 
                                     // 2. 检查哪些字段为空
@@ -1551,7 +1576,46 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                         return; // 阻止提交
                                     }
 
-                                    if (editForm.id != null) {
+                                    // 2.5 统一三要素大小写，并做“希望客户”专用查重
+                                    const plateRaw = String(editForm.licensePlate || "").trim();
+                                    const engineRaw = String(editForm.engineNumber || "").trim();
+                                    const vinRaw = String(editForm.vinNumber || "").trim();
+                                    const salesAgent = String(editForm.salesAgent || "").trim();
+                                    const policyStartDate = String(editForm.policyStartDate || "").trim();
+
+                                    // （保险起见）这里再做一次三要素完整性兜底
+                                    if (!plateRaw || !engineRaw || !vinRaw) {
+                                        alert("请填写完整：车牌号、发动机号、车架号（VIN）");
+                                        return;
+                                    }
+
+                                    // 统一大小写，降低误差
+                                    const normalized = {
+                                        ...editForm,
+                                        licensePlate: plateRaw.toUpperCase(),
+                                        engineNumber: engineRaw.toUpperCase(),
+                                        vinNumber: vinRaw.toUpperCase(),
+                                    };
+                                    setEditForm(normalized);
+
+                                    const isEdit = editForm.id != null;
+
+                                    // ✅ 只有新增时才查重
+                                    if (!isEdit) {
+                                        const dup = await checkPotentialDupByPlateEngineVin({
+                                            licensePlate: normalized.licensePlate,
+                                            engineNumber: normalized.engineNumber,
+                                            vinNumber: normalized.vinNumber,
+                                            salesAgent: salesAgent,
+                                            policyStartDate: policyStartDate,
+                                        });
+                                        if (dup) {
+                                            alert("该【车牌+发动机号+车架号】组合在近305天内已存在希望客户记录，不能新增！");
+                                            return;
+                                        }
+                                    }
+
+                                    if (isEdit) {
                                         // ---- 编辑 ----
                                         try {
                                             const res = await updatePotentialCustomer(editForm);
@@ -2039,15 +2103,15 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                     }
                                                     if (key === "intermediaryInvoiceNo") {
                                                         return (
-                                                          <input
-                                                            type="number"
-                                                            className={`${styles.editInput} form-control`}
-                                                            value={String(value ?? "")}
-                                                            disabled
-                                                            readOnly
-                                                          />
+                                                            <input
+                                                                type="number"
+                                                                className={`${styles.editInput} form-control`}
+                                                                value={String(value ?? "")}
+                                                                disabled
+                                                                readOnly
+                                                            />
                                                         );
-                                                      }
+                                                    }
                                                     // 其余字段走通用渲染
                                                     return renderInsuranceInput(
                                                         key,

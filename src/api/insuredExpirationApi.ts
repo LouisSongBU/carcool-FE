@@ -45,3 +45,21 @@ export async function fetchInsuredExpirationAllByDays(days: number) {
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.json() as Promise<any[]>; // 后端返回的 DTO 列表
 }
+
+// 新增：从“已保即将到期”的一行创建“希望客户”
+export async function createPotentialFromInsured(payload: any) {
+  const resp = await fetch("/api/insured-expiration/create-potential", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) {
+     // 如果是 409（重复记录）
+     if (resp.status === 409) {
+      throw new Error("当前车辆同一天起保日期已经存在，请勿重复新增");
+    }
+    const msg = await resp.text().catch(() => "");
+    throw new Error(msg || `HTTP ${resp.status}`);
+  }
+  return resp.json().catch(() => ({}));
+}

@@ -139,3 +139,17 @@ export async function searchPotentialCustomers(payload: SearchPotentialPayload) 
   // 具体 URL 以你后端约定为准
   return api.post('/potential-customers/search', payload);
 }
+
+/** 希望客户：查重（车牌 + 发动机 + VIN；近 305 天） */
+export function checkDuplicatePotential(
+  licensePlate: string,
+  engineNumber: string,
+  vinNumber: string,
+  salesAgent: string,
+  policyStartDate: string
+) {
+  // ⚠️ 这里换成你后端为“希望客户”准备的查重接口
+  return api.get("/potential-customers/checkDuplicate", {
+    params: { licensePlate, engineNumber, vinNumber, salesAgent, policyStartDate },
+  });
+}
