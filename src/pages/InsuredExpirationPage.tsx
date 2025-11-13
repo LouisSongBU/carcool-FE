@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import styles from "./InsuredExpirationPage.module.css";
 import { fetchInsuredExpirationList, updateInsuredExpirationDay, fetchInsuredExpirationAllByDays, createPotentialFromInsured } from "../api/insuredExpirationApi";
 import { exportXlsx, XlsxColumn } from "../utils/exportXlsx";
@@ -15,22 +15,21 @@ const role = (userInfo.role || "").toLowerCase();
 const isSuperAdmin = role === "superadmin";
 
 const COLUMNS = [
-  { key: "id", label: "id" },
-  { key: "policyStartDate", label: "起保日期" },
-  { key: "licensePlate", label: "车牌号" },
-  { key: "insuredName", label: "被保险人" },
-  { key: "phone", label: "电话" },
-  { key: "vehicleModel", label: "厂牌型号" },
-  { key: "insuredIdNumber", label: "被保险人证件" },
-  { key: "registrationOwner", label: "车主" },
-  { key: "registrationOwnerId", label: "车主证件" },
-  { key: "mobile", label: "手机" },
-  { key: "firstRegistrationDate", label: "初登日期" },
-  { key: "deliveryAddress", label: "地址" },
-  { key: "salesAgent", label: "业务员" },
-  { key: "insuranceCompany", label: "保险公司" },
-  { key: "engineNumber", label: "发动机号" },
-  { key: "vinNumber", label: "车架号" },
+  { key: "policyStartDate", label: "起保日期", width: 100 },
+  { key: "licensePlate", label: "车牌号", width: 100 },
+  { key: "insuredName", label: "被保险人", width: 100 },
+  { key: "phone", label: "电话", width: 100 },
+  { key: "vehicleModel", label: "厂牌型号", width: 100 },
+  { key: "insuredIdNumber", label: "被保险人证件", width: 100 },
+  { key: "firstRegistrationDate", label: "初登日期", width: 100 },
+  { key: "deliveryAddress", label: "地址", width: 100 },
+  { key: "salesAgent", label: "业务员", width: 100 },
+  { key: "insuranceCompany", label: "保险公司", width: 100 },
+  { key: "engineNumber", label: "发动机号", width: 100 },
+  { key: "vinNumber", label: "车架号", width: 100 },
+  { key: "registrationOwner", label: "车主", width: 100 },
+  { key: "registrationOwnerId", label: "车主证件", width: 100 },
+  { key: "mobile", label: "手机", width: 100 },
 ];
 
 const DEFAULT_DAYS = 60;
@@ -57,6 +56,16 @@ const InsuredExpirationPage: React.FC = () => {
 
   const [creatingIds, setCreatingIds] = useState<Set<string | number>>(new Set());
 
+  const [dragging, setDragging] = useState<{ col: number; startX: number; startWidth: number } | null>(null);
+  const [dragLineX, setDragLineX] = useState<number | null>(null);
+
+  const [colWidths, setColWidths] = useState<number[]>(
+    () => COLUMNS.map(c => c.width || 100)
+  );
+
+  // 表格外层容器，用来计算 dragLine 的位置
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
+
   // 点击“新增希望客户”
   const onCreatePotential = async (row: Row) => {
     // 如果你不想二次确认，可以去掉 confirm
@@ -81,6 +90,60 @@ const InsuredExpirationPage: React.FC = () => {
       });
     }
   };
+
+  const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
+    setDragging({
+      col: colIndex,
+      startX: e.clientX,
+      startWidth: colWidths[colIndex],
+    });
+
+    const container = tableContainerRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      setDragLineX(e.clientX - rect.left + container.scrollLeft);
+    } else {
+      // 兜底，实在没有 ref 就用 clientX
+      setDragLineX(e.clientX);
+    }
+
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!dragging) return;
+    const container = tableContainerRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      setDragLineX(e.clientX - rect.left + container.scrollLeft);
+    }
+  };
+
+  const handleMouseUp = (e: MouseEvent) => {
+    if (!dragging) return;
+    const delta = e.clientX - dragging.startX;
+    setColWidths((prev) => {
+      const next = [...prev];
+      next[dragging.col] = Math.max(50, dragging.startWidth + delta);
+      return next;
+    });
+    setDragging(null);
+    setDragLineX(null);
+  };
+
+  useEffect(() => {
+    if (dragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    } else {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragging]);
 
   useEffect(() => {
     let aborted = false;
@@ -202,56 +265,114 @@ const InsuredExpirationPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 表格滚动区 */}
-      <div className={styles.tableContainer}>
-        {loading ? (
-          <div style={{ padding: 30, textAlign: "center" }}>加载中...</div>
-        ) : error ? (
-          <div style={{ padding: 30, color: "#f44", textAlign: "center" }}>{error}</div>
-        ) : (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                {COLUMNS.map(col => <th key={col.key}>{col.label}</th>)}
-                <th>操作</th> {/* 新增 */}
-              </tr>
-            </thead>
-            <tbody>
-              {list.length ? (
-                list.map((item, idx) => {
-                  const key = item.id ?? `${item.licensePlate || ""}-${item.vinNumber || ""}-${item.policyStartDate || ""}`;
-                  const pending = creatingIds.has(key);
-                  return (
-                    <tr
-                      key={idx}
-                      className={`${styles.tableRow} ${selectedRow === idx ? styles.activeRow : ""}`}
-                      onClick={() => setSelectedRow(idx)}
-                    >
-                      {COLUMNS.map(col => <td key={col.key}>{item[col.key]}</td>)}
-                      <td>
-                        <button
-                          className={styles.confirmBtn}
-                          disabled={pending}
-                          onClick={e => {
-                            e.stopPropagation(); // 防止点击按钮也触发行选中
-                            onCreatePotential(item);
-                          }}
-                          title="将该行信息复制为希望客户"
-                        >
-                          {pending ? "创建中..." : "新增希望客户"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={COLUMNS.length + 1} style={{ textAlign: "center", color: "#999" }}>暂无数据</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      <div className={styles.tableWrapper}>
+        {/* 拖拽时的竖线参考线 */}
+        {dragLineX !== null && (
+          <div
+            className={styles.dragLine}
+            style={{ left: dragLineX }}
+          />
         )}
+        {/* 表格滚动区 */}
+        <div className={styles.tableContainer} ref={tableContainerRef}>
+
+          {loading ? (
+            <div style={{ padding: 30, textAlign: "center" }}>加载中...</div>
+          ) : error ? (
+            <div style={{ padding: 30, color: "#f44", textAlign: "center" }}>{error}</div>
+          ) : (
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  {COLUMNS.map((col, idx) => (
+                    <th
+                      key={col.key}
+                      style={{
+                        width: colWidths[idx],
+                        minWidth: colWidths[idx],
+                      }
+                      }
+                    >
+                      <div className={styles.thInner}>
+                        <span>{col.label}</span>
+                        <span
+                          className={styles.colResizer}
+                          onMouseDown={e => handleMouseDown(e, idx)}
+                        />
+                      </div>
+                    </th>
+                  ))}
+                  <th style={{ width: 120, minWidth: 120 }}>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.length ? (
+                  list.map((item, idx) => {
+                    const key =
+                      item.id ??
+                      `${item.licensePlate || ""}-${item.vinNumber || ""}-${item.policyStartDate || ""}`;
+                    const pending = creatingIds.has(key);
+                    return (
+                      <tr
+                        key={idx}
+                        className={`${styles.tableRow} ${selectedRow === idx ? styles.activeRow : ""
+                          }`}
+                        onClick={() => setSelectedRow(idx)}
+                      >
+                        {COLUMNS.map((col, cIdx) => (
+                          <td
+                            key={col.key}
+                            style={{
+                              width: colWidths[cIdx],
+                              minWidth: colWidths[cIdx],
+                              maxWidth: colWidths[cIdx],
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap"
+                            }}
+                          >
+                            {item[col.key]}
+                          </td>
+                        ))}
+
+                        {/* 操作列 */}
+                        <td
+                          style={{
+                            width: 100,
+                            minWidth: 100,
+                            maxWidth: 100,
+                            textAlign: "center"
+                          }}
+                        >
+                          <button
+                            className={styles.confirmBtn}
+                            disabled={pending}
+                            onClick={e => {
+                              e.stopPropagation(); // 防止选中高亮
+                              onCreatePotential(item);
+                            }}
+                            title="将该行信息复制为希望客户"
+                          >
+                            {pending ? "创建中..." : "新增希望客户"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={COLUMNS.length + 1}
+                      style={{ textAlign: "center", color: "#999" }}
+                    >
+                      暂无数据
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {/* 分页条（滚动区外） */}

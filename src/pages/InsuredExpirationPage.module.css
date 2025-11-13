@@ -57,14 +57,14 @@
 }
 
 .confirmBtn {
-    margin-left: 10px;
-    padding: 5px 16px;
+    margin-left: 0px;
+    padding: 0px 2px;
     border-radius: 8px;
     border: none;
     background: #1997c6;
     color: #fff;
     font-size: .95rem;
-    font-weight: 600;
+    font-weight: 500;
     transition: background .18s, transform .08s;
     cursor: pointer;
 }
@@ -75,19 +75,6 @@
 
 .confirmBtn:active {
     transform: translateY(1px);
-}
-
-.tableContainer {
-    width: 100%;
-    max-width: 1200px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 2px 16px rgba(44, 62, 80, .05);
-    padding: 2px 3px 3px 2px;
-    overflow-x: auto;
-    height: 500px;
-    overflow-y: auto;
-    margin-bottom: 8px;
 }
 
 .table {
@@ -101,7 +88,7 @@
 .table th,
 .table td {
     border-bottom: 1px solid #e6edf3;
-    padding: 6px 10px;
+    padding: 6px 0px;
     text-align: center;
     white-space: nowrap;
     border-right: 1px solid #e6edf3;
@@ -216,16 +203,61 @@
     font-weight: 600;
 }
 
-/* ===== 表头固定 ===== */
-.tableContainer {
-    position: relative;
-    overflow: auto;
-    height: 500px;
-}
-
 .table thead th {
     position: sticky;
     top: 0;
     z-index: 0;
     background: #eef7fa;
+}
+  
+  /* 拖拽时显示的竖线 */
+  .dragLine {
+    position: absolute;
+    top: 0;
+    height: 100%;                  /* 表头高度，实在不准可以微调 */
+    left: 0;                        /* 实际横向位置由 inline style 覆盖 */
+    width: 0;
+    border-left: 1px solid #409eff; /* 画竖线 */
+    pointer-events: none;
+    z-index: 10;
+  }    
+
+  .thInner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;   /* 标题水平居中 */
+    width: 100%;               /* 撑满 th */
+    box-sizing: border-box;
+    padding-right: 6px;        /* 给右侧拖拽条预留一点空间 */
+  }
+  
+  /* 右侧拖拽条 */
+  .colResizer {
+    position: absolute;
+    right: -2px;               /* 稍微探出一点，贴近真正分界线 */
+    top: 0;
+    width: 6px;                /* 热区宽一点，好点中 */
+    height: 100%;
+    cursor: col-resize;
+    user-select: none;
+  }
+  
+  /* 外壳：负责样式 + 定位 dragLine */
+.tableWrapper {
+    width: 100%;
+    max-width: 1200px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 16px rgba(44, 62, 80, .05);
+    padding: 2px 3px 3px 2px;
+    margin-bottom: 8px;
+    position: relative;   /* dragLine 定位用这个 */
+}
+
+/* 里层：只负责滚动表格 */
+.tableContainer {
+    overflow-x: auto;
+    overflow-y: auto;
+    height: 500px;
 }
