@@ -996,3 +996,35 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.valueCellInner {
+  display: flex;
+  align-items: center;
+  gap: 0px;
+}
+
+.valueCellInner input,
+.valueCellInner textarea,
+.valueCellInner select {
+  flex: 1;
+}
+
+.copyIcon {
+  cursor: pointer;
+  margin-left: 0px;
+  font-size: 14px;
+  user-select: none;
+  transition: color 0.2s ease, transform 0.2s ease;
+  opacity: 0.6;
+}
+
+.copyIcon:hover {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+.copied {
+  color: #28a745 !important; /* 绿色对勾 */
+  opacity: 1 !important;
+  transform: scale(1.2);
+}

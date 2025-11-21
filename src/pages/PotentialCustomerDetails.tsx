@@ -174,10 +174,10 @@ const followUpNoteFields = [
 const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompanies, userList }) => {
     // 1. 查询和筛选
     const [query, setQuery] = useState({
-        recordTimeStart: getTodayDate(),
+        recordTimeStart: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
         recordTimeEnd: getTodayDate(),
-        policyStartDateStart: "",
-        policyStartDateEnd: "",
+        policyStartDateStart: dayjs().subtract(1, "month").format("YYYY-MM-DD"),
+        policyStartDateEnd: dayjs().add(2, "month").format("YYYY-MM-DD"),
     });
 
     const [filters, setFilters] = useState({
@@ -189,7 +189,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         notScheduledOrExpired: false,
     });
 
-    const [followUpDateQuery, setFollowUpDateQuery] = useState("");
+    const [followUpDateQuery, setFollowUpDateQuery] = useState(getTodayDate());
     const [selectedFollowUpCount, setSelectedFollowUpCount] = useState<string | number>('');
     const [neverFollowUp, setNeverFollowUp] = useState(false);
 
@@ -242,7 +242,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     const todayFollowUp = followUpList.find(f => f.date === today);
 
     // === 在组件里新增这几个 state 和函数 ===
-    const [colWidths, setColWidths] = useState<number[]>([30, 30, 100, 60, 100, 100]);
+    const [colWidths, setColWidths] = useState<number[]>([30, 30, 100, 60, 100, 60, 100]);
     const [dragging, setDragging] = useState<{ col: number; startX: number; startWidth: number } | null>(null);
     const [dragLineX, setDragLineX] = useState<number | null>(null);
 
@@ -1283,7 +1283,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                 <table className={styles.queryResultTable}>
                                     <thead>
                                         <tr>
-                                            {["#", "成功", "车牌号", "车主", "起保日期", "厂牌型号"].map((title, idx) => (
+                                            {["#", "成功", "车牌号", "车主", "起保日期", "被保险人", "厂牌型号"].map((title, idx) => (
                                                 <th key={idx} style={{ width: colWidths[idx], position: "relative" }}>
                                                     {title}
                                                     <div
@@ -1321,6 +1321,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                 <td>{item.licensePlate}</td>
                                                 <td>{item.registrationOwner}</td>
                                                 <td>{item.policyStartDate ? String(item.policyStartDate).slice(0, 10) : ""}</td>
+                                                <td>{item.insuredName}</td>
                                                 <td>{item.vehicleModel}</td>
                                             </tr>
                                         ))}

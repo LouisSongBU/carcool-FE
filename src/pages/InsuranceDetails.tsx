@@ -198,14 +198,14 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     if (!dateStr) return "";
     const [y, m, d] = dateStr.split("-").map(Number);
     const newYear = y + n;
-  
+
     // 处理闰年特殊情况：若原本是2月29日且新年份非闰年，则改为2月28日
     if (m === 2 && d === 29 && !(newYear % 400 === 0 || (newYear % 4 === 0 && newYear % 100 !== 0))) {
       return `${newYear}-02-28`;
     }
-  
+
     return `${newYear}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-  };  
+  };
 
   // 分页：只渲染当前页
   const [page, setPage] = useState(1);
@@ -405,6 +405,64 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     }
 
   };
+
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const copyToClipboard = (key: string, raw: any) => {
+    const text = raw == null ? "" : String(raw).trim();
+    if (!text) return;
+  
+    // 小工具：复制成功后统一处理“高亮图标”
+    const markCopied = () => {
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 800);
+    };
+  
+    // 1️⃣ 优先用 Clipboard API（仅在安全环境 / 新浏览器可用）
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.clipboard &&
+      typeof navigator.clipboard.writeText === "function"
+    ) {
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          markCopied();
+        })
+        .catch((err) => {
+          console.error("复制失败（clipboard）", err);
+          // 失败时再尝试老方案
+          fallbackCopy(text, markCopied);
+        });
+      return;
+    }
+  
+    // 2️⃣ 退回到老的 document.execCommand('copy') 方案
+    fallbackCopy(text, markCopied);
+  };
+  
+  // 老浏览器 / 非安全环境用这个兜底
+  function fallbackCopy(text: string, onSuccess: () => void) {
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(textarea);
+  
+      if (ok) {
+        onSuccess();
+      } else {
+        alert("复制失败，请手动选择文本复制");
+      }
+    } catch (e) {
+      console.error("复制失败（fallback）", e);
+      alert("复制失败，请手动选择文本复制");
+    }
+  }  
 
   // 放到组件内其它 handler 附近
   const handleClearAndReload = () => {
@@ -2246,7 +2304,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
               {/* 详细表格 */}
               {selectedDetail && (
                 <div>
-                  {/* 可编辑详情表格 */}
                   <table className={`table table-bordered table-hover ${styles.customTable}`}>
                     <tbody>
                       {detailFieldOrder.map((pair, rowIdx) => {
@@ -2257,34 +2314,68 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                         ) {
                           return null;
                         }
+
+                        const val1 = editData ? editData[key1 as keyof InsuranceDetail] : "";
+                        const val2 = key2 ? (editData ? editData[key2 as keyof InsuranceDetail] : "") : "";
+
+                        // 日期字段统一裁成 yyyy-MM-dd 再复制，避免带时间
+                        const getCopyVal = (key: string, value: any) => {
+                          if (dateFields.has(key)) {
+                            return value ? String(value).slice(0, 10) : "";
+                          }
+                          return value;
+                        };
+
                         return (
                           <tr key={rowIdx}>
-                            {/* 第一列标题 */}
                             <th>{insuranceDetailsNameMap[key1] || key1}</th>
 
-                            {/* 如果有 key2：正常渲染左右两列；如果没有 key2：直接让 value 占满右侧三列 */}
                             {key2 ? (
                               <>
-                                <td>
-                                  {renderInput(
-                                    key1,
-                                    editData ? editData[key1 as keyof InsuranceDetail] : ""
-                                  )}
+                                {/* 左侧 value */}
+                                <td className={styles.valueCell}>
+                                  <div className={styles.valueCellInner}>
+                                    {renderInput(key1, val1)}
+                                    <span
+                                      className={`${styles.copyIcon} ${copiedKey === key1 ? styles.copied : ""
+                                        }`}
+                                      onClick={() => copyToClipboard(key1, getCopyVal(key1, val1))}
+                                    >
+                                      {copiedKey === key1 ? "☑" : "📋"}
+                                    </span>
+                                  </div>
                                 </td>
+
+                                {/* 右侧标题 */}
                                 <th>{insuranceDetailsNameMap[key2] || key2}</th>
-                                <td>
-                                  {renderInput(
-                                    key2,
-                                    editData ? editData[key2 as keyof InsuranceDetail] : ""
-                                  )}
+
+                                {/* 右侧 value */}
+                                <td className={styles.valueCell}>
+                                  <div className={styles.valueCellInner}>
+                                    {renderInput(key2, val2)}
+                                    <span
+                                      className={`${styles.copyIcon} ${copiedKey === key2 ? styles.copied : ""
+                                        }`}
+                                      onClick={() => copyToClipboard(key2, getCopyVal(key2, val2))}
+                                    >
+                                      {copiedKey === key2 ? "☑" : "📋"}
+                                    </span>
+                                  </div>
                                 </td>
                               </>
                             ) : (
+                              // 单字段一行（比如备注），也加复制按钮
                               <td colSpan={3} className={styles.commentCell}>
-                                {renderInput(
-                                  key1,
-                                  editData ? editData[key1 as keyof InsuranceDetail] : ""
-                                )}
+                                <div className={styles.valueCellInner}>
+                                  {renderInput(key1, val1)}
+                                  <span
+                                    className={`${styles.copyIcon} ${copiedKey === key1 ? styles.copied : ""
+                                      }`}
+                                    onClick={() => copyToClipboard(key1, getCopyVal(key1, val1))}
+                                  >
+                                    {copiedKey === key1 ? "☑" : "📋"}
+                                  </span>
+                                </div>
                               </td>
                             )}
                           </tr>
@@ -2293,7 +2384,6 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                     </tbody>
                   </table>
 
-                  {/* 按钮组保持原调用 */}
                   {renderButtonGroup()}
                 </div>
               )}
