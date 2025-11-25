@@ -145,7 +145,8 @@
 }
 
 .selectedRow {
-  background: linear-gradient(90deg, #d8eaff 0%, #f3f8fd 100%) !important;
+  background: #c7dbff !important;  /* 明亮一些的蓝底 */
+  box-shadow: inset 0 0 0 2px #7aa8ff; /* 轻微描边更清晰 */
 }
 
 @keyframes fadeIn {

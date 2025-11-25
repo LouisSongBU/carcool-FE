@@ -73,7 +73,7 @@ export interface InsuranceDetail {
   commercialAdjustment: number | null;
   compulsoryAdjustment: number | null;
   comment: string | null;
-  extraFee: number;
+  extraFee: string | null;
 }
 
 // 文件顶层（组件外）
@@ -240,11 +240,39 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   const [editType, setEditType] = useState<"add" | "edit">("edit");
   const [showPrintModal, setShowPrintModal] = useState(false);
 
-  // 其它
-  const fieldOptions = Object.entries(insuranceDetailsNameMap).map(([key, label]) => ({
-    value: key,
-    label
-  }));
+  // 让筛选下拉选项只包含右侧详情展示过的字段，
+  // 顺序改为：所有左列字段在前，所有右列字段在后
+  const fieldOptions = (() => {
+    const leftKeys: string[] = [];
+    const rightKeys: string[] = [];
+
+    // 1. 先收集“左列” & “右列”的 key
+    detailFieldOrder.forEach(([k1, k2]) => {
+      if (k1) leftKeys.push(k1);   // 每行左边
+      if (k2) rightKeys.push(k2);  // 每行右边
+    });
+
+    // 2. 先左列全部，再右列全部
+    const orderedKeys = [...leftKeys, ...rightKeys];
+
+    const seen = new Set<string>();
+    const result: { value: string; label: string }[] = [];
+
+    orderedKeys.forEach((key) => {
+      if (seen.has(key)) return;
+
+      // 普通用户过滤隐藏字段（跟右侧可见性一致）
+      if (!isSuperAdmin && hiddenFieldsForUser.includes(key)) return;
+
+      const label = insuranceDetailsNameMap[key];
+      if (!label) return; // 没有中文名的直接跳过
+
+      seen.add(key);
+      result.push({ value: key, label });
+    });
+
+    return result;
+  })();
 
   // state 新增
   const [agentInput, setAgentInput] = useState(""); // 输入框内容
@@ -411,13 +439,13 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   const copyToClipboard = (key: string, raw: any) => {
     const text = raw == null ? "" : String(raw).trim();
     if (!text) return;
-  
+
     // 小工具：复制成功后统一处理“高亮图标”
     const markCopied = () => {
       setCopiedKey(key);
       setTimeout(() => setCopiedKey(null), 800);
     };
-  
+
     // 1️⃣ 优先用 Clipboard API（仅在安全环境 / 新浏览器可用）
     if (
       typeof navigator !== "undefined" &&
@@ -436,11 +464,11 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
         });
       return;
     }
-  
+
     // 2️⃣ 退回到老的 document.execCommand('copy') 方案
     fallbackCopy(text, markCopied);
   };
-  
+
   // 老浏览器 / 非安全环境用这个兜底
   function fallbackCopy(text: string, onSuccess: () => void) {
     try {
@@ -452,7 +480,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       textarea.select();
       const ok = document.execCommand("copy");
       document.body.removeChild(textarea);
-  
+
       if (ok) {
         onSuccess();
       } else {
@@ -462,7 +490,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
       console.error("复制失败（fallback）", e);
       alert("复制失败，请手动选择文本复制");
     }
-  }  
+  }
 
   // 放到组件内其它 handler 附近
   const handleClearAndReload = () => {

@@ -147,8 +147,9 @@
   }
   
   .selectedRow {
-    background: linear-gradient(90deg, #ccf5d7 0%, #eafaf0 100%) !important;
-  }
+    background: #d8f5d0 !important;        /* 柔和浅绿 */
+    box-shadow: inset 0 0 0 2px #8ed48a;   /* 清新的绿色描边 */
+  }  
 
   .filterCheckboxLabel {
     display: flex;
@@ -488,4 +489,38 @@
   width: 2px;
   background: red;
   z-index: 10;
+}
+
+.valueCellInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;   /* 🚀 左文字，右按钮 */
+  gap: 6px;
+  width: 100%;
+}
+
+.valueText {
+  flex: 1;                          /* 🚀 占满剩余空间 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;          /* 长文本不挤歪按钮 */
+}
+
+.copyIcon {
+  cursor: pointer;
+  min-width: 20px;                  /* 🚀 防止变形 */
+  text-align: right;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.copyIcon:hover {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+.copied {
+  color: #28a745 !important;
+  transform: scale(1.25);
+  opacity: 1 !important;
 }

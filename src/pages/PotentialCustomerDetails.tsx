@@ -210,6 +210,64 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     const currentUserName = userInfo.displayName || "";
     const [historyLoading, setHistoryLoading] = useState(false);
 
+    const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+    const copyToClipboard = (key: string, raw: any) => {
+        const text = raw == null ? "" : String(raw).trim();
+        if (!text) return;
+
+        // 小工具：复制成功后统一处理“高亮图标”
+        const markCopied = () => {
+            setCopiedKey(key);
+            setTimeout(() => setCopiedKey(null), 800);
+        };
+
+        // 1️⃣ 优先用 Clipboard API（仅在安全环境 / 新浏览器可用）
+        if (
+            typeof navigator !== "undefined" &&
+            navigator.clipboard &&
+            typeof navigator.clipboard.writeText === "function"
+        ) {
+            navigator.clipboard
+                .writeText(text)
+                .then(() => {
+                    markCopied();
+                })
+                .catch((err) => {
+                    console.error("复制失败（clipboard）", err);
+                    // 失败时再尝试老方案
+                    fallbackCopy(text, markCopied);
+                });
+            return;
+        }
+
+        // 2️⃣ 退回到老的 document.execCommand('copy') 方案
+        fallbackCopy(text, markCopied);
+    };
+
+    // 老浏览器 / 非安全环境用这个兜底
+    function fallbackCopy(text: string, onSuccess: () => void) {
+        try {
+            const textarea = document.createElement("textarea");
+            textarea.value = text;
+            textarea.style.position = "fixed";
+            textarea.style.left = "-9999px";
+            document.body.appendChild(textarea);
+            textarea.select();
+            const ok = document.execCommand("copy");
+            document.body.removeChild(textarea);
+
+            if (ok) {
+                onSuccess();
+            } else {
+                alert("复制失败，请手动选择文本复制");
+            }
+        } catch (e) {
+            console.error("复制失败（fallback）", e);
+            alert("复制失败，请手动选择文本复制");
+        }
+    }
+
     const hiddenCreateFieldsForUser = isSuperAdmin
         ? [] // 超级管理员不隐藏
         : ["isSettlement", "financeVerification", "commercialAdjustment", "compulsoryAdjustment"];
@@ -353,6 +411,29 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         setCustomFilters(next);
         fetchPage(1, { customFiltersOverride: next });
     }
+
+    function getScrollParent(node: HTMLElement | null): HTMLElement {
+        let p: HTMLElement | null = node?.parentElement ?? null;
+        while (p) {
+            const oy = getComputedStyle(p).overflowY;
+            if (oy === 'auto' || oy === 'scroll') return p;
+            p = p.parentElement;
+        }
+        return (document.scrollingElement || document.documentElement) as HTMLElement;
+    }
+    
+    function scrollRowIntoView(index: number, tableClass: string) {
+        const row = document.querySelector(`.${tableClass} tr[data-index="${index}"]`) as HTMLElement | null;
+        if (!row) return;
+        const container = getScrollParent(row);
+        const containerRect = container.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+        const thead = container.querySelector('thead') as HTMLElement | null;
+        const headerH = thead ? thead.offsetHeight : 0;
+        const targetTop = rowRect.top - containerRect.top + container.scrollTop - headerH;
+        container.scrollTo({ top: Math.max(targetTop, 0), behavior: 'auto' });
+    }
+    
 
     const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
         setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
@@ -542,6 +623,11 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
             window.removeEventListener("mouseup", handleMouseUp);
         };
     }, [dragging]);
+
+    useEffect(() => {
+        if (selectedIndex == null) return;
+        scrollRowIntoView(selectedIndex, styles.queryResultTable);
+    }, [selectedIndex]);    
 
     // 3. 查询逻辑
 
@@ -1304,6 +1390,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                     <tbody>
                                         {myList.map((item, idx) => (
                                             <tr
+                                                data-index={idx}
                                                 key={item.licensePlate + idx}
                                                 style={{ cursor: "pointer" }}
                                                 onClick={() => {
@@ -1404,39 +1491,77 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                         <th style={{ width: 110 }}>{fieldNameMap[key1] || key1}</th>
                                                         {key2 ? (
                                                             <>
-                                                                <td>
-                                                                    {selectedDetail[key1 as keyof PotentialCustomer] ?? ""}
+                                                                {/* 左侧 value + 复制 */}
+                                                                <td className={styles.valueCell}>
+                                                                    <div className={styles.valueCellInner}>
+                                                                        <span className={styles.valueText}>
+                                                                            {selectedDetail[key1 as keyof PotentialCustomer] ?? ""}
+                                                                        </span>
+
+                                                                        <span
+                                                                            className={`${styles.copyIcon} ${copiedKey === key1 ? styles.copied : ""}`}
+                                                                            onClick={() =>
+                                                                                copyToClipboard(
+                                                                                    key1,
+                                                                                    selectedDetail[key1 as keyof PotentialCustomer]
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            {copiedKey === key1 ? "☑" : "📋"}
+                                                                        </span>
+                                                                    </div>
                                                                 </td>
+
+                                                                {/* 右侧标题 */}
                                                                 <th style={{ width: 110 }}>{fieldNameMap[key2] || key2}</th>
-                                                                <td>
-                                                                    {selectedDetail[key2 as keyof PotentialCustomer] ?? ""}
+
+                                                                {/* 右侧 value + 复制 */}
+                                                                <td className={styles.valueCell}>
+                                                                    <div className={styles.valueCellInner}>
+                                                                        <span className={styles.valueText}>
+                                                                            {selectedDetail[key2 as keyof PotentialCustomer] ?? ""}
+                                                                        </span>
+
+                                                                        <span
+                                                                            className={`${styles.copyIcon} ${copiedKey === key2 ? styles.copied : ""}`}
+                                                                            onClick={() =>
+                                                                                copyToClipboard(
+                                                                                    key2,
+                                                                                    selectedDetail[key2 as keyof PotentialCustomer]
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            {copiedKey === key2 ? "☑" : "📋"}
+                                                                        </span>
+                                                                    </div>
                                                                 </td>
                                                             </>
                                                         ) : (
-                                                            // 单字段一行（备注专用，合并3列）
-                                                            <td colSpan={3}>
-                                                                {key1 === "note" ? (
-                                                                    <div
-                                                                        style={{
-                                                                            whiteSpace: "nowrap",
-                                                                            overflow: "hidden",
-                                                                            textOverflow: "ellipsis",
-                                                                            cursor: "pointer",
-                                                                            minHeight: 28,
-                                                                            color: "#49597b"
-                                                                        }}
-                                                                        title={selectedDetail.note ?? ""}
-                                                                        onClick={() => {
-                                                                            setCommentEditValue(selectedDetail.note ?? "");
-                                                                            setShowCommentModal(true);
-                                                                        }}
+                                                            // 单字段一行（备注 + 可复制）
+                                                            <td colSpan={3} className={styles.valueCell}>
+                                                                <div className={styles.valueCellInner}>
+                                                                    <span className={styles.valueText}>
+                                                                        {key1 === "note" ? (
+                                                                            selectedDetail.note || <span style={{ color: "#bbb" }}>暂无备注</span>
+                                                                        ) : (
+                                                                            selectedDetail[key1 as keyof PotentialCustomer] ?? ""
+                                                                        )}
+                                                                    </span>
+
+                                                                    <span
+                                                                        className={`${styles.copyIcon} ${copiedKey === key1 ? styles.copied : ""}`}
+                                                                        onClick={() =>
+                                                                            copyToClipboard(
+                                                                                key1,
+                                                                                key1 === "note"
+                                                                                    ? selectedDetail.note
+                                                                                    : selectedDetail[key1 as keyof PotentialCustomer]
+                                                                            )
+                                                                        }
                                                                     >
-                                                                        {selectedDetail.note || <span style={{ color: "#bbb" }}>暂无备注</span>}
-                                                                        <span style={{ marginLeft: 10, color: "#198cff", fontSize: 12 }}>📝点击编辑</span>
-                                                                    </div>
-                                                                ) : (
-                                                                    selectedDetail[key1 as keyof PotentialCustomer] ?? ""
-                                                                )}
+                                                                        {copiedKey === key1 ? "☑" : "📋"}
+                                                                    </span>
+                                                                </div>
                                                             </td>
                                                         )}
                                                     </tr>
