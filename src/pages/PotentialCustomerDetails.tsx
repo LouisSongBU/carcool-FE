@@ -421,7 +421,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         }
         return (document.scrollingElement || document.documentElement) as HTMLElement;
     }
-    
+
     function scrollRowIntoView(index: number, tableClass: string) {
         const row = document.querySelector(`.${tableClass} tr[data-index="${index}"]`) as HTMLElement | null;
         if (!row) return;
@@ -433,7 +433,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
         const targetTop = rowRect.top - containerRect.top + container.scrollTop - headerH;
         container.scrollTo({ top: Math.max(targetTop, 0), behavior: 'auto' });
     }
-    
+
 
     const handleMouseDown = (e: React.MouseEvent, colIndex: number) => {
         setDragging({ col: colIndex, startX: e.clientX, startWidth: colWidths[colIndex] });
@@ -627,7 +627,7 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
     useEffect(() => {
         if (selectedIndex == null) return;
         scrollRowIntoView(selectedIndex, styles.queryResultTable);
-    }, [selectedIndex]);    
+    }, [selectedIndex]);
 
     // 3. 查询逻辑
 
@@ -1537,31 +1537,30 @@ const PotentialCustomer: React.FC<PotentialCustomersProps> = ({ insuranceCompani
                                                                 </td>
                                                             </>
                                                         ) : (
-                                                            // 单字段一行（备注 + 可复制）
-                                                            <td colSpan={3} className={styles.valueCell}>
-                                                                <div className={styles.valueCellInner}>
-                                                                    <span className={styles.valueText}>
-                                                                        {key1 === "note" ? (
-                                                                            selectedDetail.note || <span style={{ color: "#bbb" }}>暂无备注</span>
-                                                                        ) : (
-                                                                            selectedDetail[key1 as keyof PotentialCustomer] ?? ""
-                                                                        )}
-                                                                    </span>
-
-                                                                    <span
-                                                                        className={`${styles.copyIcon} ${copiedKey === key1 ? styles.copied : ""}`}
-                                                                        onClick={() =>
-                                                                            copyToClipboard(
-                                                                                key1,
-                                                                                key1 === "note"
-                                                                                    ? selectedDetail.note
-                                                                                    : selectedDetail[key1 as keyof PotentialCustomer]
-                                                                            )
-                                                                        }
+                                                            // 单字段一行（备注专用，合并3列）
+                                                            <td colSpan={3}>
+                                                                {key1 === "note" ? (
+                                                                    <div
+                                                                        style={{
+                                                                            whiteSpace: "nowrap",
+                                                                            overflow: "hidden",
+                                                                            textOverflow: "ellipsis",
+                                                                            cursor: "pointer",
+                                                                            minHeight: 28,
+                                                                            color: "#49597b"
+                                                                        }}
+                                                                        title={selectedDetail.note ?? ""}
+                                                                        onClick={() => {
+                                                                            setCommentEditValue(selectedDetail.note ?? "");
+                                                                            setShowCommentModal(true);
+                                                                        }}
                                                                     >
-                                                                        {copiedKey === key1 ? "☑" : "📋"}
-                                                                    </span>
-                                                                </div>
+                                                                        {selectedDetail.note || <span style={{ color: "#bbb" }}>暂无备注</span>}
+                                                                        <span style={{ marginLeft: 10, color: "#198cff", fontSize: 12 }}>📝点击编辑</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    selectedDetail[key1 as keyof PotentialCustomer] ?? ""
+                                                                )}
                                                             </td>
                                                         )}
                                                     </tr>
