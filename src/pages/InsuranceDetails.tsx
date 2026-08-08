@@ -11,6 +11,7 @@ import {
 import { getTodayDate, getNowDateTime, formatDateTime, formatDate } from '../utils/dateUtils';
 import { renderInsuranceInput, calcReceivablePremium, InsuranceCompanySelect, AgentSelectInput } from "../utils/insuranceFormUtils";
 import { exportXlsx, XlsxColumn } from "../utils/exportXlsx";
+import { prepareImageForUpload } from "../utils/imageUpload";
 
 type InsuranceDetailsProps = {
   insuranceCompanies: any[];
@@ -318,6 +319,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
   // 新增身份证图片的状态
   const [idCardImages, setIdCardImages] = useState<{ faceUrl?: string, backUrl?: string }>({});
   const [idCardUploading, setIdCardUploading] = useState<{ face: boolean, back: boolean }>({ face: false, back: false });
+  const [imageDragTarget, setImageDragTarget] = useState<"face" | "back" | "other" | null>(null);
 
   const [showLogModal, setShowLogModal] = useState(false);
   const [logRecords, setLogRecords] = useState<any[]>([]);
@@ -1740,20 +1742,29 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
     }
   };
 
-  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadAdditionalImage = async (file: File) => {
     if (!selectedDetail) return;
+    try {
+      setImageUploading(true);
+      const uploadFile = await prepareImageForUpload(file);
+      await uploadInsuranceImage({ detailId: selectedDetail.id, file: uploadFile });
+      const imgRes = await fetchInsuranceImages(selectedDetail.id);
+      setInsuranceImages(imgRes.data || []);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "图片上传失败");
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const MAX_SIZE_MB = 20;
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      alert(`文件不能超过 ${MAX_SIZE_MB}MB`);
-      return false;
+    try {
+      await uploadAdditionalImage(file);
+    } finally {
+      e.target.value = "";
     }
-    setImageUploading(true);
-    await uploadInsuranceImage({ detailId: selectedDetail.id, file });
-    const imgRes = await fetchInsuranceImages(selectedDetail.id);
-    setInsuranceImages(imgRes.data || []);
-    setImageUploading(false);
   };
 
   const handleDeleteImage = async (imageId: string) => {
@@ -1776,10 +1787,54 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
 
   const handleUploadIdCardImage = async (file: File, type: "face" | "back") => {
     if (!selectedDetail) return;
-    setIdCardUploading(up => ({ ...up, [type]: true }));
-    await uploadIdCardImage(file, selectedDetail.insuredIdNumber, type);
-    await refreshIdCardImage();
-    setIdCardUploading(up => ({ ...up, [type]: false }));
+    try {
+      setIdCardUploading(up => ({ ...up, [type]: true }));
+      const uploadFile = await prepareImageForUpload(file);
+      await uploadIdCardImage(uploadFile, selectedDetail.insuredIdNumber, type);
+      await refreshIdCardImage();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "图片上传失败");
+    } finally {
+      setIdCardUploading(up => ({ ...up, [type]: false }));
+    }
+  };
+
+  const handleImageDrop = async (
+    event: React.DragEvent<HTMLDivElement>,
+    target: "face" | "back" | "other"
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setImageDragTarget(null);
+
+    const file = event.dataTransfer.files?.[0];
+    if (!file) {
+      alert("没有检测到图片文件，请从微信或桌面拖入图片");
+      return;
+    }
+
+    if (target === "other") {
+      if (imageUploading || !window.confirm("你是否要新增图片？")) return;
+      await uploadAdditionalImage(file);
+      return;
+    }
+
+    if (idCardUploading[target]) return;
+    const sideName = target === "face" ? "身份证正面" : "身份证反面";
+    const hasImage = target === "face" ? Boolean(idCardImages.faceUrl) : Boolean(idCardImages.backUrl);
+    const action = hasImage ? "替换" : "上传";
+    if (!window.confirm(`你是否要${action}${sideName}？`)) return;
+    await handleUploadIdCardImage(file, target);
+  };
+
+  const allowImageDrop = (
+    event: React.DragEvent<HTMLDivElement>,
+    target: "face" | "back" | "other"
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+    setImageDragTarget(target);
   };
 
   const refreshIdCardImage = async () => {
@@ -2588,7 +2643,16 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                       {/* ===== 第一行：身份证照片 ===== */}
                       <div className={styles.imageGrid}>
                         {/* 人像面 */}
-                        <div className={styles.imageCard}>
+                        <div
+                          className={`${styles.imageCard} ${imageDragTarget === "face" ? styles.imageDropActive : ""}`}
+                          onDragEnter={event => allowImageDrop(event, "face")}
+                          onDragOver={event => allowImageDrop(event, "face")}
+                          onDragLeave={event => {
+                            event.stopPropagation();
+                            if (!event.currentTarget.contains(event.relatedTarget as Node)) setImageDragTarget(null);
+                          }}
+                          onDrop={event => void handleImageDrop(event, "face")}
+                        >
                           <img
                             src={idCardImages.faceUrl || "/uploads/insured_idcards/idcard_face_example.png"}
                             alt="人像面"
@@ -2619,9 +2683,10 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                                 type="file"
                                 accept="image/*"
                                 disabled={idCardUploading.face}
-                                onChange={e => {
+                                onChange={async e => {
                                   const file = e.target.files?.[0];
-                                  if (file) handleUploadIdCardImage(file, "face");
+                                  if (file) await handleUploadIdCardImage(file, "face");
+                                  e.target.value = "";
                                 }}
                                 style={{ display: "none" }}
                               />
@@ -2647,7 +2712,16 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                         </div>
 
                         {/* 国徽面 */}
-                        <div className={styles.imageCard}>
+                        <div
+                          className={`${styles.imageCard} ${imageDragTarget === "back" ? styles.imageDropActive : ""}`}
+                          onDragEnter={event => allowImageDrop(event, "back")}
+                          onDragOver={event => allowImageDrop(event, "back")}
+                          onDragLeave={event => {
+                            event.stopPropagation();
+                            if (!event.currentTarget.contains(event.relatedTarget as Node)) setImageDragTarget(null);
+                          }}
+                          onDrop={event => void handleImageDrop(event, "back")}
+                        >
                           <img
                             src={idCardImages.backUrl || "/uploads/insured_idcards/idcard_back_example.png"}
                             alt="国徽面"
@@ -2677,9 +2751,10 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                                 type="file"
                                 accept="image/*"
                                 disabled={idCardUploading.back}
-                                onChange={e => {
+                                onChange={async e => {
                                   const file = e.target.files?.[0];
-                                  if (file) handleUploadIdCardImage(file, "back");
+                                  if (file) await handleUploadIdCardImage(file, "back");
+                                  e.target.value = "";
                                 }}
                                 style={{ display: "none" }}
                               />
@@ -2705,6 +2780,15 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                         </div>
                       </div>
 
+                      <div
+                        className={`${styles.additionalImageDropZone} ${imageDragTarget === "other" ? styles.imageDropActive : ""}`}
+                        onDragEnter={event => allowImageDrop(event, "other")}
+                        onDragOver={event => allowImageDrop(event, "other")}
+                        onDragLeave={event => {
+                          if (!event.currentTarget.contains(event.relatedTarget as Node)) setImageDragTarget(null);
+                        }}
+                        onDrop={event => void handleImageDrop(event, "other")}
+                      >
                       {/* ===== 第二行：上传新图片按钮 ===== */}
                       <div style={{ margin: "18px 0 8px 0", display: "flex", alignItems: "center" }}>
                         <label className={styles.cardBtn} style={{ fontSize: 15 }}>
@@ -2784,6 +2868,7 @@ const InsuranceDetails: React.FC<InsuranceDetailsProps> = ({ insuranceCompanies,
                             )}
                           </div>
                         ))}
+                      </div>
                       </div>
                     </div>
                   </div>

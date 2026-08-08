@@ -30,6 +30,16 @@ const isSuperAdmin = role === "superAdmin";
 
 const OTHERS_DEPT_CODE = "OTHER";
 const OTHERS_DEPT_NAME = "其他";
+const UNRANKED_DEPT_CODE = "0000";
+const UNRANKED_DEPARTMENT: Department = {
+  deptCode: UNRANKED_DEPT_CODE,
+  deptName: "不排名",
+};
+
+const getDepartmentTitle = (dept: Pick<DepartmentWithMembers, "deptCode" | "deptName">) =>
+  dept.deptCode === OTHERS_DEPT_CODE || dept.deptCode === UNRANKED_DEPT_CODE
+    ? dept.deptName
+    : `${dept.deptCode}-${dept.deptName}`;
 
 const DepartmentStatsTable: React.FC = () => {
   // 部门表头
@@ -61,7 +71,7 @@ const DepartmentStatsTable: React.FC = () => {
     // 1) 头两行
     const headerRow1: string[] = [], headerRow2: string[] = [];
     departmentData.forEach(dept => {
-      const title = dept.deptCode === "OTHER" ? dept.deptName : `${dept.deptCode}-${dept.deptName}`;
+      const title = getDepartmentTitle(dept);
       headerRow1.push(title, "", "", "", "");
       headerRow2.push(...subHeaders);
     });
@@ -155,8 +165,14 @@ const DepartmentStatsTable: React.FC = () => {
         paidStatus
       });
 
+      // “不排名”是部门统计专用的虚拟部门，固定显示在最左侧。
+      const displayDepartments = [
+        UNRANKED_DEPARTMENT,
+        ...departments.filter(dept => dept.deptCode !== UNRANKED_DEPARTMENT.deptCode),
+      ];
+
       // 部门归类，顺序以表头为准
-      const depts: DepartmentWithMembers[] = departments.map(dept => ({
+      const depts: DepartmentWithMembers[] = displayDepartments.map(dept => ({
         deptCode: dept.deptCode,
         deptName: dept.deptName,
         members: stats
@@ -247,9 +263,7 @@ const DepartmentStatsTable: React.FC = () => {
         title: (
           <div className={styles.deptTitleWrap}>
             <span>
-              {dept.deptCode === OTHERS_DEPT_CODE
-                ? dept.deptName
-                : `${dept.deptCode}-${dept.deptName}`}
+              {getDepartmentTitle(dept)}
             </span>
             <div className={styles.deptBar}></div>
           </div>
